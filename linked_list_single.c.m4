@@ -2,7 +2,7 @@ include(linked_structures.h.name.m4)dnl
 -{#include}- "H_NAME"
 
 void
-SLL_PREFIX-{}-printList(SLL_NAME* head, TSPEC_NAME* type){
+SLL_PREFIX-{}-print(SLL_NAME* head, TSPEC_NAME* type){
 	SLL_NAME *run;
 	size_t i = 0;
 	if(!head){
@@ -17,7 +17,7 @@ SLL_PREFIX-{}-printList(SLL_NAME* head, TSPEC_NAME* type){
 }
 
 SLL_NAME*
-SLL_PREFIX-{}-pushList(SLL_NAME* he, void* buf, BOOLEAN copy, TSPEC_NAME *type){
+SLL_PREFIX-{}-push(SLL_NAME* he, void* buf, BOOLEAN copy, TSPEC_NAME *type){
 	SLL_NAME *lm;
 	lm = (SLL_NAME*)type->adalloc(sizeof(SLL_NAME));
 	if(copy){
@@ -35,7 +35,7 @@ SLL_PREFIX-{}-pushList(SLL_NAME* he, void* buf, BOOLEAN copy, TSPEC_NAME *type){
 	return he;
 }
 SLL_NAME*
-SLL_PREFIX-{}-queueList(SLL_NAME* he, void* buf, BOOLEAN copy, TSPEC_NAME* type){
+SLL_PREFIX-{}-append(SLL_NAME* he, void* buf, BOOLEAN copy, TSPEC_NAME* type){
 	SLL_NAME *lm, *he2;
 	lm = (SLL_NAME*)type->adalloc(sizeof(SLL_NAME));
 	if(copy){
@@ -54,7 +54,7 @@ SLL_PREFIX-{}-queueList(SLL_NAME* he, void* buf, BOOLEAN copy, TSPEC_NAME* type)
 }
 SLL_NAME*
 SLL_PREFIX-{}-addOrdered(SLL_NAME* he, void* buf, BOOLEAN deep_copy, BOOLEAN overwrite, TSPEC_NAME* type){
-	if(!type->compar) return SLL_PREFIX-{}-pushList(he, buf, deep_copy, type); //add to front if compar is null
+	if(!type->compar) return SLL_PREFIX-{}-push(he, buf, deep_copy, type); //add to front if compar is null
 	SLL_NAME *run, *lm, *runp = NULL;
 
 	lm = (SLL_NAME*)type->adalloc(sizeof(SLL_NAME));
@@ -88,23 +88,23 @@ SLL_PREFIX-{}-addOrdered(SLL_NAME* he, void* buf, BOOLEAN deep_copy, BOOLEAN ove
 }
 
 SLL_NAME*
-SLL_PREFIX-{}-copyList(SLL_NAME* src, BOOLEAN deep_copy, TSPEC_NAME* type){
+SLL_PREFIX-{}-copy(SLL_NAME* src, BOOLEAN deep_copy, TSPEC_NAME* type){
 	SLL_NAME *the_list, *list_start, *runner = src;
 	void* new_data = runner->data;
 	if(deep_copy) new_data = type->deep_copy(new_data);
-	the_list = list_start = SLL_PREFIX-{}-pushList(NULL, new_data, 0, FALSE);
+	the_list = list_start = SLL_PREFIX-{}-push(NULL, new_data, 0, FALSE);
 	runner = runner->next;
 	for(; runner != NULL; runner = runner->next){
 		void* new_data = runner->data;
 		if(deep_copy) new_data = type->deep_copy(new_data);
-		the_list = SLL_PREFIX-{}-queueList(the_list, new_data, 0, FALSE)->next;
+		the_list = SLL_PREFIX-{}-append(the_list, new_data, 0, FALSE)->next;
 	}
 	return list_start;
 }
 
 
 void
-SLL_PREFIX-{}-clearList(SLL_NAME *head, BOOLEAN free_data, TSPEC_NAME* type){
+SLL_PREFIX-{}-clear(SLL_NAME *head, BOOLEAN free_data, TSPEC_NAME* type){
 	SLL_NAME *run = head, *p = head;
 	for(; run; run = p){
 		if(free_data) type->adfree(run->data);
@@ -114,7 +114,7 @@ SLL_PREFIX-{}-clearList(SLL_NAME *head, BOOLEAN free_data, TSPEC_NAME* type){
 }
 
 SLL_NAME*
-SLL_PREFIX-{}-dequeueList(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_NAME* type){
+SLL_PREFIX-{}-dequeue(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_NAME* type){
 	if(!head) return NULL;
 	SLL_NAME *run = head, *p = head;
 	if(!run->next){
@@ -131,7 +131,7 @@ SLL_PREFIX-{}-dequeueList(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_
 	return head;
 }
 SLL_NAME*
-SLL_PREFIX-{}-popList(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_NAME* type){
+SLL_PREFIX-{}-pop(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_NAME* type){
 	SLL_NAME *run = head;
 	if(!head) return head;
 	run = head;
@@ -142,7 +142,7 @@ SLL_PREFIX-{}-popList(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_NAME
 	return head;
 }
 SLL_NAME*
-SLL_PREFIX-{}-removeElementKey(SLL_NAME *head, void** data, void* key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME* type){
+SLL_PREFIX-{}-removeViaKey(SLL_NAME *head, void** data, void* key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME* type){
 	SLL_NAME *run = head, *runp = NULL;
 	if(head == NULL) {
 		return NULL;
@@ -219,12 +219,12 @@ SLL_NAME* p = head;
 }
 
 ifdef(-{DCLL}-,-{dnl
-DCLL_PREFIX-{}-linkedList*
-SLL_PREFIX-{}-linkedList_to_double(SLL_NAME *head, BOOLEAN deep, TSPEC_NAME* type){
+DCLL_NAME* 
+SLL_NAME-{}-_to_-{}-DCLL_NAME-{}-(SLL_NAME *head, BOOLEAN deep, TSPEC_NAME* type){
 	SLL_NAME* p = head;
-	DCLL_PREFIX-{}-linkedList* d = NULL;
+	DCLL_NAME* d = NULL;
 	for(; p; p = p->next){
-		d = DCLL_PREFIX-{}-queueList(d, NULL, p->data, deep, type);
+		d = DCLL_PREFIX-{}-append(d, NULL, p->data, deep, type);
 	}
 	return d;
 }
@@ -249,7 +249,7 @@ ldp(char* t, SLL_NAME* l, SLL_NAME* n){
 }
 
 SLL_NAME*
-SLL_PREFIX-{}-mergeLists(SLL_NAME* dst, SLL_NAME* src, TSPEC_NAME* type){
+SLL_PREFIX-{}-merge(SLL_NAME* dst, SLL_NAME* src, TSPEC_NAME* type){
 	if(type->compar){//merge sorted, assume both lists are already sorted
 		if(type->compar(src->data, dst->data) < 0){ //always merge into list with smaller head
 			SLL_NAME *tmp = dst;
@@ -276,10 +276,10 @@ SLL_PREFIX-{}-mergeLists(SLL_NAME* dst, SLL_NAME* src, TSPEC_NAME* type){
 				} while(runsrc_end != runsrc && type->compar(rundst->data, runsrc_end->data) >= 0);
 				if(runsrc_end == runsrc) l2_done = TRUE;
 				//ldp("Interstate 2", runsrc, runsrc_end);
-				SLL_PREFIX-{}-splitList(runsrc, runsrc_end);
+				SLL_PREFIX-{}-split(runsrc, runsrc_end);
 			}
 			//ldp("Merging", runsrc, NULL);
-			SLL_PREFIX-{}-concatLists(rundst, runsrc);
+			SLL_PREFIX-{}-concat(rundst, runsrc);
 			//ldp("Merged", dst, rundst);
 			runsrc = runsrc_end;
 		} while(!l2_done); //Theta(n) time
@@ -287,12 +287,12 @@ SLL_PREFIX-{}-mergeLists(SLL_NAME* dst, SLL_NAME* src, TSPEC_NAME* type){
 		//printf("List Mostly Merged...\n");
 		return dst;
 	} else {
-		return SLL_PREFIX-{}-concatLists(dst, src);
+		return SLL_PREFIX-{}-concat(dst, src);
 	}
 }
 
 SLL_NAME*
-SLL_PREFIX-{}-mergeSort(SLL_NAME* head, TSPEC_NAME* type){//this can be faster, using "natural" mergesort
+SLL_PREFIX-{}-sort(SLL_NAME* head, TSPEC_NAME* type){//this can be faster, using "natural" mergesort
 	SLL_NAME *left = head, *right = head->next;
 	if(left != right){
 		/*do{
@@ -307,21 +307,21 @@ SLL_PREFIX-{}-mergeSort(SLL_NAME* head, TSPEC_NAME* type){//this can be faster, 
 		} while(hare->prev != head && hare != head); //find middle (either we jump over it or land on it)
 		right = tortise;
 		//ldp("->Middle", head, right);
-		SLL_PREFIX-{}-splitList(left, right);
-		left = SLL_PREFIX-{}-mergeSort(left, type);
-		right = SLL_PREFIX-{}-mergeSort(right, type);
-		return SLL_PREFIX-{}-mergeLists(left, right, type);
+		SLL_PREFIX-{}-split(left, right);
+		left = SLL_PREFIX-{}-sort(left, type);
+		right = SLL_PREFIX-{}-sort(right, type);
+		return SLL_PREFIX-{}-merge(left, right, type);
 	}
 	return head;
 }
 
 SLL_NAME*
-SLL_PREFIX-{}-splitList(SLL_NAME* h1, SLL_NAME* h2){
+SLL_PREFIX-{}-split(SLL_NAME* h1, SLL_NAME* h2){
 	return h2;
 }
 
 SLL_NAME*
-SLL_PREFIX-{}-concatLists(SLL_NAME *dst, SLL_NAME* src){
+SLL_PREFIX-{}-concat(SLL_NAME *dst, SLL_NAME* src){
 	SLL_NAME *t = dst;
 	for(;t->next != NULL; t = t->next);
 	t->next = src;
@@ -331,7 +331,7 @@ SLL_PREFIX-{}-concatLists(SLL_NAME *dst, SLL_NAME* src){
 }-)dnl
 
 void*
-SLL_PREFIX-{}-findInList(SLL_NAME *head, void* key, BOOLEAN ordered, TSPEC_NAME *type){
+SLL_PREFIX-{}-find(SLL_NAME *head, void* key, BOOLEAN ordered, TSPEC_NAME *type){
 	if(!head) return NULL;
 SLL_NAME* p = head;
 	for(; p->next && (ordered?type->key_compar(key, p->data) < 0:type->key_compar(key, p->data) != 0); p = p->next);

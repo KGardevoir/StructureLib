@@ -9,7 +9,7 @@ make_dlist(int a[], size_t s, tspec* type){
 	long i = 0;
 	double_linkedList* newl = NULL;
 	for(; i < s; i++){
-		newl = double_queueList(newl, NULL, (void*)a[i], 0, type);
+		newl = double_append(newl, NULL, (void*)a[i], 0, type);
 	}
 	return newl;
 }
@@ -40,6 +40,6 @@ main(int argc, char** argv){
 	//print_list(double_concatLists(l1, l2));
 	//print_list(double_mergeLists(l1, l3, compare_ints));
 	printf("Test  2---------------------------\n");
-	print_list(double_mergeSort(l2, &list_type));
+	print_list(double_sort(l2, &list_type));
 	return 0;
 }
