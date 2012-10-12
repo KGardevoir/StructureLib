@@ -5,14 +5,20 @@ pushdef(-{H_NAME}-, translit(translit(H_NAME, -{a-z}-,-{A-Z}-),-{.}-,-{_}-))dnl
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+typedef void* (*lMemoryAllocator)(size_t);//how to allocate
+typedef void* (*lMemoryFree)(void*);
+typedef void* (*lDeepCopy)(void* src); //return a copy of the information (within a newly allocated buffer)
+typedef long  (*lCompare)(void* key,void*); //how to compare (NULL if undesired)
+typedef long  (*lKeyCompare)(void *key, void*);
+typedef char* (*lToString)(void*); //how to convert to a string
 
 typedef struct TSPEC_NAME {
-	void* (*adalloc)(size_t);//how to allocate
-	void  (*adfree)(void*); //how to free
-	void* (*deep_copy)(void* src); //return a copy of the information (within a newly allocated buffer)
-	long  (*compar)(void* key,void*); //how to compare (NULL if undesired)
-	long  (*key_compar)(void *key, void*);
-	char* (*strfunc)(void*); //how to convert to a string
+	lMemoryAllocator adalloc;
+	lMemoryFree adfree;
+	lDeepCopy deep_copy;
+	lCompare compar;
+	lKeyCompare key_compar;
+	lToString strfunc;
 	char* name; //type name
 } TSPEC_NAME;
 
