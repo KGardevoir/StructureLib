@@ -62,7 +62,8 @@ SLL_NAME* SLL_NAME-{}-_pop(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC
 SLL_NAME* SLL_NAME-{}-_removeViaKey(SLL_NAME *head, void **data, void* key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME*);
 
 //Other Operations
-SLL_NAME* SLL_NAME-{}-_map(SLL_NAME *head, SLL_NAME* (func)(void*, SLL_NAME*));
+typedef SLL_NAME* (*SLMapFunc)(void*,SLL_NAME*); //a mapping function
+SLL_NAME* SLL_NAME-{}-_map(SLL_NAME *head, SLMapFunc);
 //Transform
 ifdef(-{SLL_TRANSFORMS}-,-{dnl
 	void** SLL_NAME-{}-_toArray(SLL_NAME *head, BOOLEAN deep, TSPEC_NAME*);
@@ -98,7 +99,8 @@ DCLL_NAME* DCLL_NAME-{}-_removeViaKey(DCLL_NAME*, void **data, void *key, BOOLEA
 DCLL_NAME* DCLL_NAME-{}-_removeElement(DCLL_NAME *head, DCLL_NAME *rem, BOOLEAN free_data, TSPEC_NAME* type);
 
 //Other Operations
-DCLL_NAME* DCLL_NAME-{}-_map(DCLL_NAME *head, DCLL_NAME* (func)(void*, DCLL_NAME*));
+typedef DCLL_NAME* (*LMapFunc)(void*,DCLL_NAME*); //a mapping function
+DCLL_NAME* DCLL_NAME-{}-_map(DCLL_NAME *head, LMapFunc);
 //Transform
 ifdef(-{DCLL_TRANSFORMS}-,-{dnl
 void** DCLL_NAME-{}-_toArray(DCLL_NAME *head, BOOLEAN deep, TSPEC_NAME*);
