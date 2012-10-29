@@ -125,10 +125,25 @@ DCLL_NAME-{}-_removeViaKey(DCLL_NAME *head, void** data, void* key, BOOLEAN orde
 	if(head == NULL){
 		return NULL;
 	}
-	do{ if(ordered?type->key_compar(key, run->data) <= 0:type->key_compar(key, run->data) == 0) break; run = run->next; } while(run != head);
+	do{ if(ordered?type->key_compar(key, run->data) >= 0:type->key_compar(key, run->data) == 0) break; run = run->next; } while(run != head);
 	if(type->key_compar(key, run->data) == 0){
 		head = DCLL_NAME-{}-_removeElement(head, run, free_data, type);
 	}
+	return head;
+}
+
+DCLL_NAME*
+DCLL_NAME-{}-_removeViaAllKey(DCLL_NAME *head, void** data, void* key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME* type){
+	DCLL_NAME *run = head;
+	if(head == NULL){
+		return NULL;
+	}
+	do{
+		if(ordered && type->key_compar(key, run->data) > 0) break;
+		if(type->key_compar(key, run->data) == 0)
+			head = DCLL_NAME-{}-_removeElement(head, run, free_data, type);
+		run = run->next;
+	} while(run != head);
 	return head;
 }
 
@@ -298,7 +313,7 @@ DCLL_NAME*
 DCLL_NAME-{}-_find(DCLL_NAME *head, void* key, BOOLEAN ordered, TSPEC_NAME* type){
 	if(!head) return NULL;
 	DCLL_NAME* p = head;
-	do { if(ordered?type->key_compar(key,p->data) <= 0:type->key_compar(key,p->data) == 0) break; p = p->next; } while(p != head);
+	do { if(ordered?type->key_compar(key,p->data) >= 0:type->key_compar(key,p->data) == 0) break; p = p->next; } while(p != head);
 	if(type->key_compar(key, p->data) == 0) return p;
 	return NULL;
 }

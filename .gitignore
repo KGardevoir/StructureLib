@@ -1,0 +1,37 @@
+# Compiled and Generated Files #
+################################
+*.o
+sepiidae_lexer.h
+sepiidae_lexer.c
+sepiidae_lexer-configuration.h
+sepiidae_lexer-token.h
+sepiidae_lexer-token_ids.h
+sepiidae_parser.y
+sepiidae_parser.tab.c
+sepiidae_parser.tab.h
+lexer
+
+# Debug Files #
+###############
+sepiidae_parser.output
+
+# Temporary Directory #
+#######################
+tmp/*
+
+# Vim Swap Files #
+##################
+*.swo
+*.swp
+
+# Ctags #
+#########
+tags
+
+# packages #
+############
+*.tbz2
+*.tar.bz2
+*.tar.xz
+*.tar.gz
+*.tar

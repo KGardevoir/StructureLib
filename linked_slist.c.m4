@@ -147,7 +147,7 @@ SLL_NAME-{}-_removeViaKey(SLL_NAME *head, void** data, void* key, BOOLEAN ordere
 	if(head == NULL) {
 		return NULL;
 	}
-	for(run = head; run && (ordered?type->key_compar(key, run->data) > 0:type->key_compar(key, run->data) != 0); run = run->next){
+	for(run = head; run && (ordered?type->key_compar(key, run->data) <= 0:type->key_compar(key, run->data) != 0); run = run->next){
 		runp = run;
 	}
 	if(run && type->key_compar(key, run->data) == 0){
@@ -159,6 +159,53 @@ SLL_NAME-{}-_removeViaKey(SLL_NAME *head, void** data, void* key, BOOLEAN ordere
 		} else {
 			head = run->next;
 			if(data) *data = run->data;
+			if(free_data) type->adfree(run->data);
+			type->adfree(run);
+		}
+	}
+	return head;
+}
+SLL_NAME*
+SLL_NAME-{}-_removeAllViaKey(SLL_NAME *head, void** data, void* key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME* type){
+	SLL_NAME *run = head, *runp = NULL;
+	if(head == NULL) {
+		return NULL;
+	}
+	for(run = head; run; run = run->next){
+		if(ordered && type->key_compar(key, run->data) > 0) break;
+		if(type->key_compar(key, run->data) == 0){
+			if(runp){
+				runp->next = run->next;
+				if(data) *data = run->data;
+				if(free_data) type->adfree(run->data);
+				type->adfree(run);
+			} else {
+				head = run->next;
+				if(data) *data = run->data;
+				if(free_data) type->adfree(run->data);
+				type->adfree(run);
+			}
+		}
+		runp = run;
+	}
+	return head;
+}
+SLL_NAME*
+SLL_NAME-{}-_removeElement(SLL_NAME *head, SLL_NAME *rem, BOOLEAN free_data, TSPEC_NAME* type){
+	SLL_NAME *run = head, *runp = NULL;
+	if(head == NULL) {
+		return NULL;
+	}
+	for(run = head; run && run != 0; run = run->next){
+		runp = run;
+	}
+	if(run && rem == run){
+		if(runp){
+			runp->next = run->next;
+			if(free_data) type->adfree(run->data);
+			type->adfree(run);
+		} else {
+			head = run->next;
 			if(free_data) type->adfree(run->data);
 			type->adfree(run);
 		}

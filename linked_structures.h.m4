@@ -59,6 +59,8 @@ SLL_NAME* SLL_NAME-{}-_copy(SLL_NAME* src, BOOLEAN deep_copy, TSPEC_NAME*);
 void SLL_NAME-{}-_clear(SLL_NAME *he, BOOLEAN free_data, TSPEC_NAME*);
 SLL_NAME* SLL_NAME-{}-_dequeue(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_NAME*);
 SLL_NAME* SLL_NAME-{}-_pop(SLL_NAME *head, void** data, BOOLEAN free_data, TSPEC_NAME*);
+SLL_NAME* SLL_NAME-{}-_removeElement(SLL_NAME *head, SLL_NAME *rem, BOOLEAN free_data, TSPEC_NAME* type);
+SLL_NAME* SLL_NAME-{}-_removeViaAllKey(SLL_NAME *head, void **data, void* key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME*);
 SLL_NAME* SLL_NAME-{}-_removeViaKey(SLL_NAME *head, void **data, void* key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME*);
 
 //Other Operations
@@ -96,6 +98,7 @@ void DCLL_NAME-{}-_clear(DCLL_NAME *he, BOOLEAN free_data, TSPEC_NAME*);
 DCLL_NAME* DCLL_NAME-{}-_dequeue(DCLL_NAME* head, void** data, BOOLEAN free_data, TSPEC_NAME*);
 DCLL_NAME* DCLL_NAME-{}-_pop(DCLL_NAME* he, void** data, BOOLEAN free_data, TSPEC_NAME*);
 DCLL_NAME* DCLL_NAME-{}-_removeViaKey(DCLL_NAME*, void **data, void *key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME*);
+DCLL_NAME* DCLL_NAME-{}-_removeAllViaKey(DCLL_NAME*, void **data, void *key, BOOLEAN ordered, BOOLEAN free_data, TSPEC_NAME*);
 DCLL_NAME* DCLL_NAME-{}-_removeElement(DCLL_NAME *head, DCLL_NAME *rem, BOOLEAN free_data, TSPEC_NAME* type);
 
 //Other Operations
