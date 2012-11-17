@@ -162,6 +162,7 @@ DCLL_NAME-{}-_map(DCLL_NAME *head, DCLL_NAME* (func)(void*,DCLL_NAME*)){
 		tmp = func(run->data, tmp);
 		run = run->next;
 	} while(run != head);
+	return tmp;
 }
 
 ifdef(-{DCLL_TRANSFORMS}-,-{
