@@ -307,10 +307,13 @@ dlist_concat(dlist* dsthead, dlist* srchead){
 //End Merging
 
 dlist*
-dlist_find(dlist *head, void* key, BOOLEAN ordered, list_tspec* type){
+dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec* type){
 	if(!head) return NULL;
 	dlist* p = head;
-	do { if(ordered?type->key_compar(key,p->data) >= 0:type->key_compar(key,p->data) == 0) break; p = p->next; } while(p != head);
+	do {
+		if(ordered?(type->key_compar(key,p->data) <= 0):(type->key_compar(key,p->data) == 0)) break;
+		p = p->next;
+	} while(p != head);
 	if(type->key_compar(key, p->data) == 0) return p;
 	return NULL;
 }

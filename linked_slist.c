@@ -280,7 +280,7 @@ void*
 slist_find(slist *head, void* key, BOOLEAN ordered, list_tspec *type){
 	if(!head) return NULL;
 slist* p = head;
-	for(; p->next && (ordered?type->key_compar(key, p->data) < 0:type->key_compar(key, p->data) != 0); p = p->next);
+	for(; p->next && (ordered?type->key_compar(key, p->data) > 0:type->key_compar(key, p->data) != 0); p = p->next);
 	if(p && type->compar(key, p->data) == 0) return p->data;
 	return NULL;
 }
