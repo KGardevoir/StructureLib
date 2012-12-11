@@ -1,6 +1,8 @@
 # Compiled and Generated Files #
 ################################
 *.o
+*.a
+*.so
 sepiidae_lexer.h
 sepiidae_lexer.c
 sepiidae_lexer-configuration.h
