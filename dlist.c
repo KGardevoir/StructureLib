@@ -1,18 +1,5 @@
 #include "linked_structures.h"
 
-void
-dlist_print(dlist* head, list_tspec* type){
-	dlist *run = head;
-	size_t i = 0;
-	do{
-		char* t;
-		printf("list[%u]: %s\n", (unsigned int)i, t = type->strfunc(run->data));
-		type->adfree(t);
-		run = run->next;
-		i++;
-	} while(run != head);
-}
-
 dlist*
 dlist_push(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec* type){
 	return dlist_append(he, buf, deep_copy, type)->prev;
@@ -67,7 +54,7 @@ dlist_addOrdered(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec *type){
 
 dlist*
 dlist_copy(dlist* src, BOOLEAN deep_copy, list_tspec* type){
-	dlist* mnew, *runner = src;
+	dlist* mnew = NULL, *runner = src;
 	do{
 		void* new_data = runner->data;
 		if(deep_copy) new_data = type->deep_copy(new_data);
@@ -89,6 +76,18 @@ dlist_clear(dlist *head, BOOLEAN free_data, list_tspec* type){
 	} while(run != head);
 }
 
+size_t
+dlist_length(dlist *head){
+	if(head == NULL) return 0;
+	dlist *run = head;
+	size_t i = 0;
+	do {
+		i++;
+		run = run->next;
+	} while(run != head);
+	return i;
+}
+
 dlist*
 dlist_dequeue(dlist *head, void** data, BOOLEAN free_data, list_tspec* type){
 	if(!head) return NULL;
@@ -99,7 +98,6 @@ dlist_dequeue(dlist *head, void** data, BOOLEAN free_data, list_tspec* type){
 	} else {
 		head->next->prev = head->prev;
 		head->prev->next = head->next;
-		dlist *tmp = head;
 		head = head->next;
 		if(data) *data = head->data;
 		if(free_data) type->adfree(head->data);
@@ -149,9 +147,8 @@ dlist_removeElement(dlist *head, dlist *rem, BOOLEAN free_data, list_tspec* type
 
 //Other Functions
 BOOLEAN
-dlist_map(dlist *head, void* aux, LMapFunc func){
+dlist_map(dlist *head, void* aux, lMapFunc func){
 	dlist *run = head;
-	BOOLEAN rtn_val;
 	do{
 		if(!func(run->data, aux)) return FALSE;
 		run = run->next;
@@ -243,10 +240,10 @@ dlist_merge(dlist* dst, dlist* src, list_tspec *type){
 				} while(runsrc_end != runsrc && type->compar(rundst->data, runsrc_end->data) >= 0);
 				if(runsrc_end == runsrc) l2_done = TRUE;
 				//ldp("Interstate 2", runsrc, runsrc_end);
-				dlist *dummy = dlist_split(runsrc, runsrc_end);
+				(void)dlist_split(runsrc, runsrc_end);
 			}
 			//ldp("Merging", runsrc, NULL);
-			dlist *dummy = dlist_concat(rundst, runsrc);
+			(void)dlist_concat(rundst, runsrc);
 			//ldp("Merged", dst, rundst);
 			runsrc = runsrc_end;
 		} while(!l2_done); //Theta(n) time
@@ -274,7 +271,7 @@ dlist_sort(dlist* head, list_tspec* type){//this can be faster, using "natural" 
 		} while(hare->prev != head && hare != head); //find middle (either we jump over it or land on it)
 		right = tortise;
 		//ldp("->Middle", head, right);
-		dlist *dummy = dlist_split(left, right);//suppress warning
+		(void)dlist_split(left, right);//suppress warning
 		left = dlist_sort(left, type);
 		right = dlist_sort(right, type);
 		return dlist_merge(left, right, type);
