@@ -57,10 +57,12 @@ test_splay(){
 	{
 		long i;
 		t = splay_findmin(t, (void**)&i, &type);
+		long nm = bstree_successor(t, t, &type)->data;
 		long j;
 		t = splay_findmax(t, (void**)&j, &type);
-		if(i != 2 || j != NUMS-2)
-			printf("FindMin or FindMax error! Got %lu and %lu\n", i, j);
+		long k = bstree_predessor(t, t, &type)->data;
+		if(i != 2 || nm != 4 || j != NUMS-2 || k != NUMS-4)
+			printf("FindMin or FindMax error! Got %lu and %lu, next: %lu, prev: %lu\n", i, j, k, nm);
 	}
 	{
 		long i;

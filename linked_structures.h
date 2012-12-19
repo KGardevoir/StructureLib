@@ -10,13 +10,13 @@ typedef long  (*lCompare)(const void* key, const void*); //how to compare (NULL 
 typedef long  (*lKeyCompare)(const void *key, const void*);
 typedef char* (*lToString)(const void*); //how to convert to a string
 
+
 typedef struct list_tspec {
 	lMemoryAllocator adalloc;
 	lMemoryFree adfree;
 	lDeepCopy deep_copy;
 	lCompare compar;
 	lKeyCompare key_compar;
-	lToString strfunc;
 } list_tspec;
 
 typedef struct slist {
@@ -39,6 +39,7 @@ typedef struct bstree {
 typedef bstree splaytree;
 
 typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
+typedef BOOLEAN (*lMapFunc)(void* ldata,void* /*auxilarly data (constant between calls)*/); //a mapping function
 
 
 
@@ -57,8 +58,7 @@ slist* slist_removeViaAllKey(slist *head, void **data, void* key, BOOLEAN ordere
 slist* slist_removeViaKey(slist *head, void **data, void* key, BOOLEAN ordered, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
 
 //Other Operations
-typedef slist* (*SLMapFunc)(void*,void*,slist*); //a mapping function
-slist* slist_map(slist *head, void* aux, SLMapFunc) __attribute__((warn_unused_result));
+BOOLEAN slist_map(slist *head, void* aux, lMapFunc) __attribute__((warn_unused_result));
 //Transform
 void** slist_toArray(slist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
 void** slist_toArrayReverse(slist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
@@ -83,8 +83,7 @@ dlist* dlist_removeAllViaKey(dlist*, void **data, void *key, BOOLEAN ordered, BO
 dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN free_data, list_tspec* type) __attribute__((warn_unused_result));
 
 //Other Operations
-typedef BOOLEAN (*LMapFunc)(void*,void* /*auxilarly data (constant between calls)*/); //a mapping function
-BOOLEAN dlist_map(dlist *head, void* aux, LMapFunc);
+BOOLEAN dlist_map(dlist *head, void* aux, lMapFunc);
 //Transform
 void** dlist_toArray(dlist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
 void** dlist_toArrayReverse(dlist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
@@ -101,7 +100,19 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 dlist* dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec*) __attribute__((warn_unused_result));
 
 
-//Binary Search Tree
+//Binary Search Tree, a threaded tree would be nice, but determining leaf nodes is SIGNIFICANTLY more difficult
+bstree* bstree_insert(bstree* root, void* key, BOOLEAN copy, list_tspec*);
+void* bstree_remove(bstree* root, void* key, BOOLEAN free_data, list_tspec*);
+bstree* bstree_find(bstree *root, void* key, list_tspec*);
+bstree* bstree_parent(bstree *root, void *key, list_tspec*);
+dlist* bstree_path(bstree *root, void* key, list_tspec*);
+
+bstree* bstree_predessor(bstree *root, bstree *node, list_tspec *type);
+bstree* bstree_successor(bstree *root, bstree *node, list_tspec *type);
+bstree* bstree_findmin(bstree* root);
+bstree* bstree_findmax(bstree* root);
+
+BOOLEAN bstree_map(bstree *root, void* aux, lMapFunc func, list_tspec*);
 
 //Splay Trees
 splaytree* splay_insert(splaytree* root, void* key, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));

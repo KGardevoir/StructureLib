@@ -1,20 +1,5 @@
 #include "linked_structures.h"
 
-void
-slist_print(slist* head, list_tspec* type){
-	slist *run;
-	size_t i = 0;
-	if(!head){
-		printf("Empty List\n");
-		return;
-	}
-	for(run = head; run; run = run->next, i++){
-		char *t;
-		printf("list[%u]: %s\n", (unsigned int)i, t = type->strfunc(run->data));
-		type->adfree(t);
-	}
-}
-
 slist*
 slist_push(slist* he, void* buf, BOOLEAN copy, list_tspec *type){
 	slist *lm;
@@ -115,7 +100,7 @@ slist_clear(slist *head, BOOLEAN free_data, list_tspec* type){
 slist*
 slist_dequeue(slist *head, void** data, BOOLEAN free_data, list_tspec* type){
 	if(!head) return NULL;
-	slist *run = head, *p = head;
+	slist *run = head;
 	if(!run->next){
 		if(data) *data = run->next->data;
 		if(free_data) type->adfree(run->data);
@@ -214,11 +199,13 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN free_data, list_tspec* type
 
 
 //Other Functions
-#if 0
-#error Unimplemented
 BOOLEAN
-slist_map(slist *head, void* aux, SLMapFunc func){}
-#endif
+slist_map(slist *head, void* aux, lMapFunc func){
+	if(!head) return TRUE;
+	slist *p = head;
+	for(; p->next; p = p->next) if(!func(p->data, aux)) return FALSE;
+	return TRUE;
+}
 
 
 void**

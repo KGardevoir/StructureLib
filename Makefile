@@ -1,4 +1,5 @@
-SRC=dlist.c slist.c splaytree.c
+SRC=dlist.c slist.c splaytree.c bstree.c
+CFLAGS:=-Wall -O2 $(CFLAGS)
 OBJ=$(addsuffix .o, $(basename $(SRC)))
 LIB=liblinked.a
 CC=gcc
