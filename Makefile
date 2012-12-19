@@ -1,13 +1,18 @@
-SRC=linked_dlist.c linked_slist.c
+SRC=dlist.c slist.c splaytree.c
 OBJ=$(addsuffix .o, $(basename $(SRC)))
 LIB=liblinked.a
 CC=gcc
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -g -c $< -o $@
 
+.PHONY: all
 all: $(OBJ)
 	ar rvs $(LIB) $^
 
+test: main.o all
+	$(CC) main.o -L. -llinked $(CFLAGS) -g -o $@
+
 clean:
 	rm -rf $(OBJ) $(LIB)
+	rm -f test

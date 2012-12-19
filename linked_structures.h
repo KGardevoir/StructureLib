@@ -17,7 +17,6 @@ typedef struct list_tspec {
 	lCompare compar;
 	lKeyCompare key_compar;
 	lToString strfunc;
-	char* name; //type name
 } list_tspec;
 
 typedef struct slist {
@@ -30,6 +29,14 @@ typedef struct dlist {
 	void* data;
 	struct dlist *prev;
 } dlist;
+
+typedef struct bstree {
+	struct bstree *right;
+	void* data;
+	struct bstree *left;
+} bstree;
+
+typedef bstree splaytree;
 
 typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
 
@@ -50,24 +57,21 @@ slist* slist_removeViaAllKey(slist *head, void **data, void* key, BOOLEAN ordere
 slist* slist_removeViaKey(slist *head, void **data, void* key, BOOLEAN ordered, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
 
 //Other Operations
-typedef slist* (*SLMapFunc)(void*,slist*); //a mapping function
-slist* slist_map(slist *head, SLMapFunc) __attribute__((warn_unused_result));
+typedef slist* (*SLMapFunc)(void*,void*,slist*); //a mapping function
+slist* slist_map(slist *head, void* aux, SLMapFunc) __attribute__((warn_unused_result));
 //Transform
 void** slist_toArray(slist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
 void** slist_toArrayReverse(slist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
 dlist* slist_to_dlist(slist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
 
-
-
 //Find
 void* slist_find(slist *head, void* key, BOOLEAN ordered, list_tspec*) __attribute__((warn_unused_result));
-//END SINGLE_LINKED_LISTdnl
 
 //Doubly linked list functions
 //Add
 dlist* dlist_push(dlist*, void* buf, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result)) __attribute__((warn_unused_result));
 dlist* dlist_append(dlist*, void* buf, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
-dlist* dlist_addOrdered(dlist*, void* buf, BOOLEAN copy, BOOLEAN overwrite, list_tspec*) __attribute__((warn_unused_result));
+dlist* dlist_addOrdered(dlist*, void* buf, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
 dlist* dlist_copy(dlist* src, BOOLEAN deep_copy, list_tspec*) __attribute__((warn_unused_result));
 
 //Remove
@@ -79,8 +83,8 @@ dlist* dlist_removeAllViaKey(dlist*, void **data, void *key, BOOLEAN ordered, BO
 dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN free_data, list_tspec* type) __attribute__((warn_unused_result));
 
 //Other Operations
-typedef dlist* (*LMapFunc)(void*,dlist*); //a mapping function
-dlist* dlist_map(dlist *head, LMapFunc);
+typedef BOOLEAN (*LMapFunc)(void*,void* /*auxilarly data (constant between calls)*/); //a mapping function
+BOOLEAN dlist_map(dlist *head, void* aux, LMapFunc);
 //Transform
 void** dlist_toArray(dlist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
 void** dlist_toArrayReverse(dlist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
@@ -95,5 +99,16 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 //Find
 //Data returned from find is PACKED which means that it returns the node, not the data, where the data resides
 dlist* dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec*) __attribute__((warn_unused_result));
-//DOUBLE_LINKED_LIST
+
+
+//Binary Search Tree
+
+//Splay Trees
+splaytree* splay_insert(splaytree* root, void* key, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
+splaytree* splay_remove(splaytree* root, void** rtn, void* key, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
+splaytree* splay_findmin(splaytree* root, void** rtn, list_tspec* type) __attribute__((warn_unused_result));
+splaytree* splay_findmax(splaytree* root, void** rtn, list_tspec* type) __attribute__((warn_unused_result));
+splaytree* splay_find(splaytree* root, void** rtn, void* key, list_tspec* type) __attribute__((warn_unused_result));
+
+
 #endif //_LINKED_STRUCTURES_H_

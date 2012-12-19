@@ -40,7 +40,7 @@ dlist_append(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec* type){
 }
 
 dlist*
-dlist_addOrdered(dlist* he, void* buf, BOOLEAN deep_copy, BOOLEAN overwrite, list_tspec *type){
+dlist_addOrdered(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec *type){
 	if(!type->compar) return dlist_append(he, buf, deep_copy, type);
 	dlist *lm, *run;
 	lm = (dlist*)type->adalloc(sizeof(dlist));
@@ -54,19 +54,13 @@ dlist_addOrdered(dlist* he, void* buf, BOOLEAN deep_copy, BOOLEAN overwrite, lis
 		he = lm;
 	} else {
 		run = he; do{ if(type->compar(run->data, buf) >= 0){ break; } run = run->next; } while(run != he);
-		if(overwrite && type->compar(buf, run->data) == 0){
-			type->adfree(run->data);
-			run->data = lm->data;
-			type->adfree(lm);
-		} else {
-			//unified cases, since we enforce a FILO-like queue if they
-			//are equal
-			lm->next = run;
-			lm->prev = run->prev;
-			run->prev->next = lm;
-			run->prev = lm;
-			if(he == run && type->compar(run->data, buf) >= 0) he = lm;
-		}
+		//unified cases, since we enforce a FILO-like queue if they
+		//are equal
+		lm->next = run;
+		lm->prev = run->prev;
+		run->prev->next = lm;
+		run->prev = lm;
+		if(he == run && type->compar(run->data, buf) >= 0) he = lm;
 	}
 	return he;
 }
@@ -149,19 +143,20 @@ dlist_removeViaAllKey(dlist *head, void** data, void* key, BOOLEAN ordered, BOOL
 dlist*
 dlist_removeElement(dlist *head, dlist *rem, BOOLEAN free_data, list_tspec* type){
 	if(head == rem) head = dlist_dequeue(head, NULL, free_data, type);
-	else dlist_dequeue(rem, NULL, free_data, type);
+	else head = dlist_dequeue(rem, NULL, free_data, type);
 	return head;
 }
 
 //Other Functions
-dlist*
-dlist_map(dlist *head, dlist* (func)(void*,dlist*)){
-	dlist *run = head, *tmp = NULL;
+BOOLEAN
+dlist_map(dlist *head, void* aux, LMapFunc func){
+	dlist *run = head;
+	BOOLEAN rtn_val;
 	do{
-		tmp = func(run->data, tmp);
+		if(!func(run->data, aux)) return FALSE;
 		run = run->next;
 	} while(run != head);
-	return tmp;
+	return TRUE;
 }
 
 
@@ -248,10 +243,10 @@ dlist_merge(dlist* dst, dlist* src, list_tspec *type){
 				} while(runsrc_end != runsrc && type->compar(rundst->data, runsrc_end->data) >= 0);
 				if(runsrc_end == runsrc) l2_done = TRUE;
 				//ldp("Interstate 2", runsrc, runsrc_end);
-				dlist_split(runsrc, runsrc_end);
+				dlist *dummy = dlist_split(runsrc, runsrc_end);
 			}
 			//ldp("Merging", runsrc, NULL);
-			dlist_concat(rundst, runsrc);
+			dlist *dummy = dlist_concat(rundst, runsrc);
 			//ldp("Merged", dst, rundst);
 			runsrc = runsrc_end;
 		} while(!l2_done); //Theta(n) time
@@ -279,7 +274,7 @@ dlist_sort(dlist* head, list_tspec* type){//this can be faster, using "natural" 
 		} while(hare->prev != head && hare != head); //find middle (either we jump over it or land on it)
 		right = tortise;
 		//ldp("->Middle", head, right);
-		dlist_split(left, right);
+		dlist *dummy = dlist_split(left, right);//suppress warning
 		left = dlist_sort(left, type);
 		right = dlist_sort(right, type);
 		return dlist_merge(left, right, type);
@@ -289,7 +284,7 @@ dlist_sort(dlist* head, list_tspec* type){//this can be faster, using "natural" 
 
 dlist*
 dlist_split(dlist* h1, dlist* h2){
-	dlist_concat(h1, h2);//turns out Concatonation and Splitting are synonymous ops
+	h2 = dlist_concat(h1, h2);//turns out Concatonation and Splitting are synonymous ops
 	//ldp("List 1", h1, NULL);
 	//ldp("List 2", h2, NULL);
 	return h2;

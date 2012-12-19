@@ -216,8 +216,8 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN free_data, list_tspec* type
 //Other Functions
 #if 0
 #error Unimplemented
-slist*
-slist_map(slist *head, slist *(func)(void*,slist*)){}
+BOOLEAN
+slist_map(slist *head, void* aux, SLMapFunc func){}
 #endif
 
 
