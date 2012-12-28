@@ -1,5 +1,24 @@
 #include "linked_structures.h"
 
+//use first fit. It will give good performance as a dlist* node is always constant
+struct pool {
+	dlist* data;
+	BOOLEAN used;
+};
+struct block {
+	const size_t size;
+	size_t used;
+	const struct pool *mem_pool;//array of memory
+};
+
+static dlist* alloc_block = NULL;//allocation block, with type block
+static size_t block_size = 1024;
+
+static dlist*
+new_dlist(void* data, dlist* left, dlist* right){
+	dlist *new = alloc_ex();
+}
+
 dlist*
 dlist_push(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec* type){
 	return dlist_append(he, buf, deep_copy, type)->prev;

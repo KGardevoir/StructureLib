@@ -2,10 +2,11 @@
 /* Algorithms adapted from Ch.12 of Introduction To Algorithms by Thomas H. Cormen, Charles E. Leiserson, Ronald L.
  * Rivest, Clifford Stein */
 static bstree*
-new_bsnode(void* data, BOOLEAN deep_copy, list_tspec*type){
+new_bsnode(void* key, void* data, BOOLEAN deep_copy, list_tspec*type){
 	bstree init = {
 		.left = NULL,
 		.right = NULL,
+		.key = key,
 		.data = deep_copy?type->deep_copy(data):data
 	};
 	bstree *n = malloc(sizeof(bstree));
@@ -14,9 +15,9 @@ new_bsnode(void* data, BOOLEAN deep_copy, list_tspec*type){
 }
 
 bstree*
-bstree_insert(bstree *root, void* key, BOOLEAN copy, list_tspec* type){
+bstree_insert(bstree *root, void* key, void* data, BOOLEAN copy, list_tspec* type){
 	bstree *p = bstree_parent(root, key, type);
-	bstree *new = new_bsnode(key, copy, type);
+	bstree *new = new_bsnode(key, data, copy, type);
 	if(p == NULL){//tree was NULL
 		root = new;
 	} else if(type->compar(key, p->data) < 0) {
@@ -41,8 +42,8 @@ bstree_transplant(bstree *root, bstree *u, bstree *v, bstree *up, bstree *vp){
 	return root;
 }
 
-void*
-bstree_remove(bstree *root, void* key, BOOLEAN free_data, list_tspec* type){
+bstree*
+bstree_remove(bstree *root, void* key, void** rtn, BOOLEAN free_data, list_tspec* type){
 	bstree *node = bstree_find(root, key, type);
 	if(node == NULL) return NULL;//nothing to return, no such element
 	bstree *nodep = bstree_parent(root, key, type);
@@ -64,9 +65,11 @@ bstree_remove(bstree *root, void* key, BOOLEAN free_data, list_tspec* type){
 	type->adfree(node);
 	if(free_data){
 		type->adfree(data);
-		return NULL;
+		if(rtn) *rtn = NULL;
+		return root;
 	}
-	return data;
+	if(rtn) *rtn = data;
+	return root;
 }
 
 bstree*

@@ -1,11 +1,12 @@
 #include "linked_structures.h"
 /*Adapted from ftp://ftp.cs.cmu.edu/usr/ftp/usr/sleator/splaying*/
-splaytree header = {.left = NULL, .right = NULL, .data = NULL};
+splaytree header = {.left = NULL, .right = NULL, .data = NULL, .key = NULL};
 static splaytree*
-new_splaynode(void* data, BOOLEAN deep_copy, list_tspec* type) {
+new_splaynode(void* key, void* data, BOOLEAN deep_copy, list_tspec* type) {
 	splaytree init = {
 		.right = NULL,
 		.left = NULL,
+		.key = key,
 		.data = deep_copy?type->deep_copy(data):data
 	};
 	splaytree *n = type->adalloc(sizeof(splaytree));//TODO check if we run out of memory
@@ -64,17 +65,17 @@ splay(splaytree* root, void* key, list_tspec* type) {
 }
 
 splaytree*
-splay_insert(splaytree* root, void* key, BOOLEAN copy, list_tspec* type){
+splay_insert(splaytree* root, void* key, void* data, BOOLEAN copy, list_tspec* type){
 	splaytree* n;
 	long c;
 	if(root == NULL){
-		return new_splaynode(key, copy, type);
+		return new_splaynode(key, data, copy, type);
 	}
 	root = splay(root, key, type);
-	if((c = type->compar(key, root->data)) == 0){//disallow duplicate elements (for now)
+	if((c = type->compar(key, root->key)) == 0){//disallow duplicate elements (for now)
 		return root;
 	}
-	n = new_splaynode(key, copy, type);
+	n = new_splaynode(key, data, copy, type);
 	if(c < 0){
 		n->left = root->left;
 		n->right = root;
