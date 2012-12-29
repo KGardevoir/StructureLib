@@ -1,5 +1,6 @@
 #include "linked_structures.h"
 #include "tlsf/tlsf.h"
+#include "allocator.h"
 
 static long
 memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
@@ -7,7 +8,7 @@ memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
 static dlist*
 new_dlist(void* data, BOOLEAN deep_copy, dlist* prev, dlist* next, list_tspec* type){
 	deep_copy = deep_copy && type && type->deep_copy;
-	dlist *new = tlsf_malloc(sizeof(dlist));
+	dlist *new = MALLOC(sizeof(dlist));
 	dlist init = {
 		.next = (next==NULL&&prev==NULL)?new:next,
 		.prev = (next==NULL&&prev==NULL)?new:prev,
@@ -76,7 +77,7 @@ dlist_clear(dlist *head, BOOLEAN destroy_data, list_tspec* type){
 	do{
 		if(destroy_data) type->destroy(run->data);
 		n = run->next;
-		tlsf_free(run);
+		FREE(run);
 		run = n;
 	} while(run != head);
 }
@@ -100,7 +101,7 @@ dlist_dequeue(dlist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	if(head->next == head){
 		if(data) *data = head->data;
 		if(destroy_data) type->destroy(head->data);
-		tlsf_free(head);
+		FREE(head);
 		head = NULL;
 	} else {
 		dlist* tmp = head;
@@ -109,7 +110,7 @@ dlist_dequeue(dlist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 		tmp->prev->next = tmp->next;
 		if(data) *data = tmp->data;
 		if(destroy_data) type->destroy(head->data);
-		tlsf_free(tmp);
+		FREE(tmp);
 	}
 	return head;
 }
@@ -176,7 +177,7 @@ dlist* p = head;
 	if(!head) return NULL;
 	deep_copy = deep_copy && type && type->deep_copy;
 	do{ p = p->next; len++; } while(p != head);
-	void **values = (void**)tlsf_malloc((len+1)*sizeof(void*));
+	void **values = (void**)MALLOC((len+1)*sizeof(void*));
 	len = 0; p = head;
 	do{
 		if(deep_copy){
@@ -197,7 +198,7 @@ dlist* p = head;
 	if(!head) return NULL;
 	deep_copy = deep_copy && type && type->deep_copy;
 	do{ p = p->next; i++; } while(p != head);
-	void **values = (void**)tlsf_malloc((len+1)*sizeof(void*));
+	void **values = (void**)MALLOC((len+1)*sizeof(void*));
 	len = 0; p = head;
 	do{
 		if(deep_copy){

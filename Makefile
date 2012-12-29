@@ -19,5 +19,5 @@ test: main.o all
 
 clean:
 	+cd tlsf && $(MAKE) clean
-	rm -rf $(OBJ) $(LIB)
+	rm -rf $(OBJ) $(LIB) main.o
 	rm -f test

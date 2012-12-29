@@ -1,5 +1,6 @@
 #include "linked_structures.h"
 #include "tlsf/tlsf.h"
+#include "allocator.h"
 
 
 static long
@@ -8,7 +9,7 @@ memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
 static slist*
 new_slist(void* data, BOOLEAN deep_copy, slist* next, list_tspec *type){
 	deep_copy = deep_copy && type && type->deep_copy;
-	slist *new = (slist*)tlsf_malloc(sizeof(slist));
+	slist *new = (slist*)MALLOC(sizeof(slist));
 	slist init = {
 		.next = next,
 		.data = deep_copy?type->deep_copy(data):data
@@ -58,7 +59,7 @@ slist_addOrdered(slist* he, void* buf, BOOLEAN deep_copy, BOOLEAN overwrite, lis
 			if(type && type->destroy)
 				type->destroy(run->data);
 			run->data = lm->data;
-			tlsf_free(lm);
+			FREE(lm);
 		} else {
 			if(runp){
 				runp->next = lm;
@@ -93,7 +94,7 @@ slist_clear(slist *head, BOOLEAN destroy_data, list_tspec* type){
 	for(; run; run = p){
 		if(destroy_data) type->destroy(run->data);
 		p = run->next;
-		tlsf_free(run);
+		FREE(run);
 	}
 }
 
@@ -114,13 +115,13 @@ slist_dequeue(slist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	if(!run->next){
 		if(data) *data = run->next->data;
 		if(destroy_data) type->destroy(run->data);
-		tlsf_free(run);
+		FREE(run);
 		return NULL;
 	}
 	for(; run->next && run->next->next; run = run->next);
 	if(data) *data = run->next->data;
 	if(destroy_data) type->destroy(run->next->data);
-	tlsf_free(run->next);
+	FREE(run->next);
 	run->next = NULL;
 	return head;
 }
@@ -133,7 +134,7 @@ slist_pop(slist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	head = head->next;
 	if(data) *data = run->data;
 	if(destroy_data) type->destroy(run->data);
-	tlsf_free(run);
+	FREE(run);
 	return head;
 }
 slist*
@@ -150,12 +151,12 @@ slist_removeViaKey(slist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN
 			runp->next = run->next;
 			if(data) *data = run->data;
 			if(destroy_data) type->destroy(run->data);
-			tlsf_free(run);
+			FREE(run);
 		} else {
 			head = run->next;
 			if(data) *data = run->data;
 			if(destroy_data) type->destroy(run->data);
-			tlsf_free(run);
+			FREE(run);
 		}
 	}
 	return head;
@@ -175,12 +176,12 @@ slist_removeAllViaKey(slist *head, void** data, void* key, BOOLEAN ordered, BOOL
 				runp->next = run->next;
 				if(data) *data = run->data;
 				if(destroy_data) type->destroy(run->data);
-				tlsf_free(run);
+				FREE(run);
 			} else {
 				head = run->next;
 				if(data) *data = run->data;
 				if(destroy_data) type->destroy(run->data);
-				tlsf_free(run);
+				FREE(run);
 			}
 		}
 		runp = run;
@@ -199,11 +200,11 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data, list_tspec* t
 		if(runp){
 			runp->next = run->next;
 			if(destroy_data) type->destroy(run->data);
-			tlsf_free(run);
+			FREE(run);
 		} else {
 			head = run->next;
 			if(destroy_data) type->destroy(run->data);
-			tlsf_free(run);
+			FREE(run);
 		}
 	}
 	return head;
@@ -228,7 +229,7 @@ slist* p = head;
 	if(!head) return NULL;
 	deep = deep && type && type->deep_copy;
 	for(; p->next && p->data; p = p->next, len++);
-	void **values = (void**)tlsf_malloc((len+1)*sizeof(void*));
+	void **values = (void**)MALLOC((len+1)*sizeof(void*));
 	for(len = 0, p = head; p->next && p->data; len++){
 		if(deep){
 			values[len] = type->deep_copy(p->data);
@@ -249,7 +250,7 @@ slist* p = head;
 	deep = deep && type && type->deep_copy;
 	for(; p && p->data; p = p->next, i++);
 	len = i;
-	void **values = (void**)tlsf_malloc((len+1)*sizeof(void*));
+	void **values = (void**)MALLOC((len+1)*sizeof(void*));
 	for(i = 0, p = head; p && p->data; i++, p = p->next){
 		if(deep){
 			values[len] = type->deep_copy(p->data);

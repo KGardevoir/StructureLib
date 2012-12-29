@@ -34,55 +34,63 @@ print_splay_values(splaytree* root, size_t i){
 	i = print_splay_values(root->right, i);
 	return i + 1;
 }
+
+//extern void print_bstree_structure(bstree*, list_tspec*);
+
 void
 test_splay(){
 	splaytree *t = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
 	size_t NUMS = 40000;
-	size_t GAP  =   307;
+	size_t GAP  = 307;
 
 	printf("Checking... (no bad output means success)\n");
 	{
 		long i;
-		for(i = GAP; i != 0; i = (i + GAP) % NUMS){
-			t = splay_insert(t, (void*)i, (void*)i, FALSE, &type);
-		}
+		size_t min, max, avg;
+		for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
+			t = splay_insert(t, (void*)i, FALSE, &type);
 		printf("Inserts complete\n");
-		printf("%lu Nodes\n", print_splay_values(t, 0));
-		for(i = 1; i < NUMS; i+= 2)
-			t = splay_remove(t, NULL, (void*)i, FALSE, &type);
+		printf("%lu Nodes\n", bstree_size(t));
+		bstree_height(t, &min, &max, &avg, &type);
+		printf("min: %lu, max: %lu, avg: %lu\n", min, max, avg);
+		for(i = 1; i < NUMS; i += 2)
+			t = splay_remove(t, (void*)i, NULL, FALSE, &type);
 		printf("Removes complete\n");
-		printf("%lu Nodes\n", print_splay_values(t, 0));
+		printf("%lu Nodes\n", bstree_size(t));
+		bstree_height(t, &min, &max, &avg, &type);
+		printf("min: %lu, max: %lu, avg: %lu\n", min, max, avg);
 	}
 
 	{
 		long i;
-		t = splay_findmin(t, (void**)&i, &type);
-		long nm = bstree_successor(t, t, &type)->data;
+		t = splay_findmin(t, &type); i = (long)t->data;
+		long nm = (long)bstree_successor(t, t, &type)->data;
 		long j;
-		t = splay_findmax(t, (void**)&j, &type);
-		long k = bstree_predessor(t, t, &type)->data;
+		t = splay_findmax(t, &type); j = (long)t->data;
+		long k = (long)bstree_predessor(t, t, &type)->data;
 		if(i != 2 || nm != 4 || j != NUMS-2 || k != NUMS-4)
-			printf("FindMin or FindMax error! Got %lu and %lu, next: %lu, prev: %lu\n", i, j, k, nm);
+			printf("FindMin or FindMax error! Got %lu and %lu, head successor: %lu, tail predessor: %lu\n", i, j, k, nm);
 	}
 	{
 		long i;
 		for(i = 2; i < NUMS; i+=2){
 			long k;
-			t = splay_find(t, (void**)&k, (void*)i, &type);
+			t = splay_find(t, (void*)i, &type); k = (long)t->data;
 			if(k != i)
 				printf("Error: find fails for %ld\n",i);
 		}
 		for(i = 1; i < NUMS; i+=2){
 			long k;
-			t = splay_find(t, (void**)&k, (void*)i, &type);
-			if(k != 0)
+			t = splay_find(t, (void*)i, &type); k = (long)t->data;
+			if(k == i)
 				printf("Error: Found deleted item %ld\n",i);
 		}
 	}
+	bstree_clear(t,FALSE,NULL);
 }
 
-int
-main(int argc, char** argv){
+void
+test_dlist(){
 	list_tspec list_type = {
 		.destroy = NULL,
 		.compar = (lCompare)compare_ints,
@@ -103,7 +111,53 @@ main(int argc, char** argv){
 	//print_list(double_concatLists(l1, l2));
 	//print_list(double_mergeLists(l1, l3, compare_ints));
 	printf("Test  2---------------------------\n");
-	print_list(dlist_sort(l2, &list_type));
+	print_list(l2 = dlist_sort(l2, &list_type));
+	printf("Test  3---------------------------\n");
+	l2 = dlist_dequeue(l2, NULL, FALSE, &list_type);
+	print_list(l2);
+	dlist_clear(l1, FALSE, &list_type);
+	dlist_clear(l2, FALSE, &list_type);
+	dlist_clear(l3, FALSE, &list_type);
+}
+
+void
+test_bstree(){
+	bstree *t1 = NULL, *t2 = NULL, *t3 = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
+	printf("BST Tests starting\n");
+	long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
+	long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
+	long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
+	size_t i = 0;
+	for(; i < sizeof(x1)/sizeof(x1[0]); i++){
+		t1 = bstree_insert(t1, (void*)x1[i], FALSE, &type);
+	}
+	//for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
+	//	t2 = splay_insert(t2, (void*)x2[i], FALSE, &type);
+	//}
+	//for(i = 0; i < sizeof(x3)/sizeof(x3[0]); i++){
+	//	t3 = splay_insert(t3, (void*)x3[i], FALSE, &type);
+	//}
+	bstree *f = bstree_find(t1, (void*)x1[5], &type);
+	long mp;
+	if((long)f->data != x1[5])
+		printf("Error: Not able to find element\n");
+	t1 = bstree_remove(t1, (void*)x1[5], (void**)&mp, FALSE, &type);
+	if(mp != x1[5])
+		printf("Error: Unable to remove element\n");
+	//print_bstree_structure(t1, &type);
+	size_t min, max, avg;
+	bstree_height(t1, &min, &max, &avg, &type);
+	printf("min:%lu, max:%lu, avg:%lu\n", min, max, avg);
+	bstree_clear(t1, FALSE, &type);
+	bstree_clear(t2, FALSE, &type);
+	bstree_clear(t3, FALSE, &type);
+	printf("BST Tests done\n");
+}
+
+int
+main(int argc, char** argv){
+	test_dlist();
 	test_splay();
+	test_bstree();
 	return 0;
 }

@@ -1,4 +1,6 @@
 #include "linked_structures.h"
+#include "tlsf/tlsf.h"
+#include "allocator.h"
 
 static graph*
 new_graph_node(void* key, void* data, BOOLEAN copy, list_tspec* type){
@@ -7,7 +9,7 @@ new_graph_node(void* key, void* data, BOOLEAN copy, list_tspec* type){
 		.data = copy?type->deep_copy(data):data,
 		.edges = NULL
 	}
-	graph *mem = type->adalloc(sizeof(graph));
+	graph *mem = MALLOC(sizeof(graph));
 	memcpy(mem, &init, sizeof(*mem));
 	return mem;
 }

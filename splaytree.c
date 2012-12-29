@@ -1,17 +1,18 @@
 #include "linked_structures.h"
+#include "allocator.h"
 #include "tlsf/tlsf.h"
+
 /*Adapted from ftp://ftp.cs.cmu.edu/usr/ftp/usr/sleator/splaying*/
-splaytree header = {.left = NULL, .right = NULL, .data = NULL, .key = NULL};
+splaytree header = {.left = NULL, .right = NULL, .data = NULL};
 static splaytree*
-new_splaynode(void* key, void* data, BOOLEAN deep_copy, list_tspec* type) {
+new_splaynode(void* data, BOOLEAN deep_copy, list_tspec* type) {
 	deep_copy = deep_copy && type && type->deep_copy;
 	splaytree init = {
 		.right = NULL,
 		.left = NULL,
-		.key = key,
 		.data = deep_copy?type->deep_copy(data):data
 	};
-	splaytree *n = tlsf_malloc(sizeof(splaytree));//TODO check if we run out of memory
+	splaytree *n = MALLOC(sizeof(splaytree));//TODO check if we run out of memory
 	memcpy(n, &init, sizeof(*n));
 	return n;
 }
@@ -20,16 +21,16 @@ static long
 memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
 
 static splaytree*
-splay(splaytree* root, void* key, list_tspec* type) {
+splay(splaytree* root, void* data, list_tspec* type) {
 	splaytree *l, *r, *t, *y;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	l = r = &header;
 	t = root;
 	header.left = header.right = NULL;
 	for(;;){
-		if(compar(key, t->data) < 0){
+		if(compar(data, t->data) < 0){
 			if(t->left == NULL) break;
-			if(compar(key, t->left->data) < 0){ //rotate right
+			if(compar(data, t->left->data) < 0){ //rotate right
 				y = t->left;
 				t->left = y->right;
 				y->right = t;
@@ -40,9 +41,9 @@ splay(splaytree* root, void* key, list_tspec* type) {
 			r->left = t; //link right
 			r = t;
 			t = t->left;
-		} else if(compar(key, t->data) > 0){
+		} else if(compar(data, t->data) > 0){
 			if(t->right == NULL) break;
-			if(compar(key, t->right->data) > 0){ //rotate left
+			if(compar(data, t->right->data) > 0){ //rotate left
 				y = t->right;
 				t->right = y->left;
 				//if(t->right != NULL) t->right->parent = t;
@@ -72,18 +73,15 @@ splay(splaytree* root, void* key, list_tspec* type) {
 }
 
 splaytree*
-splay_insert(splaytree* root, void* key, void* data, BOOLEAN copy, list_tspec* type){
+splay_insert(splaytree* root, void* data, BOOLEAN copy, list_tspec* type){
 	splaytree* n;
 	long c;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	if(root == NULL){
-		return new_splaynode(key, data, copy, type);
-	}
-	root = splay(root, key, type);
-	if((c = compar(key, root->key)) == 0){//disallow duplicate elements (for now)
-		return root;
-	}
-	n = new_splaynode(key, data, copy, type);
+	if(root == NULL) return new_splaynode(data, copy, type);
+
+	root = splay(root, data, type);
+	if((c = compar(data, root->data)) == 0) return root;//disallow duplicate elements (for now)
+	n = new_splaynode(data, copy, type);
 	if(c < 0){
 		n->left = root->left;
 		n->right = root;
@@ -97,13 +95,13 @@ splay_insert(splaytree* root, void* key, void* data, BOOLEAN copy, list_tspec* t
 }
 
 splaytree*
-splay_remove(splaytree* root, void** rtn, void* key, BOOLEAN destroy_data, list_tspec* type){
+splay_remove(splaytree* root, void* data, void** rtn, BOOLEAN destroy_data, list_tspec* type){
 	splaytree* x;
 	if(root == NULL) return root;
 	destroy_data = destroy_data && type && type->destroy;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	root = splay(root, key, type);
-	if(compar(key, root->data) == 0){// match found
+	root = splay(root, data, type);
+	if(compar(data, root->data) == 0){// match found
 		if(destroy_data){
 			type->destroy(root->data);
 			root->data = NULL;
@@ -114,52 +112,38 @@ splay_remove(splaytree* root, void** rtn, void* key, BOOLEAN destroy_data, list_
 		if(root->left == NULL){
 			x = root->right;
 		} else {
-			x = splay(root->left, key, type);
+			x = splay(root->left, data, type);
 			x->right = root->right;
 		}
-		tlsf_free(root);
+		FREE(root);
 		return x;
 	}
 	return root;
 }
 
 splaytree*
-splay_findmin(splaytree* root, void** rtn, list_tspec* type){
+splay_findmin(splaytree* root, list_tspec* type){
 	splaytree* x = bstree_findmin(root);
-	if(x == NULL){
-		*rtn = NULL;
-		return root;
-	}
-	if(rtn) *rtn = x->data;
+	if(x == NULL) return root;
 	root = splay(root, x->data, type);
 	return root;
 }
 
 splaytree*
-splay_findmax(splaytree* root, void** rtn, list_tspec* type){
+splay_findmax(splaytree* root, list_tspec* type){
 	splaytree* x = bstree_findmax(root);
-	if(root == NULL){
-		*rtn = NULL;
-		return root;
-	}
-	if(rtn) *rtn = x->data;
+	if(root == NULL) return root;
 	root = splay(root, x->data, type);
 	return root;
 }
 
 splaytree*
-splay_find(splaytree* root, void** rtn, void* key, list_tspec* type){
-	if(root == NULL){
-		if(rtn) *rtn = NULL;
-		return root;
-	}
+splay_find(splaytree* root, void* data, list_tspec* type){
+	if(root == NULL) return root;
+
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	root = splay(root, key, type);
-	if(compar(root->data, key) != 0){
-		if(rtn) *rtn = NULL;
-		return root;
-	}
-	if(rtn) *rtn = root->data;
+	root = splay(root, data, type);
+	if(compar(root->data, data) != 0) return root;
 	return root;
 }
 

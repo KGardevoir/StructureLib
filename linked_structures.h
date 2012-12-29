@@ -8,10 +8,12 @@ typedef void* (*lDeepCopy)(const void* src); //return a copy of the information 
 typedef long  (*lCompare)(const void* key, const void*); //how to compare (NULL if undesired)
 typedef long  (*lKeyCompare)(const void *key, const void*);
 
-enum SEARCH_METHOD {
+typedef enum TRAVERSAL_STRATEGY {
 	BREADTH_FIRST=0,
-	DEPTH_FIRST=1
-};
+	DEPTH_FIRST_PRE=1,
+	DEPTH_FIRST_IN=2,
+	DEPTH_FIRST_POST=3,
+} TRAVERSAL_STRATEGY;
 
 typedef struct list_tspec {
 	const lDestroy destroy;
@@ -32,14 +34,12 @@ typedef struct dlist {
 } dlist;
 
 typedef struct tree {
-	const void const* key;
 	void* data;
 	struct tree *left;
 	struct tree *right;
 } tree;
 
 typedef struct graph {
-	const void const* key;
 	void* data;
 	dlist* edges;//ordered by key value (if possible)
 } graph; //adjacencly list
@@ -54,8 +54,7 @@ typedef tree bstree;
 typedef bstree splaytree;
 
 typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
-typedef BOOLEAN (*lMapFunc)(void* ldata,void* /*auxilarly data (constant between calls)*/); //a mapping function
-
+typedef BOOLEAN (*lMapFunc)(void *data, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
 
 
 //Add
@@ -118,31 +117,32 @@ dlist* dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec*) __
 
 
 //Binary Search Tree, a threaded tree would be nice, but determining leaf nodes is SIGNIFICANTLY more difficult
-bstree* bstree_insert(bstree* root, void* key, void* data, BOOLEAN copy, list_tspec*);
-bstree* bstree_remove(bstree* root, void* key, void** rtn, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
-void  bstree_clear(bstree* root, BOOLEAN destroy_data, list_tspec*);
-bstree* bstree_find(bstree *root, void* key, list_tspec*);
-bstree* bstree_parent(bstree *root, void *key, list_tspec*);
-dlist* bstree_path(bstree *root, void* key, list_tspec*) __attribute__((warn_unused_result));
+bstree* bstree_insert(bstree* root, void *data, BOOLEAN copy, list_tspec*);
+bstree* bstree_remove(bstree* root, void *data, void** rtn, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+void    bstree_clear(bstree* root, BOOLEAN destroy_data, list_tspec*);
+bstree* bstree_find_via_key(bstree *root, const void const *key, list_tspec*);
+bstree* bstree_find(bstree *root, void *data, list_tspec*);
+bstree* bstree_parent(bstree *root, void *data, list_tspec*);
+dlist*  bstree_path(bstree *root, void *data, list_tspec*) __attribute__((warn_unused_result));
 
 bstree* bstree_predessor(bstree *root, bstree *node, list_tspec *type);
 bstree* bstree_successor(bstree *root, bstree *node, list_tspec *type);
-bstree* bstree_findmin(bstree* root);
-bstree* bstree_findmax(bstree* root);
+bstree* bstree_findmin(bstree *root);
+bstree* bstree_findmax(bstree *root);
 
-size_t bstree_maxheight(bstree *root);
-size_t bstree_minheight(bstree *root);
-size_t bstree_avgheight(bstree *root);
+dlist* bstree_leaves(bstree *root) __attribute__((warn_unused_result));
+void   bstree_height(bstree *root, size_t *min, size_t *max, size_t *avg, list_tspec*);
 size_t bstree_size(bstree *root);
 
-BOOLEAN bstree_map(bstree *root, void* aux, lMapFunc func, list_tspec*);
+BOOLEAN bstree_map(bstree *root, const TRAVERSAL_STRATEGY, void* aux, lMapFunc func);
 
 //Splay Trees
-splaytree* splay_insert(splaytree* root, void* key, void* data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
-splaytree* splay_remove(splaytree* root, void** rtn, void* key, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
-splaytree* splay_findmin(splaytree* root, void** rtn, list_tspec* type) __attribute__((warn_unused_result));
-splaytree* splay_findmax(splaytree* root, void** rtn, list_tspec* type) __attribute__((warn_unused_result));
-splaytree* splay_find(splaytree* root, void** rtn, void* key, list_tspec* type) __attribute__((warn_unused_result));
+splaytree* splay_insert(splaytree* root, void *data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
+splaytree* splay_remove(splaytree* root, void *data, void** rtn, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+splaytree* splay_findmin(splaytree* root, list_tspec* type) __attribute__((warn_unused_result));
+splaytree* splay_findmax(splaytree* root, list_tspec* type) __attribute__((warn_unused_result));
+splaytree* splay_find_via_key(splaytree* root, const void const *key, list_tspec* type) __attribute__((warn_unused_result));
+splaytree* splay_find(splaytree* root, void *data, list_tspec* type) __attribute__((warn_unused_result));
 
 //Graphs
 graph* graph_insert(graph* root, void* key, void* data, BOOLEAN copy, list_tspec*);
@@ -155,6 +155,6 @@ size_t graph_size_edges(graph* root);//count all the edges in the graph
 graph* graph_find(graph* root, void* key, list_tspec*);
 dlist* graph_path(graph* root, void* key, list_tspec*) __attribute__((warn_unused_result));
 
-BOOLEAN graph_map(graph* root, void* aux, enum SEARCH_METHOD method, lMapFunc func, list_tspec*);
+BOOLEAN graph_map(graph* root, void* aux, enum TRAVERSAL_STRATEGY method, lMapFunc func, list_tspec*);
 
 #endif //_LINKED_STRUCTURES_H_
