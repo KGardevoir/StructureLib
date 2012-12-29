@@ -1,22 +1,20 @@
 #include "linked_structures.h"
+#include "tlsf/tlsf.h"
 
-//use first fit. It will give good performance as a dlist* node is always constant
-struct pool {
-	dlist* data;
-	BOOLEAN used;
-};
-struct block {
-	const size_t size;
-	size_t used;
-	const struct pool *mem_pool;//array of memory
-};
-
-static dlist* alloc_block = NULL;//allocation block, with type block
-static size_t block_size = 1024;
+static long
+memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
 
 static dlist*
-new_dlist(void* data, dlist* left, dlist* right){
-	dlist *new = alloc_ex();
+new_dlist(void* data, BOOLEAN deep_copy, dlist* prev, dlist* next, list_tspec* type){
+	deep_copy = deep_copy && type && type->deep_copy;
+	dlist *new = tlsf_malloc(sizeof(dlist));
+	dlist init = {
+		.next = (next==NULL&&prev==NULL)?new:next,
+		.prev = (next==NULL&&prev==NULL)?new:prev,
+		.data = deep_copy?type->deep_copy(data):data
+	};
+	memcpy(new, &init, sizeof(*new));
+	return new;
 }
 
 dlist*
@@ -27,14 +25,8 @@ dlist_push(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec* type){
 dlist*
 dlist_append(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec* type){
 	dlist *lm;
-	lm = (dlist*)type->adalloc(sizeof(dlist));
-	if(deep_copy){
-		lm->data = type->deep_copy(buf);
-	} else {
-		lm->data = buf;
-	}
+	lm = new_dlist(buf, deep_copy, NULL, NULL, type);
 	if(he == NULL){
-		lm->next = lm->prev = lm;
 		he = lm;
 	} else {
 		lm->next = he;
@@ -47,26 +39,20 @@ dlist_append(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec* type){
 
 dlist*
 dlist_addOrdered(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec *type){
-	if(!type->compar) return dlist_append(he, buf, deep_copy, type);
 	dlist *lm, *run;
-	lm = (dlist*)type->adalloc(sizeof(dlist));
-	if(deep_copy){
-		lm->data = type->deep_copy(buf);
-	} else {
-		lm->data = buf;
-	}
+	lm = new_dlist(buf, deep_copy, NULL, NULL, type);
+	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	if(he == NULL){
-		lm->next = lm->prev = lm;
 		he = lm;
 	} else {
-		run = he; do{ if(type->compar(run->data, buf) >= 0){ break; } run = run->next; } while(run != he);
+		run = he; do{ if(compar(run->data, buf) >= 0){ break; } run = run->next; } while(run != he);
 		//unified cases, since we enforce a FILO-like queue if they
 		//are equal
 		lm->next = run;
 		lm->prev = run->prev;
 		run->prev->next = lm;
 		run->prev = lm;
-		if(he == run && type->compar(run->data, buf) >= 0) he = lm;
+		if(he == run && compar(run->data, buf) >= 0) he = lm;
 	}
 	return he;
 }
@@ -76,21 +62,21 @@ dlist_copy(dlist* src, BOOLEAN deep_copy, list_tspec* type){
 	dlist* mnew = NULL, *runner = src;
 	do{
 		void* new_data = runner->data;
-		if(deep_copy) new_data = type->deep_copy(new_data);
-		mnew = dlist_push(mnew, new_data, 0, FALSE);
+		mnew = dlist_push(mnew, new_data, deep_copy, type);
 		runner = runner->next;
 	} while(runner != src);
 	return mnew;
 }
 
 void
-dlist_clear(dlist *head, BOOLEAN free_data, list_tspec* type){
+dlist_clear(dlist *head, BOOLEAN destroy_data, list_tspec* type){
 	dlist *run = head, *n = head;
 	if(head == NULL) return;
+	destroy_data = destroy_data && type && type->destroy;
 	do{
-		if(free_data) type->adfree(run->data);
+		if(destroy_data) type->destroy(run->data);
 		n = run->next;
-		type->adfree(run);
+		tlsf_free(run);
 		run = n;
 	} while(run != head);
 }
@@ -108,59 +94,64 @@ dlist_length(dlist *head){
 }
 
 dlist*
-dlist_dequeue(dlist *head, void** data, BOOLEAN free_data, list_tspec* type){
+dlist_dequeue(dlist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	if(!head) return NULL;
+	destroy_data = destroy_data && type && type->destroy;
 	if(head->next == head){
 		if(data) *data = head->data;
-		if(free_data) type->adfree(head->data);
+		if(destroy_data) type->destroy(head->data);
+		tlsf_free(head);
 		head = NULL;
 	} else {
-		head->next->prev = head->prev;
-		head->prev->next = head->next;
+		dlist* tmp = head;
 		head = head->next;
-		if(data) *data = head->data;
-		if(free_data) type->adfree(head->data);
+		tmp->next->prev = tmp->prev;
+		tmp->prev->next = tmp->next;
+		if(data) *data = tmp->data;
+		if(destroy_data) type->destroy(head->data);
+		tlsf_free(tmp);
 	}
 	return head;
 }
 
 dlist*
-dlist_pop(dlist *head, void** dat, BOOLEAN free_data, list_tspec* type){
-	return dlist_dequeue(head->prev, dat, free_data, type);
+dlist_pop(dlist *head, void** dat, BOOLEAN destroy_data, list_tspec* type){
+	return dlist_dequeue(head->prev, dat, destroy_data, type);
 }
 
 dlist*
-dlist_removeViaKey(dlist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN free_data, list_tspec* type){
+dlist_removeViaKey(dlist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec* type){
 	dlist *run = head;
-	if(head == NULL){
-		return NULL;
-	}
-	do{ if(ordered?type->key_compar(key, run->data) >= 0:type->key_compar(key, run->data) == 0) break; run = run->next; } while(run != head);
-	if(type->key_compar(key, run->data) == 0){
-		head = dlist_removeElement(head, run, free_data, type);
+	if(!head) return head;
+	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
+	do {
+		if(ordered?key_compar(key, run->data) >= 0:key_compar(key, run->data) == 0) break;
+		run = run->next;
+	} while(run != head);
+	if(key_compar(key, run->data) == 0){
+		head = dlist_removeElement(head, run, destroy_data, type);
 	}
 	return head;
 }
 
 dlist*
-dlist_removeViaAllKey(dlist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN free_data, list_tspec* type){
+dlist_removeViaAllKey(dlist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec* type){
 	dlist *run = head;
-	if(head == NULL){
-		return NULL;
-	}
+	if(!head) return head;
+	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
 	do{
-		if(ordered && type->key_compar(key, run->data) > 0) break;
-		if(type->key_compar(key, run->data) == 0)
-			head = dlist_removeElement(head, run, free_data, type);
+		if(ordered && key_compar(key, run->data) > 0) break;
+		if(key_compar(key, run->data) == 0)
+			head = dlist_removeElement(head, run, destroy_data, type);
 		run = run->next;
 	} while(run != head);
 	return head;
 }
 
 dlist*
-dlist_removeElement(dlist *head, dlist *rem, BOOLEAN free_data, list_tspec* type){
-	if(head == rem) head = dlist_dequeue(head, NULL, free_data, type);
-	else head = dlist_dequeue(rem, NULL, free_data, type);
+dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data, list_tspec* type){
+	if(head == rem) head = dlist_dequeue(head, NULL, destroy_data, type);
+	else head = dlist_dequeue(rem, NULL, destroy_data, type);
 	return head;
 }
 
@@ -168,6 +159,8 @@ dlist_removeElement(dlist *head, dlist *rem, BOOLEAN free_data, list_tspec* type
 BOOLEAN
 dlist_map(dlist *head, void* aux, lMapFunc func){
 	dlist *run = head;
+	if(!func) return FALSE;
+	if(!head) return TRUE;
 	do{
 		if(!func(run->data, aux)) return FALSE;
 		run = run->next;
@@ -181,9 +174,18 @@ dlist_toArray(dlist *head, BOOLEAN deep_copy, list_tspec* type){
 size_t len = 0;
 dlist* p = head;
 	if(!head) return NULL;
+	deep_copy = deep_copy && type && type->deep_copy;
 	do{ p = p->next; len++; } while(p != head);
-	void **values = (void**)type->adalloc((len+1)*sizeof(void*));
-	len = 0; p = head; do{ if(deep_copy){ values[len] = type->deep_copy(p->data); } else { values[len] = p->data; } p = p->next; len++;} while(p != head);
+	void **values = (void**)tlsf_malloc((len+1)*sizeof(void*));
+	len = 0; p = head;
+	do{
+		if(deep_copy){
+			values[len] = type->deep_copy(p->data);
+		} else {
+			values[len] = p->data;
+		}
+		p = p->next; len++;
+	} while(p != head);
 	values[len] = NULL;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
 	return values;
@@ -193,9 +195,18 @@ dlist_toArrayReverse(dlist *head, BOOLEAN deep_copy, list_tspec* type){
 size_t i = 0, len = 0;
 dlist* p = head;
 	if(!head) return NULL;
+	deep_copy = deep_copy && type && type->deep_copy;
 	do{ p = p->next; i++; } while(p != head);
-	void **values = (void**)type->adalloc((len+1)*sizeof(void*));
-	len = 0; p = head; do{ if(deep_copy){ values[len] = type->deep_copy(p->data); } else { values[len] = p->data; } p = p->prev; len++;} while(p != head);
+	void **values = (void**)tlsf_malloc((len+1)*sizeof(void*));
+	len = 0; p = head;
+	do{
+		if(deep_copy){
+			values[len] = type->deep_copy(p->data);
+		} else {
+			values[len] = p->data;
+		}
+		p = p->prev; len++;
+	} while(p != head);
 	values[len] = NULL;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
 	return values;
@@ -233,45 +244,42 @@ ldp(char* t, dlist* l, dlist* n){
 
 dlist*
 dlist_merge(dlist* dst, dlist* src, list_tspec *type){
-	if(type->compar){//merge sorted, assume both lists are already sorted
-		if(type->compar(src->data, dst->data) < 0){ //always merge into list with smaller head
-			dlist *tmp = dst;
-			dst = src;
-			src = tmp;
-		}
-		//puts("================");
-		//ldp("Merge Out", dst, NULL);
-		//ldp("Merge In", src, NULL);
-		dlist *rundst = dst, *runsrc = src;
-		BOOLEAN l1_done = FALSE, l2_done = FALSE;
-		do{
-			dlist *runsrc_end = runsrc;
-			if(!l1_done){//never iterate through once we have gone entirely through the list
-				do{
-					rundst = rundst->next;
-				} while(rundst != dst && type->compar(rundst->data, runsrc->data) < 0); //find start
-				if(rundst == dst && type->compar(rundst->data, runsrc->data) != 0) l1_done = TRUE;
-			}
-			//ldp("---------------\nInterstate 1", dst, rundst);
-			if(!l2_done){
-				do {
-					runsrc_end = runsrc_end->next;
-				} while(runsrc_end != runsrc && type->compar(rundst->data, runsrc_end->data) >= 0);
-				if(runsrc_end == runsrc) l2_done = TRUE;
-				//ldp("Interstate 2", runsrc, runsrc_end);
-				(void)dlist_split(runsrc, runsrc_end);
-			}
-			//ldp("Merging", runsrc, NULL);
-			(void)dlist_concat(rundst, runsrc);
-			//ldp("Merged", dst, rundst);
-			runsrc = runsrc_end;
-		} while(!l2_done); //Theta(n) time
-		//ldp("Done", dst, NULL);
-		//printf("List Mostly Merged...\n");
-		return dst;
-	} else {
-		return dlist_concat(dst, src);
+	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
+	if(compar(src->data, dst->data) < 0){ //always merge into list with smaller head
+		dlist *tmp = dst;
+		dst = src;
+		src = tmp;
 	}
+	//puts("================");
+	//ldp("Merge Out", dst, NULL);
+	//ldp("Merge In", src, NULL);
+	dlist *rundst = dst, *runsrc = src;
+	BOOLEAN l1_done = FALSE, l2_done = FALSE;
+	do{
+		dlist *runsrc_end = runsrc;
+		if(!l1_done){//never iterate through once we have gone entirely through the list
+			do{
+				rundst = rundst->next;
+			} while(rundst != dst && compar(rundst->data, runsrc->data) < 0); //find start
+			if(rundst == dst && compar(rundst->data, runsrc->data) != 0) l1_done = TRUE;
+		}
+		//ldp("---------------\nInterstate 1", dst, rundst);
+		if(!l2_done){
+			do {
+				runsrc_end = runsrc_end->next;
+			} while(runsrc_end != runsrc && compar(rundst->data, runsrc_end->data) >= 0);
+			if(runsrc_end == runsrc) l2_done = TRUE;
+			//ldp("Interstate 2", runsrc, runsrc_end);
+			(void)dlist_split(runsrc, runsrc_end);
+		}
+		//ldp("Merging", runsrc, NULL);
+		(void)dlist_concat(rundst, runsrc);
+		//ldp("Merged", dst, rundst);
+		runsrc = runsrc_end;
+	} while(!l2_done); //Theta(n) time
+	//ldp("Done", dst, NULL);
+	//printf("List Mostly Merged...\n");
+	return dst;
 }
 
 dlist*
@@ -320,11 +328,12 @@ dlist_concat(dlist* dsthead, dlist* srchead){
 dlist*
 dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec* type){
 	if(!head) return NULL;
+	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
 	dlist* p = head;
 	do {
-		if(ordered?(type->key_compar(key,p->data) <= 0):(type->key_compar(key,p->data) == 0)) break;
+		if(ordered?(key_compar(key,p->data) <= 0):(key_compar(key,p->data) == 0)) break;
 		p = p->next;
 	} while(p != head);
-	if(type->key_compar(key, p->data) == 0) return p;
+	if(key_compar(key, p->data) == 0) return p;
 	return NULL;
 }

@@ -3,20 +3,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-typedef void* (*lMemoryAllocator)(size_t);//how to allocate
-typedef void* (*lMemoryFree)(void*);
+typedef void  (*lDestroy)(void* data);//how to destroy our data
 typedef void* (*lDeepCopy)(const void* src); //return a copy of the information (within a newly allocated buffer)
 typedef long  (*lCompare)(const void* key, const void*); //how to compare (NULL if undesired)
 typedef long  (*lKeyCompare)(const void *key, const void*);
-typedef char* (*lToString)(const void*); //how to convert to a string
 
+enum SEARCH_METHOD {
+	BREADTH_FIRST=0,
+	DEPTH_FIRST=1
+};
 
 typedef struct list_tspec {
-	lMemoryAllocator adalloc;
-	lMemoryFree adfree;
-	lDeepCopy deep_copy;
-	lCompare compar;
-	lKeyCompare key_compar;
+	const lDestroy destroy;
+	const lDeepCopy deep_copy;
+	const lCompare compar;
+	const lKeyCompare key_compar;
 } list_tspec;
 
 typedef struct slist {
@@ -31,14 +32,14 @@ typedef struct dlist {
 } dlist;
 
 typedef struct tree {
-	void* key;
+	const void const* key;
 	void* data;
 	struct tree *left;
 	struct tree *right;
 } tree;
 
 typedef struct graph {
-	void* key;
+	const void const* key;
 	void* data;
 	dlist* edges;//ordered by key value (if possible)
 } graph; //adjacencly list
@@ -64,12 +65,12 @@ slist* slist_addOrdered(slist* he, void* buf, BOOLEAN copy, BOOLEAN overwrite, l
 slist* slist_copy(slist* src, BOOLEAN deep_copy, list_tspec*) __attribute__((warn_unused_result));
 
 //Remove
-void slist_clear(slist *he, BOOLEAN free_data, list_tspec*);
-slist* slist_dequeue(slist *head, void** data, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-slist* slist_pop(slist *head, void** data, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-slist* slist_removeElement(slist *head, slist *rem, BOOLEAN free_data, list_tspec* type) __attribute__((warn_unused_result));
-slist* slist_removeViaAllKey(slist *head, void **data, void* key, BOOLEAN ordered, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-slist* slist_removeViaKey(slist *head, void **data, void* key, BOOLEAN ordered, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
+void slist_clear(slist *he, BOOLEAN destroy_data, list_tspec*);
+slist* slist_dequeue(slist *head, void** data, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+slist* slist_pop(slist *head, void** data, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+slist* slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data, list_tspec* type) __attribute__((warn_unused_result));
+slist* slist_removeViaAllKey(slist *head, void **data, void* key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+slist* slist_removeViaKey(slist *head, void **data, void* key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
 
 //Other Operations
 BOOLEAN slist_map(slist *head, void* aux, lMapFunc) __attribute__((warn_unused_result));
@@ -90,12 +91,12 @@ dlist* dlist_addOrdered(dlist*, void* buf, BOOLEAN copy, list_tspec*) __attribut
 dlist* dlist_copy(dlist* src, BOOLEAN deep_copy, list_tspec*) __attribute__((warn_unused_result));
 
 //Remove
-void dlist_clear(dlist *he, BOOLEAN free_data, list_tspec*);
-dlist* dlist_dequeue(dlist* head, void** data, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-dlist* dlist_pop(dlist* he, void** data, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-dlist* dlist_removeViaKey(dlist*, void **data, void *key, BOOLEAN ordered, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-dlist* dlist_removeAllViaKey(dlist*, void **data, void *key, BOOLEAN ordered, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN free_data, list_tspec* type) __attribute__((warn_unused_result));
+void dlist_clear(dlist *he, BOOLEAN destroy_data, list_tspec*);
+dlist* dlist_dequeue(dlist* head, void** data, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+dlist* dlist_pop(dlist* he, void** data, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+dlist* dlist_removeViaKey(dlist*, void **data, void *key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+dlist* dlist_removeAllViaKey(dlist*, void **data, void *key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data, list_tspec* type) __attribute__((warn_unused_result));
 
 //Other Operations
 BOOLEAN dlist_map(dlist *head, void* aux, lMapFunc);
@@ -118,8 +119,8 @@ dlist* dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec*) __
 
 //Binary Search Tree, a threaded tree would be nice, but determining leaf nodes is SIGNIFICANTLY more difficult
 bstree* bstree_insert(bstree* root, void* key, void* data, BOOLEAN copy, list_tspec*);
-bstree* bstree_remove(bstree* root, void* key, void** rtn, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
-void  bstree_clear(bstree* root, BOOLEAN free_data, list_tspec*);
+bstree* bstree_remove(bstree* root, void* key, void** rtn, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
+void  bstree_clear(bstree* root, BOOLEAN destroy_data, list_tspec*);
 bstree* bstree_find(bstree *root, void* key, list_tspec*);
 bstree* bstree_parent(bstree *root, void *key, list_tspec*);
 dlist* bstree_path(bstree *root, void* key, list_tspec*) __attribute__((warn_unused_result));
@@ -138,13 +139,14 @@ BOOLEAN bstree_map(bstree *root, void* aux, lMapFunc func, list_tspec*);
 
 //Splay Trees
 splaytree* splay_insert(splaytree* root, void* key, void* data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
-splaytree* splay_remove(splaytree* root, void** rtn, void* key, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
+splaytree* splay_remove(splaytree* root, void** rtn, void* key, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
 splaytree* splay_findmin(splaytree* root, void** rtn, list_tspec* type) __attribute__((warn_unused_result));
 splaytree* splay_findmax(splaytree* root, void** rtn, list_tspec* type) __attribute__((warn_unused_result));
 splaytree* splay_find(splaytree* root, void** rtn, void* key, list_tspec* type) __attribute__((warn_unused_result));
 
 //Graphs
 graph* graph_insert(graph* root, void* key, void* data, BOOLEAN copy, list_tspec*);
+graph* graph_link(graph* root, graph* child);
 graph* graph_remove(graph* root, void* key, void** data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
 graph_adjmat* graph_matrix(graph* root, void* key, void** data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
 
@@ -153,6 +155,6 @@ size_t graph_size_edges(graph* root);//count all the edges in the graph
 graph* graph_find(graph* root, void* key, list_tspec*);
 dlist* graph_path(graph* root, void* key, list_tspec*) __attribute__((warn_unused_result));
 
-BOOLEAN graph_map(graph* root, void* aux, lMapFunc func, list_tspec*);
+BOOLEAN graph_map(graph* root, void* aux, enum SEARCH_METHOD method, lMapFunc func, list_tspec*);
 
 #endif //_LINKED_STRUCTURES_H_

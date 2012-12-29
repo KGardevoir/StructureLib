@@ -36,7 +36,7 @@ print_splay_values(splaytree* root, size_t i){
 }
 void
 test_splay(){
-	splaytree *t = NULL; list_tspec type = {.adalloc = (lMemoryAllocator)malloc, .adfree = (lMemoryFree)free, .compar = (lCompare)long_cmp};
+	splaytree *t = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
 	size_t NUMS = 40000;
 	size_t GAP  =   307;
 
@@ -44,7 +44,7 @@ test_splay(){
 	{
 		long i;
 		for(i = GAP; i != 0; i = (i + GAP) % NUMS){
-			t = splay_insert(t, (void*)i, FALSE, &type);
+			t = splay_insert(t, (void*)i, (void*)i, FALSE, &type);
 		}
 		printf("Inserts complete\n");
 		printf("%lu Nodes\n", print_splay_values(t, 0));
@@ -83,7 +83,12 @@ test_splay(){
 
 int
 main(int argc, char** argv){
-	list_tspec list_type = {(lMemoryAllocator)malloc, (lMemoryFree)free, NULL, (lCompare)compare_ints, (lCompare)compare_ints, NULL};
+	list_tspec list_type = {
+		.destroy = NULL,
+		.compar = (lCompare)compare_ints,
+		.key_compar = (lKeyCompare)compare_ints,
+		.deep_copy = NULL
+	};
 	long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
 	long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
 	long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };

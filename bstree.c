@@ -1,15 +1,20 @@
 #include "linked_structures.h"
+#include "tlsf/tlsf.h"
 /* Algorithms adapted from Ch.12 of Introduction To Algorithms by Thomas H. Cormen, Charles E. Leiserson, Ronald L.
  * Rivest, Clifford Stein */
+static long
+memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
+
 static bstree*
 new_bsnode(void* key, void* data, BOOLEAN deep_copy, list_tspec*type){
+	deep_copy = deep_copy && type && type->deep_copy;
 	bstree init = {
 		.left = NULL,
 		.right = NULL,
 		.key = key,
 		.data = deep_copy?type->deep_copy(data):data
 	};
-	bstree *n = malloc(sizeof(bstree));
+	bstree *n = tlsf_malloc(sizeof(bstree));
 	memcpy(n, &init, sizeof(*n));
 	return n;
 }
@@ -18,11 +23,12 @@ bstree*
 bstree_insert(bstree *root, void* key, void* data, BOOLEAN copy, list_tspec* type){
 	bstree *p = bstree_parent(root, key, type);
 	bstree *new = new_bsnode(key, data, copy, type);
+	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	if(p == NULL){//tree was NULL
 		root = new;
-	} else if(type->compar(key, p->data) < 0) {
+	} else if(compar(key, p->data) < 0) {
 		p->left = new;
-	} else if(type->compar(key, p->data) > 0) {
+	} else if(compar(key, p->data) > 0) {
 		p->right = new;
 	} else {//are equal, ignore for now (no duplicates)
 
@@ -43,9 +49,10 @@ bstree_transplant(bstree *root, bstree *u, bstree *v, bstree *up, bstree *vp){
 }
 
 bstree*
-bstree_remove(bstree *root, void* key, void** rtn, BOOLEAN free_data, list_tspec* type){
+bstree_remove(bstree *root, void* key, void** rtn, BOOLEAN destroy_data, list_tspec* type){
 	bstree *node = bstree_find(root, key, type);
 	if(node == NULL) return NULL;//nothing to return, no such element
+	destroy_data = destroy_data && type && type->destroy;
 	bstree *nodep = bstree_parent(root, key, type);
 	if(node->left == NULL){
 		root = bstree_transplant(root, node, node->right, nodep, node);
@@ -62,11 +69,10 @@ bstree_remove(bstree *root, void* key, void** rtn, BOOLEAN free_data, list_tspec
 		min->left = node->left;
 	}
 	void* data = node->data;
-	type->adfree(node);
-	if(free_data){
-		type->adfree(data);
-		if(rtn) *rtn = NULL;
-		return root;
+	tlsf_free(node);
+	if(destroy_data){
+		type->destroy(data);
+		data = NULL;
 	}
 	if(rtn) *rtn = data;
 	return root;
@@ -76,7 +82,8 @@ bstree*
 bstree_find(bstree *root, void *key, list_tspec* type){
 	long c;
 	if(root == NULL) return root;
-	while(root != NULL && (c = type->compar(key, root->data)) != 0){
+	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
+	while(root != NULL && (c = compar(key, root->data)) != 0){
 		if(c < 0){
 			root = root->left;
 		} else {
@@ -91,7 +98,8 @@ bstree_parent(bstree *root, void *data, list_tspec* type){
 	long c;
 	bstree *parent = root;
 	if(root == NULL) return root;
-	while(root != NULL && (c = type->compar(data, root->data)) != 0){
+	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
+	while(root != NULL && (c = compar(data, root->data)) != 0){
 		parent = root;
 		if(c < 0){
 			root = root->left;
@@ -107,7 +115,8 @@ bstree_path(bstree *root, void *data, list_tspec* type){
 	dlist *head = NULL;
 	long c;
 	if(root == NULL) return NULL;
-	while(root != NULL && (c = type->compar(data, root->data)) != 0){
+	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
+	while(root != NULL && (c = compar(data, root->data)) != 0){
 		head = dlist_append(head, root, FALSE, type);
 		if(c < 0){
 			root = root->left;
@@ -165,19 +174,19 @@ bstree_findmax(bstree* root){
 }
 
 struct free_cluster {
-	const BOOLEAN free_data;
+	const BOOLEAN destroy_data;
 	const list_tspec const* type;
 };
 
 static BOOLEAN
 bstree_clear_map(bstree* root, struct free_cluster *aux){
-	if(aux->free_data) aux->type->adfree(root->data);
-	aux->type->adfree(root);
+	if(aux->destroy_data) aux->type->destroy(root->data);
+	tlsf_free(root);
 	return TRUE;
 }
 
 void
-bstree_clear(bstree* root, BOOLEAN free_data, list_tspec* type){//iterate in postfix order
+bstree_clear(bstree* root, BOOLEAN destroy_data, list_tspec* type){//iterate in postfix order
 	dlist *stk = NULL, *freer = NULL;
 	bstree *cur = root;
 	while(stk != NULL || cur != NULL){
@@ -191,28 +200,9 @@ bstree_clear(bstree* root, BOOLEAN free_data, list_tspec* type){//iterate in pos
 			cur = cur->right;
 		}
 	}
-	struct free_cluster aux = {.free_data = free_data, .type = type};
+	struct free_cluster aux = {.destroy_data = destroy_data, .type = type};
 	dlist_map(freer, &aux, (lMapFunc)bstree_clear_map);
 	dlist_clear(freer, FALSE, type);
-	/*
-	dlist *stk = dlist_push(NULL, root, FALSE, type);
-	bstree *prev = NULL;
-	while(stk != NULL){
-		bstree *curr = stk->data;
-		if(!prev || prev->left == curr || prev->right == curr){
-			if(curr->left)
-				stk = dlist_push(stk, curr->left, FALSE, type);
-			else if(curr->right)
-				stk = dlist_push(stk, curr->right, FALSE, type);
-		} else if(curr->left == prev){
-			if(curr->right)
-				stk = dlist_push(stk, curr->right, FALSE, type);
-		} else {
-			//do_something
-			stk = dlist_pop(stk, NULL, FALSE, type);
-		}
-		prev = curr;
-	}*/
 }
 
 BOOLEAN

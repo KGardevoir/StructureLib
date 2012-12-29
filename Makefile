@@ -1,6 +1,6 @@
 SRC=dlist.c slist.c splaytree.c bstree.c
 CFLAGS:=-Wall -Wno-pointer-sign -O2 $(CFLAGS)
-OBJ=$(addsuffix .o, $(basename $(SRC)))
+OBJ=$(addsuffix .o, $(basename $(SRC))) tlsf/tlsf.o
 LIB=liblinked.a
 CC=gcc
 
@@ -9,11 +9,15 @@ CC=gcc
 
 .PHONY: all
 all: $(OBJ)
-	ar rvs $(LIB) $^
+	ar rvs $(LIB) $(OBJ) $(TLSFOBJ)
+
+tlsf/tlsf.o:
+	+cd tlsf && $(MAKE)
 
 test: main.o all
 	$(CC) main.o -L. -llinked $(CFLAGS) -g -o $@
 
 clean:
+	+cd tlsf && $(MAKE) clean
 	rm -rf $(OBJ) $(LIB)
 	rm -f test
