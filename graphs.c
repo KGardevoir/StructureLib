@@ -118,7 +118,7 @@ struct graph_find_d {
 };
 
 static BOOLEAN
-graph_find_f(graph* node, struct graph_find_f *aux){
+graph_find_f(graph* node, struct graph_find_d *aux){
 	if((aux->type->key_compar?
 			aux->type->compar(aux->goal, node->data):
 			aux->type->key_compar(aux->goal, node->data)) == 0){
@@ -128,7 +128,7 @@ graph_find_f(graph* node, struct graph_find_f *aux){
 	return TRUE;
 }
 
-BOOLEAN
+graph*
 graph_find(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec* type){
 	struct graph_find_d mm = {
 		.type = type,
@@ -141,7 +141,7 @@ graph_find(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec* type){
 	return NULL;
 }
 
-BOOLEAN
+graph*
 graph_find_via_key(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec* type){
 	struct graph_find_d mm = {
 		.type = type,
@@ -154,7 +154,32 @@ graph_find_via_key(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec*
 	return NULL;
 }
 
+struct graph_size_d {
+	size_t nodes;
+	size_t edges;
+};
+
+static BOOLEAN
+graph_size_f(graph* root, struct graph_size_d *aux){
+	aux->nodes = aux->nodes + 1;
+	aux->edges = aux->edges + dlist_length(root->edges);
+	return TRUE;
+}
+
+void
+graph_size(graph* root, size_t *nodes, size_t *edges){
+	struct graph_size_d mm = {
+		.nodes = 0,
+		.edges = 0
+	};
+	graph_map_internal(root, BREADTH_FIRST, &mm, (lMapFunc)graph_size_f);
+	*nodes = mm.nodes;
+	*edges = mm.edges;
+}
+
+#if 0
 dlist*
 graph_path(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec* type){
 
 }
+#endif
