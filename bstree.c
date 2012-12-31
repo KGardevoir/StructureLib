@@ -291,23 +291,23 @@ bstree_map_internal(bstree *root, const TRAVERSAL_STRATEGY strat, void* aux, TMa
 }
 #endif
 
-struct bstree_internal {
+struct bstree_map_d {
 	void *aux;
 	lMapFunc func;
 };
 
 static BOOLEAN
-bstree_internal_map_f(bstree* root, struct bstree_internal* aux){
+bstree_map_f(bstree* root, struct bstree_map_d* aux){
 	return aux->func(root->data, aux->aux);
 }
 
 BOOLEAN
 bstree_map(bstree* root, const TRAVERSAL_STRATEGY strat, void* aux, lMapFunc func){
-	struct bstree_internal dat = {
+	struct bstree_map_d dat = {
 		.aux = aux,
 		.func = func
 	};
-	return bstree_map_internal(root, strat, &dat, (TMapFunc)bstree_internal_map_f);
+	return bstree_map_internal(root, strat, &dat, (TMapFunc)bstree_map_f);
 }
 
 static BOOLEAN
@@ -386,6 +386,7 @@ struct bstree_dump_map_d {
 	list_tspec *type;
 };
 
+#if 0
 static BOOLEAN
 bstree_dump_map_f(bstree* node, struct bstree_dump_map_d *aux){
 	dlist *path = bstree_path(aux->root, node->data, aux->type);
@@ -395,7 +396,6 @@ bstree_dump_map_f(bstree* node, struct bstree_dump_map_d *aux){
 	return TRUE;
 }
 
-#if 0
 void
 print_bstree_structure(bstree *root, list_tspec *type){
 	struct bstree_dump_map_d dat = {

@@ -169,6 +169,34 @@ dlist_map(dlist *head, void* aux, lMapFunc func){
 	return TRUE;
 }
 
+struct dlist_filter_d {
+	void *aux;
+	BOOLEAN deep;
+	list_tspec *type;
+	lMapFunc func;
+	dlist *list;
+};
+
+static BOOLEAN
+dlist_filter_f(void *data, struct dlist_filter_d *aux){
+	if(aux->func(data, aux->aux)){
+		aux->list = dlist_append(aux->list, data, aux->deep, aux->type);
+	}
+	return TRUE;
+}
+
+dlist*
+dlist_filter(dlist *head, void* aux, lMapFunc func, BOOLEAN deep, list_tspec* type){
+	struct dlist_filter_d dd = {
+		.aux = aux,
+		.deep = deep,
+		.type = type,
+		.func = func,
+		.list = NULL
+	};
+	dlist_map(head, &dd, (lMapFunc)dlist_filter_f);
+	return dd.list;
+}
 
 void**
 dlist_toArray(dlist *head, BOOLEAN deep_copy, list_tspec* type){
