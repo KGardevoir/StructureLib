@@ -260,6 +260,21 @@ graph_path(graph *root, TRAVERSAL_STRATEGY strat, void* key, list_tspec* type){
 	return NULL;
 }
 
+graph*
+graph_path_key_match(graph *root, dlist *key_path, list_tspec *type){
+	size_t size = dlist_length(key_path);
+	size_t i = 0;
+	dlist *run = key_path;
+	graph *troot = root;
+	while(i < size){
+		dlist *descent = dlist_find(troot->edges, run->data, FALSE, type);
+		if(descent == NULL) return NULL;
+		troot = descent->data;
+		i++; run = run->next;
+	}
+	return troot;
+}
+
 #if 0
 graph*
 graph_spanning(graph* root, long(edge_weight)(graph*,graph*)){

@@ -163,6 +163,7 @@ graph* graph_find_via_key(graph* root, TRAVERSAL_STRATEGY, void* key, list_tspec
 //TODO this is significantly more complex than previously anticipated (it requires some advanced
 //AI stuff to do efficiently, e.g. A*, B*, Beam, D*).
 dlist* graph_path(graph* root, TRAVERSAL_STRATEGY, void* key, list_tspec*) __attribute__((warn_unused_result));
+graph* graph_path_key_match(graph *root, dlist *key_path, list_tspec *type);
 
 BOOLEAN graph_map(graph* root, TRAVERSAL_STRATEGY, void* aux, lMapFunc func);
 
