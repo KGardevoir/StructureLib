@@ -156,17 +156,33 @@ dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data, list_tspec* t
 	return head;
 }
 
-//Other Functions
-BOOLEAN
-dlist_map(dlist *head, void* aux, lMapFunc func){
+struct dlist_map_d {
+	lMapFunc func;
+	void *aux;
+};
+
+static BOOLEAN
+dlist_map_f(dlist *node, struct dlist_map_d *aux){
+	return aux->func(node->data, aux->aux);
+}
+
+static BOOLEAN
+dlist_map_internal(dlist *head, void* aux, lMapFunc func){
 	dlist *run = head;
 	if(!func) return FALSE;
 	if(!head) return TRUE;
 	do{
-		if(!func(run->data, aux)) return FALSE;
+		if(!func(run, aux)) return FALSE;
 		run = run->next;
 	} while(run != head);
 	return TRUE;
+}
+
+//Other Functions
+BOOLEAN
+dlist_map(dlist *head, void* aux, lMapFunc func){
+	struct dlist_map_d mm = {.func = func, .aux = aux};
+	return dlist_map_internal(head, &mm, (lMapFunc)dlist_map_f);
 }
 
 struct dlist_filter_d {
@@ -196,6 +212,29 @@ dlist_filter(dlist *head, void* aux, lMapFunc func, BOOLEAN deep, list_tspec* ty
 	};
 	dlist_map(head, &dd, (lMapFunc)dlist_filter_f);
 	return dd.list;
+}
+
+struct dlist_transform_d {
+	void* aux;
+	lTransFunc func;
+};
+
+BOOLEAN
+dlist_transform_f(dlist* node, struct dlist_transform_d* aux){
+	return aux->func(&node->data, aux->aux);
+}
+
+/**
+ * Transform data
+ */
+dlist*
+dlist_transform(dlist *head, void* aux, lTransFunc func){
+	struct dlist_transform_d dd = {
+		.aux = aux,
+		.func = func
+	};
+	dlist_map_internal(head, &dd, (lMapFunc)dlist_transform_f);
+	return head;
 }
 
 void**

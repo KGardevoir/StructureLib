@@ -2,6 +2,9 @@
 #include "tlsf/tlsf.h"
 #include "allocator.h"
 
+static long
+memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
+
 static graph*
 new_graph_node(void* data, BOOLEAN copy, list_tspec* type){
 	graph init = {
@@ -84,8 +87,11 @@ graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, void* aux, lMapFunc f
 	while(df.stk){
 		graph *g;
 		df.stk = dlist_dequeue(df.stk, (void**)&g, FALSE, NULL);
-		if(!dlist_map(g->edges, &df, search))
+		if(!dlist_map(g->edges, &df, search)){
+			bstree_clear(df.visited, FALSE, NULL);
+			dlist_clear(df.stk, FALSE, NULL);
 			return FALSE;
+		}
 	}
 	bstree_clear(df.visited, FALSE, NULL);
 	return TRUE;
@@ -177,9 +183,86 @@ graph_size(graph* root, size_t *nodes, size_t *edges){
 	*edges = mm.edges;
 }
 
-#if 0
-dlist*
-graph_path(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec* type){
+static BOOLEAN
+graph_path_f_tr(void **data, dlist* path){
+	*data = dlist_append(path, *data, FALSE, NULL);
+	return TRUE;
+}
 
+struct graph_path_d {
+	splaytree *visited;
+	dlist *stk;//a path to every node, accumulative
+	lCompare chk;
+	void *key;
+	dlist *cpath;//current path
+};
+static BOOLEAN
+graph_path_bfs_f(graph* child, struct graph_path_d *aux){
+	if((aux->visited = splay_find(aux->visited, child, NULL))->data == child){
+		aux->visited = splay_insert(aux->visited, child, FALSE, NULL);
+		aux->stk = dlist_concat(aux->stk,
+				dlist_transform(
+					dlist_filter(child->edges, &aux->visited,
+						(lMapFunc)graph_dfs_filter, FALSE, NULL
+					), aux->cpath, (lTransFunc)graph_path_f_tr
+				));
+		if(aux->chk(aux->key, child->data) == 0) return FALSE;
+	}
+	return TRUE;
+}
+static BOOLEAN
+graph_path_dfs_f(graph* child, struct graph_path_d *aux){
+	if((aux->visited = splay_find(aux->visited, child, NULL))->data == child){
+		aux->visited = splay_insert(aux->visited, child, FALSE, NULL);
+		aux->stk = dlist_concat(
+				dlist_transform(
+					dlist_filter(child->edges, &aux->visited,
+						(lMapFunc)graph_dfs_filter, FALSE, NULL
+					), aux->cpath, (lTransFunc)graph_path_f_tr
+				), aux->stk);
+		if(aux->chk(aux->key, child->data) == 0) return FALSE;
+	}
+	return TRUE;
+}
+static void
+graph_path_f_destroy(dlist* data){
+	dlist_clear(data, FALSE, NULL);
+}
+
+
+dlist*
+graph_path(graph *root, TRAVERSAL_STRATEGY strat, void* key, list_tspec* type){
+	struct graph_path_d df = {
+		.visited = splay_insert(NULL, root, FALSE, NULL),
+		.stk = dlist_copy(root->edges, FALSE, NULL),
+		.chk = (type && type->compar)?type->compar:(lCompare)memcomp,
+		.key = key,
+		.cpath = NULL
+	};
+	list_tspec type_l = {
+		.destroy = (lDestroy)graph_path_f_destroy
+	};
+	lMapFunc search = (strat==BREADTH_FIRST)?
+		(lMapFunc)graph_path_bfs_f:
+		(lMapFunc)graph_path_dfs_f;
+	while(df.stk){
+		df.stk = dlist_dequeue(df.stk, (void**)&df.cpath, FALSE, &type_l);
+		//get the data at the tail of the list
+		if(!dlist_map(((graph*)df.cpath->prev->data)->edges, &df, (lMapFunc)search)){
+			bstree_clear(df.visited, FALSE, NULL);
+			dlist_clear(df.stk, TRUE, &type_l);
+			return df.cpath;
+		}
+		type_l.destroy(df.cpath);
+		df.cpath = NULL;
+	}
+	bstree_clear(df.visited, FALSE, NULL);
+	return NULL;
+}
+
+#if 0
+graph*
+graph_spanning(graph* root, long(edge_weight)(graph*,graph*)){
+	//TODO utilize Kruskal's Algorithm
 }
 #endif

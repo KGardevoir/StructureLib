@@ -55,6 +55,7 @@ typedef bstree splaytree;
 
 typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
 typedef BOOLEAN (*lMapFunc)(void *data, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
+typedef BOOLEAN (*lTransFunc)(void **data, void* aux);/*in-place data transformation, should always return TRUE as FALSE means stop*/
 
 
 //Add
@@ -99,6 +100,7 @@ dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data, list_t
 
 //Other Operations
 dlist* dlist_filter(dlist *head, void* aux, lMapFunc, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
+dlist* dlist_transform(dlist *head, void* aux, lTransFunc);
 BOOLEAN dlist_map(dlist *head, void* aux, lMapFunc);
 size_t dlist_length(dlist *head);
 //Transform

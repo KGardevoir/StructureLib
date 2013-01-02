@@ -3,19 +3,10 @@
 *.o
 *.a
 *.so
-sepiidae_lexer.h
-sepiidae_lexer.c
-sepiidae_lexer-configuration.h
-sepiidae_lexer-token.h
-sepiidae_lexer-token_ids.h
-sepiidae_parser.y
-sepiidae_parser.tab.c
-sepiidae_parser.tab.h
-lexer
+test
 
 # Debug Files #
 ###############
-sepiidae_parser.output
 
 # Temporary Directory #
 #######################
