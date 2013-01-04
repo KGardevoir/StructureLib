@@ -217,7 +217,11 @@ slist_map(slist *head, void* aux, lMapFunc func){
 	if(!func) return FALSE;
 	if(!head) return TRUE;
 	slist *p = head;
-	for(; p->next; p = p->next) if(!func(p->data, aux)) return FALSE;
+	size_t depth = 0;
+	for(; p->next; p = p->next){
+		if(!func(p->data, depth, aux)) return FALSE;
+		depth++;
+	}
 	return TRUE;
 }
 

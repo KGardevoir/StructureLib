@@ -122,22 +122,6 @@ splay_remove(splaytree* root, void* data, void** rtn, BOOLEAN destroy_data, list
 }
 
 splaytree*
-splay_findmin(splaytree* root, list_tspec* type){
-	splaytree* x = bstree_findmin(root);
-	if(x == NULL) return root;
-	root = splay(root, x->data, type);
-	return root;
-}
-
-splaytree*
-splay_findmax(splaytree* root, list_tspec* type){
-	splaytree* x = bstree_findmax(root);
-	if(root == NULL) return root;
-	root = splay(root, x->data, type);
-	return root;
-}
-
-splaytree*
 splay_find(splaytree* root, void* data, list_tspec* type){
 	if(root == NULL) return root;
 

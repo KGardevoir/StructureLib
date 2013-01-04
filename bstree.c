@@ -194,7 +194,7 @@ struct free_cluster {
 };
 
 static BOOLEAN
-bstree_clear_map(bstree* root, struct free_cluster *aux){
+bstree_clear_map(bstree* root, size_t depth, struct free_cluster *aux){
 	if(aux->destroy_data) aux->type->destroy(root->data);
 	FREE(root);
 	return TRUE;
@@ -219,63 +219,90 @@ bstree_clear(bstree* root, BOOLEAN destroy_data, list_tspec* type){//iterate in 
 	dlist_clear(freer, FALSE, NULL);
 }
 
-typedef BOOLEAN (*TMapFunc)(bstree* node, void* aux);
+typedef BOOLEAN (*TMapFunc)(bstree* node, size_t depth, void* aux);
 
 #if 1
+struct node_and_depth {
+	bstree *node;
+	size_t depth;
+};
+static struct node_and_depth*
+new_node_and_depth(size_t depth, bstree *node){
+	struct node_and_depth init = {
+		.node = node,
+		.depth = depth
+	};
+	struct node_and_depth *new = malloc(sizeof(typeof(init)));
+	memcpy(new, &init, sizeof(typeof(init)));
+	return new;
+}
 static BOOLEAN
 bstree_map_internal(bstree *root, const TRAVERSAL_STRATEGY strat, void* aux, TMapFunc func){
 	if(strat == DEPTH_FIRST_PRE || strat == DEPTH_FIRST_IN){
 		dlist *stk = NULL;
+		size_t depth = 0;
 		bstree *cur = root;
 		while(stk || cur){
 			if(cur){
-				stk = dlist_push(stk, cur, FALSE, NULL);
+				depth++;
+				stk = dlist_append(stk, new_node_and_depth(depth, cur), FALSE, NULL);
+				if(strat == DEPTH_FIRST_PRE)
+					if(!func(cur, depth-1, aux)) return FALSE;
 				cur = cur->left;
 			} else {
-				if(strat == DEPTH_FIRST_IN || strat == DEPTH_FIRST_PRE){
-					if(strat == DEPTH_FIRST_IN)
-						stk = dlist_dequeue(stk, (void**)&cur, FALSE, NULL);
-					else
-						stk = dlist_pop(stk, (void**)&cur, FALSE, NULL);
-					//by changing this from a stack to a queue, this can be transformed to a pre-order
-					//traversal
-					if(!func(cur, aux)) return FALSE;
-				}
+				struct node_and_depth *node = NULL;
+				stk = dlist_pop(stk, (void**)&node, FALSE, NULL);
+				cur = node->node;
+				depth = node->depth;
+				free(node);
+				//by changing this from a stack to a queue, this can be transformed to a pre-order
+				//traversal
+				if(strat == DEPTH_FIRST_IN)
+					if(!func(cur, depth-1, aux)) return FALSE;
 				cur = cur->right;
 			}
 		}
 	} else if( strat == DEPTH_FIRST_POST){
 		if(!root) return TRUE;
-		dlist *stk = dlist_push(NULL, root, FALSE, NULL);
+		size_t depth = 0;
+		dlist *stk = dlist_push(NULL, new_node_and_depth(depth, root), FALSE, NULL);
 		bstree *prev = NULL;
 		while(stk){
-			bstree *cur = stk->data;
+			struct node_and_depth* node = stk->data;
+			bstree *cur = node->node;
+			depth = node->depth;
 			if(!prev || prev->left == cur || prev->right == cur){
-				if(cur->left)
-					stk = dlist_push(stk, cur->left, FALSE, NULL);
-				else if(cur->right)
-					stk = dlist_push(stk, cur->right, FALSE, NULL);
+				if(cur->left || cur->right){
+					stk = dlist_push(stk, new_node_and_depth(depth+1, cur->left?cur->left:cur->right), FALSE, NULL);
+				}
 			} else if(cur->left == prev){
 				if(cur->right)
-					stk = dlist_push(stk, cur->right, FALSE, NULL);
+					stk = dlist_push(stk, new_node_and_depth(depth+1, cur->right), FALSE, NULL);
 			} else {
-				if(!func(cur, aux)) return FALSE;
-				stk = dlist_dequeue(stk, NULL, FALSE, NULL);
+				if(!func(cur, depth, aux)) return FALSE;
+				stk = dlist_dequeue(stk, (void**)&node, FALSE, NULL);
+				free(node);
 			}
 			prev = cur;
 		}
 	} else { //Breadth First
-		dlist* q = dlist_append(NULL, root, FALSE, NULL);
+		dlist* q = dlist_append(NULL, new_node_and_depth(0, root), FALSE, NULL);
+		size_t depth = 0;
+		bstree *prev = root;
 		while(q){
 			bstree *node;
 			q = dlist_dequeue(q, (void**)&node, FALSE, NULL);
-			if(!func(node, aux)) return FALSE;
-			if(node->left){
+			if(!func(node, depth, aux)) return FALSE;
+			if(prev && (prev->left == node || prev->right == node)){//new level
+				depth++;
+				prev = NULL;
+			}
+			if(!prev)
+				prev = node->left?node->left:node->right;
+			if(node->left)
 				q = dlist_append(q, node->left, FALSE, NULL);
-			}
-			if(node->right){
+			if(node->right)
 				q = dlist_append(q, node->right, FALSE, NULL);
-			}
 		}
 	}
 	return TRUE;
@@ -297,8 +324,8 @@ struct bstree_map_d {
 };
 
 static BOOLEAN
-bstree_map_f(bstree* root, struct bstree_map_d* aux){
-	return aux->func(root->data, aux->aux);
+bstree_map_f(bstree* root, size_t depth, struct bstree_map_d* aux){
+	return aux->func(root->data, depth, aux->aux);
 }
 
 BOOLEAN
@@ -310,89 +337,65 @@ bstree_map(bstree* root, const TRAVERSAL_STRATEGY strat, void* aux, lMapFunc fun
 	return bstree_map_internal(root, strat, &dat, (TMapFunc)bstree_map_f);
 }
 
-static BOOLEAN
-bstree_leaves_map_f(bstree *root, dlist **leaves){
-	if(root->left == NULL && root->right == NULL)
-		*leaves = dlist_append(*leaves, root, FALSE, NULL);
-	return TRUE;
-}
-
-dlist*
-bstree_leaves(bstree *root){
-	dlist *head = NULL;
-	bstree_map_internal(root, DEPTH_FIRST_IN, &head, (TMapFunc)bstree_leaves_map_f);
-	return head;
-}
-
-struct height {
-	bstree *root;
-	list_tspec *type;
-	size_t min, max, avg;
-	BOOLEAN init;
-};
-
 #define MAX(a,b) ({ typeof(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
 #define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 
-static BOOLEAN
-bstree_height_map(bstree *leaf, struct height *h){
-	dlist *path = bstree_path(h->root, leaf->data, h->type);
-	size_t len = dlist_length(path)-1;
-	if(h->init){
-		h->min = MIN(h->min, len);
-		h->max = MAX(h->max, len);
-		h->avg += len;
-	} else {
-		h->min = len;
-		h->max = len;
-		h->avg = len;
-		h->init = TRUE;
-	}
-	dlist_clear(path, FALSE, NULL);
-	return TRUE;
-}
-
 void
-bstree_height(bstree *root, size_t *min, size_t *max, size_t *avg, list_tspec* type){
-	dlist* leaves = bstree_leaves(root);
-	struct height h = {
-		.root = root,
-		.type = type,
-		.init = FALSE
-	};
-	dlist_map(leaves, &h, (lMapFunc)bstree_height_map);
-	printf("Leaves: %lu\n", dlist_length(leaves));
-	*min = h.min;
-	*max = h.max;
-	*avg = (size_t)(h.avg/dlist_length(leaves));
-	dlist_clear(leaves, FALSE, NULL);
+bstree_info(bstree *root, size_t *min, size_t *max, size_t *avg, size_t *num_leaves, size_t *size, dlist** rleaves, dlist** rnodes){
+	//dlist* leaves = bstree_leaves(root);
+	dlist *leaves = NULL, *nodes = NULL;
+	size_t tmin = 0, tmax = 0, tavg = root?1:0, tleaves = root?1:0, tsize = root?1:0;
+	BOOLEAN init = FALSE;
+	dlist *stk = NULL;
+	size_t depth = 0;
+	bstree *cur = root;
+	while(stk || cur){
+		if(cur){
+			stk = dlist_append(stk, cur, FALSE, NULL);
+			if(rnodes) nodes = dlist_append(nodes, cur, FALSE, NULL);
+			cur = cur->left;
+			depth++;
+			tsize++;
+		} else {
+			stk = dlist_dequeue(stk, (void**)&cur, FALSE, NULL);
+			depth--;
+			if(cur->left == NULL && cur->right == NULL){
+				tleaves++;
+				if(rleaves)
+					leaves = dlist_append(leaves, cur, FALSE, NULL);
+			}
+			if(init){
+				tmin = MIN(tmin, depth);
+				tmax = MAX(tmax, depth);
+			} else {
+				tmin = depth;
+				tmax = depth;
+				init = TRUE;
+			}
+			tavg = tavg + depth;
+			cur = cur->right;
+		}
+	}
+	//printf("Leaves: %lu\n", dlist_length(leaves));
+	if(min) *min = tmin;
+	if(max) *max = tmax;
+	if(avg) *avg = (size_t)(tavg/tsize);
+	if(num_leaves) *num_leaves = tleaves;
+	if(size) *size = tsize;
+	if(rleaves) *rleaves = leaves;
+	if(rnodes)  *rnodes = nodes;
 }
 
-static BOOLEAN
-bstree_size_map_f(void* data, size_t* size){
-	*size = *size + 1;
-	return TRUE;
-}
 
-size_t
-bstree_size(bstree *root){
-	size_t size = 1;
-	bstree_map(root, DEPTH_FIRST_IN, &size, (lMapFunc)bstree_size_map_f);
-	return size;
-}
-
+#if 1
 struct bstree_dump_map_d {
 	bstree *root;
 	list_tspec *type;
 };
 
-#if 0
 static BOOLEAN
-bstree_dump_map_f(bstree* node, struct bstree_dump_map_d *aux){
-	dlist *path = bstree_path(aux->root, node->data, aux->type);
-	size_t len = dlist_length(path)-1;
-	printf("%*s%-4p: %lu <%p, %p>\n", (int)len, "", node->data, len, node->left, node->right);
-	dlist_clear(path, FALSE, NULL);
+bstree_dump_map_f(bstree* node, size_t level, struct bstree_dump_map_d *aux){
+	printf("%*s%-4p: %lu <%p, %p>\n", (int)level, "", node->data, level, node->left, node->right);
 	return TRUE;
 }
 
@@ -402,6 +405,8 @@ print_bstree_structure(bstree *root, list_tspec *type){
 		.root = root,
 		.type = type
 	};
+	bstree_map_internal(root, DEPTH_FIRST_PRE, &dat, (TMapFunc)bstree_dump_map_f);
 	bstree_map_internal(root, DEPTH_FIRST_IN, &dat, (TMapFunc)bstree_dump_map_f);
+	bstree_map_internal(root, DEPTH_FIRST_POST, &dat, (TMapFunc)bstree_dump_map_f);
 }
 #endif

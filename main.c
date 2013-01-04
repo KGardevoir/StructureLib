@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 #include "linked_structures.h"
 #define MAX(a,b) ({ typeof(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
 #define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
@@ -42,31 +43,31 @@ test_splay(){
 	splaytree *t = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
 	size_t NUMS = 40000;
 	size_t GAP  = 307;
-
-	printf("Checking... (no bad output means success)\n");
+	printf("Checking Splay Tree -----------------------------\n");
+	printf("Checking... (no bad output means success)--------\n");
 	{
 		long i;
-		size_t min, max, avg;
+		size_t min, max, avg, nodes, leaves;
 		for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
 			t = splay_insert(t, (void*)i, FALSE, &type);
 		printf("Inserts complete\n");
-		printf("%lu Nodes\n", bstree_size(t));
-		bstree_height(t, &min, &max, &avg, &type);
-		printf("min: %lu, max: %lu, avg: %lu\n", min, max, avg);
+		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
+		printf("%lu Nodes, %lu leaves\n", nodes, leaves);
+		printf("min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 		for(i = 1; i < NUMS; i += 2)
 			t = splay_remove(t, (void*)i, NULL, FALSE, &type);
 		printf("Removes complete\n");
-		printf("%lu Nodes\n", bstree_size(t));
-		bstree_height(t, &min, &max, &avg, &type);
-		printf("min: %lu, max: %lu, avg: %lu\n", min, max, avg);
+		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
+		printf("%lu Nodes, %lu leaves\n", nodes, leaves);
+		printf("min: %lu, max: %lu, avg: %lu optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 	}
 
 	{
 		long i;
-		t = splay_findmin(t, &type); i = (long)t->data;
+		t = splay_find(t, bstree_findmin(t)->data, &type); i = (long)t->data;
 		long nm = (long)bstree_successor(t, t, &type)->data;
 		long j;
-		t = splay_findmax(t, &type); j = (long)t->data;
+		t = splay_find(t, bstree_findmax(t)->data, &type); j = (long)t->data;
 		long k = (long)bstree_predessor(t, t, &type)->data;
 		if(i != 2 || nm != 4 || j != NUMS-2 || k != NUMS-4)
 			printf("FindMin or FindMax error! Got %lu and %lu, head successor: %lu, tail predessor: %lu\n", i, j, k, nm);
@@ -87,10 +88,12 @@ test_splay(){
 		}
 	}
 	bstree_clear(t,FALSE,NULL);
+	printf("Finished Checking Splay Trees -------------------\n");
 }
 
 void
 test_dlist(){
+	printf("Checking dlists ---------------------------------\n");
 	list_tspec list_type = {
 		.destroy = NULL,
 		.compar = (lCompare)compare_ints,
@@ -118,11 +121,13 @@ test_dlist(){
 	dlist_clear(l1, FALSE, &list_type);
 	dlist_clear(l2, FALSE, &list_type);
 	dlist_clear(l3, FALSE, &list_type);
+	printf("Finished dlists ---------------------------------\n");
 }
 
 void
 test_bstree(){
 	bstree *t1 = NULL, *t2 = NULL, *t3 = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
+	printf("Checking bstree ---------------------------------\n");
 	printf("BST Tests starting\n");
 	long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
 	long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
@@ -144,14 +149,15 @@ test_bstree(){
 	t1 = bstree_remove(t1, (void*)x1[5], (void**)&mp, FALSE, &type);
 	if(mp != x1[5])
 		printf("Error: Unable to remove element\n");
-	//print_bstree_structure(t1, &type);
-	size_t min, max, avg;
-	bstree_height(t1, &min, &max, &avg, &type);
-	printf("min:%lu, max:%lu, avg:%lu\n", min, max, avg);
+	void print_bstree_structure(bstree *root, list_tspec *type);
+	print_bstree_structure(t1, &type);
+	size_t min, max, avg, nodes;
+	bstree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
+	printf("min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
 	bstree_clear(t1, FALSE, &type);
 	bstree_clear(t2, FALSE, &type);
 	bstree_clear(t3, FALSE, &type);
-	printf("BST Tests done\n");
+	printf("Finished bstree ---------------------------------\n");
 }
 
 int

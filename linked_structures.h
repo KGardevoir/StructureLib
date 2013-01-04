@@ -11,6 +11,7 @@ typedef long  (*lKeyCompare)(const void *key, const void*);
 typedef enum TRAVERSAL_STRATEGY {
 	BREADTH_FIRST=0,
 	DEPTH_FIRST_PRE=1,
+	DEPTH_FIRST=2,
 	DEPTH_FIRST_IN=2,
 	DEPTH_FIRST_POST=3,
 } TRAVERSAL_STRATEGY;
@@ -54,8 +55,8 @@ typedef tree bstree;
 typedef bstree splaytree;
 
 typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
-typedef BOOLEAN (*lMapFunc)(void *data, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
-typedef BOOLEAN (*lTransFunc)(void **data, void* aux);/*in-place data transformation, should always return TRUE as FALSE means stop*/
+typedef BOOLEAN (*lMapFunc)(void *data, size_t depth, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
+typedef BOOLEAN (*lTransFunc)(void **data, size_t depth, void* aux);/*in-place data transformation, should always return TRUE as FALSE means stop*/
 
 
 //Add
@@ -135,9 +136,7 @@ bstree* bstree_successor(bstree *root, bstree *node, list_tspec *type);
 bstree* bstree_findmin(bstree *root);
 bstree* bstree_findmax(bstree *root);
 
-dlist* bstree_leaves(bstree *root) __attribute__((warn_unused_result));
-void   bstree_height(bstree *root, size_t *min, size_t *max, size_t *avg, list_tspec*);
-size_t bstree_size(bstree *root);
+void   bstree_info(bstree *root, size_t *min, size_t *max, size_t *avg, size_t *leaves, size_t *size, dlist **lleaves, dlist **lnodes);
 
 BOOLEAN bstree_map(bstree *root, const TRAVERSAL_STRATEGY, void* aux, lMapFunc func);
 
@@ -145,8 +144,6 @@ BOOLEAN bstree_map(bstree *root, const TRAVERSAL_STRATEGY, void* aux, lMapFunc f
 splaytree* splay_insert(splaytree* root, void *data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
 splaytree* splay_remove(splaytree* root, void *data, void** rtn, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
 splaytree* splay_remove_via_key(splaytree* root, void *data, void** rtn, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
-splaytree* splay_findmin(splaytree* root, list_tspec* type) __attribute__((warn_unused_result));
-splaytree* splay_findmax(splaytree* root, list_tspec* type) __attribute__((warn_unused_result));
 splaytree* splay_find_via_key(splaytree* root, const void const *key, list_tspec* type) __attribute__((warn_unused_result));
 splaytree* splay_find(splaytree* root, void *data, list_tspec* type) __attribute__((warn_unused_result));
 
