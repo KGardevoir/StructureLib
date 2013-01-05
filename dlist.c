@@ -156,34 +156,36 @@ dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data, list_tspec* t
 	return head;
 }
 
-struct dlist_map_d {
-	lMapFunc func;
-	void *aux;
-};
-
-static BOOLEAN
-dlist_map_f(dlist *node, size_t depth, struct dlist_map_d *aux){
-	return aux->func(node->data, depth, aux->aux);
-}
-
-static BOOLEAN
-dlist_map_internal(dlist *head, void* aux, lMapFunc func){
+static inline BOOLEAN
+dlist_map_internal(dlist *head, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
 	dlist *run = head;
-	size_t depth = 0;
+	size_t depth = 0, length = 0;
+	if(more_info) length = dlist_length(head);
 	if(!func) return FALSE;
 	if(!head) return TRUE;
 	do{
-		if(!func(run, depth, aux)) return FALSE;
+		if(more_info){
+			lMapFuncAux ax = {
+				.isAux = TRUE,
+				.position = depth,
+				.depth = depth,
+				.size = length,
+				.aux = aux
+			};
+			if(!func(pass_data?run->data:run, (void*)&ax)) return FALSE;
+		} else {
+			if(!func(pass_data?run->data:run, aux)) return FALSE;
+		}
 		run = run->next;
+		depth++;
 	} while(run != head);
 	return TRUE;
 }
 
 //Other Functions
 BOOLEAN
-dlist_map(dlist *head, void* aux, lMapFunc func){
-	struct dlist_map_d mm = {.func = func, .aux = aux};
-	return dlist_map_internal(head, &mm, (lMapFunc)dlist_map_f);
+dlist_map(dlist *head, BOOLEAN more_info, void* aux, lMapFunc func){
+	return dlist_map_internal(head, TRUE, more_info, aux, func);
 }
 
 struct dlist_filter_d {
@@ -195,8 +197,8 @@ struct dlist_filter_d {
 };
 
 static BOOLEAN
-dlist_filter_f(void *data, size_t depth, struct dlist_filter_d *aux){
-	if(aux->func(data, depth, aux->aux)){
+dlist_filter_f(void *data, struct dlist_filter_d *aux){
+	if(aux->func(data, aux->aux)){
 		aux->list = dlist_append(aux->list, data, aux->deep, aux->type);
 	}
 	return TRUE;
@@ -211,7 +213,7 @@ dlist_filter(dlist *head, void* aux, lMapFunc func, BOOLEAN deep, list_tspec* ty
 		.func = func,
 		.list = NULL
 	};
-	dlist_map(head, &dd, (lMapFunc)dlist_filter_f);
+	dlist_map(head, FALSE, &dd, (lMapFunc)dlist_filter_f);
 	return dd.list;
 }
 
@@ -221,8 +223,8 @@ struct dlist_transform_d {
 };
 
 BOOLEAN
-dlist_transform_f(dlist* node, size_t depth, struct dlist_transform_d* aux){
-	return aux->func(&node->data, depth, aux->aux);
+dlist_transform_f(dlist* node, struct dlist_transform_d* aux){
+	return aux->func(&node->data, aux->aux);
 }
 
 /**
@@ -234,7 +236,7 @@ dlist_transform(dlist *head, void* aux, lTransFunc func){
 		.aux = aux,
 		.func = func
 	};
-	dlist_map_internal(head, &dd, (lMapFunc)dlist_transform_f);
+	dlist_map_internal(head, FALSE, FALSE, &dd, (lMapFunc)dlist_transform_f);
 	return head;
 }
 
@@ -385,6 +387,8 @@ dlist_split(dlist* h1, dlist* h2){
 
 dlist* //umad?
 dlist_concat(dlist* dsthead, dlist* srchead){
+	if(dsthead == NULL) return srchead;//handle empty lists
+	if(srchead == NULL) return dsthead;
 	dsthead->prev->next = srchead;
 	srchead->prev->next = dsthead;
 	dlist *tmp = srchead->prev; //now swap
@@ -405,4 +409,15 @@ dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec* type){
 	} while(p != head);
 	if(key_compar(key, p->data) == 0) return p;
 	return NULL;
+}
+
+BOOLEAN
+dlist_has(dlist *head, dlist *node){
+	if(!head) return FALSE;
+	dlist *p = head;
+	do{
+		if(p == node) return TRUE;
+		p = p->next;
+	} while(p != head);
+	return FALSE;
 }

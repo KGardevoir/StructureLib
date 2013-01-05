@@ -124,17 +124,24 @@ test_dlist(){
 	printf("Finished dlists ---------------------------------\n");
 }
 
+static BOOLEAN
+bstree_dump_map_f(long node, lMapFuncAux *aux){
+	printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
+	return TRUE;
+}
+
 void
 test_bstree(){
 	bstree *t1 = NULL, *t2 = NULL, *t3 = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
 	printf("Checking bstree ---------------------------------\n");
 	printf("BST Tests starting\n");
-	long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
-	long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
-	long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
+	//long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
+	//long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
+	long x2[] = {8, 3, 1, 6, 4, 7, 10, 14, 13};
+	//long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
 	size_t i = 0;
-	for(; i < sizeof(x1)/sizeof(x1[0]); i++){
-		t1 = bstree_insert(t1, (void*)x1[i], FALSE, &type);
+	for(; i < sizeof(x2)/sizeof(x2[0]); i++){
+		t1 = bstree_insert(t1, (void*)x2[i], FALSE, &type);
 	}
 	//for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
 	//	t2 = splay_insert(t2, (void*)x2[i], FALSE, &type);
@@ -142,15 +149,17 @@ test_bstree(){
 	//for(i = 0; i < sizeof(x3)/sizeof(x3[0]); i++){
 	//	t3 = splay_insert(t3, (void*)x3[i], FALSE, &type);
 	//}
-	bstree *f = bstree_find(t1, (void*)x1[5], &type);
+	bstree *f = bstree_find(t1, (void*)x2[5], &type);
 	long mp;
-	if((long)f->data != x1[5])
+	if((long)f->data != x2[5])
 		printf("Error: Not able to find element\n");
-	t1 = bstree_remove(t1, (void*)x1[5], (void**)&mp, FALSE, &type);
-	if(mp != x1[5])
+	t1 = bstree_remove(t1, (void*)x2[5], (void**)&mp, FALSE, &type);
+	if(mp != x2[5])
 		printf("Error: Unable to remove element\n");
-	void print_bstree_structure(bstree *root, list_tspec *type);
-	print_bstree_structure(t1, &type);
+	printf("Tree Structures:\n");
+	printf("Pre Order:\n"); bstree_map(t1, DEPTH_FIRST_PRE, TRUE, NULL, (lMapFunc)bstree_dump_map_f);
+	printf("In Order:\n");  bstree_map(t1, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)bstree_dump_map_f);
+	printf("Post Order:\n");bstree_map(t1, DEPTH_FIRST_POST, TRUE, NULL, (lMapFunc)bstree_dump_map_f);
 	size_t min, max, avg, nodes;
 	bstree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
 	printf("min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
@@ -160,10 +169,47 @@ test_bstree(){
 	printf("Finished bstree ---------------------------------\n");
 }
 
+static BOOLEAN
+graph_dump_map_f(void* data, void* aux){
+	printf("<%lu> ", (long)data);
+	return TRUE;
+}
+
+void
+test_graph(){
+	printf("Checking graphs ---------------------------------\n");
+	long nums[] = {0,1,2,3,4,5,6};
+	graph *g[] = {
+		graph_insert(NULL, (void*)nums[0], FALSE, NULL),
+		graph_insert(NULL, (void*)nums[1], FALSE, NULL),
+		graph_insert(NULL, (void*)nums[2], FALSE, NULL),
+		graph_insert(NULL, (void*)nums[3], FALSE, NULL),
+		graph_insert(NULL, (void*)nums[4], FALSE, NULL),
+		graph_insert(NULL, (void*)nums[5], FALSE, NULL),
+		graph_insert(NULL, (void*)nums[6], FALSE, NULL)
+	};
+	graph_link(g[0], g[1], NULL); graph_link(g[0], g[6], NULL); graph_link(g[0], g[4], NULL);
+	graph_link(g[1], g[6], NULL); graph_link(g[1], g[5], NULL); graph_link(g[1], g[2], NULL);
+	graph_link(g[2], g[3], NULL); graph_link(g[2], g[4], NULL); graph_link(g[2], g[4], NULL);
+	graph_link(g[3], g[4], NULL);
+	graph_link(g[4], g[0], NULL);
+	graph_link(g[5], g[4], NULL);
+	graph_link(g[6], g[5], NULL);
+	printf("Depth First: ");
+	graph_map(g[0], DEPTH_FIRST, FALSE, NULL, (lMapFunc)graph_dump_map_f);
+	printf("\nBreadth First: ");
+	graph_map(g[0], BREADTH_FIRST, FALSE, NULL, (lMapFunc)graph_dump_map_f);
+	printf("\n");
+
+	graph_clear(g[0], FALSE, NULL);
+	printf("Finished graphs ---------------------------------\n");
+}
+
 int
 main(int argc, char** argv){
 	test_dlist();
-	test_splay();
 	test_bstree();
+	test_splay();
+	test_graph();
 	return 0;
 }

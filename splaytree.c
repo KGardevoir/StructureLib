@@ -124,7 +124,6 @@ splay_remove(splaytree* root, void* data, void** rtn, BOOLEAN destroy_data, list
 splaytree*
 splay_find(splaytree* root, void* data, list_tspec* type){
 	if(root == NULL) return root;
-
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	root = splay(root, data, type);
 	if(compar(root->data, data) != 0) return root;

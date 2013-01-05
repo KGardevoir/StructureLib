@@ -213,13 +213,26 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data, list_tspec* t
 
 //Other Functions
 BOOLEAN
-slist_map(slist *head, void* aux, lMapFunc func){
+slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc func){
 	if(!func) return FALSE;
 	if(!head) return TRUE;
 	slist *p = head;
 	size_t depth = 0;
+	size_t length = 0;
+	if(more_info) length = slist_length(head);
 	for(; p->next; p = p->next){
-		if(!func(p->data, depth, aux)) return FALSE;
+		if(more_info){
+			lMapFuncAux ax = {
+				.isAux = TRUE,
+				.position = depth,
+				.depth = depth,
+				.size = length,
+				.aux = aux
+			};
+			if(!func(p->data, &ax)) return FALSE;
+		} else {
+			if(!func(p->data, aux)) return FALSE;
+		}
 		depth++;
 	}
 	return TRUE;

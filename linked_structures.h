@@ -55,8 +55,15 @@ typedef tree bstree;
 typedef bstree splaytree;
 
 typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
-typedef BOOLEAN (*lMapFunc)(void *data, size_t depth, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
-typedef BOOLEAN (*lTransFunc)(void **data, size_t depth, void* aux);/*in-place data transformation, should always return TRUE as FALSE means stop*/
+typedef struct lMapFuncAux {
+	BOOLEAN isAux;
+	size_t depth;
+	size_t position;
+	size_t size;
+	void* aux;//user data
+} lMapFuncAux;
+typedef BOOLEAN (*lMapFunc)(void *data, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
+typedef BOOLEAN (*lTransFunc)(void **data, void* aux);/*in-place data transformation, should always return TRUE as FALSE means stop*/
 
 
 //Add
@@ -74,7 +81,7 @@ slist* slist_removeViaAllKey(slist *head, void **data, void* key, BOOLEAN ordere
 slist* slist_removeViaKey(slist *head, void **data, void* key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result));
 
 //Other Operations
-BOOLEAN slist_map(slist *head, void* aux, lMapFunc) __attribute__((warn_unused_result));
+BOOLEAN slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc) __attribute__((warn_unused_result));
 size_t slist_length(slist* head);
 //Transform
 void** slist_toArray(slist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
@@ -83,6 +90,13 @@ dlist* slist_to_dlist(slist *head, BOOLEAN deep, list_tspec*) __attribute__((war
 
 //Find
 void* slist_find(slist *head, void* key, BOOLEAN ordered, list_tspec*) __attribute__((warn_unused_result));
+#define SLIST_ITERATE(_ITER, _HEAD, _CODE) {\
+	_ITER = _HEAD;\
+	size_t _depth = 0;\
+	for(;_ITER;_ITER=_ITER->next, _depth++) {\
+		_CODE\
+	}\
+}
 
 //Doubly linked list functions
 //Add
@@ -102,7 +116,7 @@ dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data, list_t
 //Other Operations
 dlist* dlist_filter(dlist *head, void* aux, lMapFunc, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
 dlist* dlist_transform(dlist *head, void* aux, lTransFunc);
-BOOLEAN dlist_map(dlist *head, void* aux, lMapFunc);
+BOOLEAN dlist_map(dlist *head, BOOLEAN more_info, void* aux, lMapFunc);
 size_t dlist_length(dlist *head);
 //Transform
 void** dlist_toArray(dlist *head, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
@@ -118,6 +132,18 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 //Find
 //Data returned from find is PACKED which means that it returns the node, not the data, where the data resides
 dlist* dlist_find(dlist *head, const void* key, BOOLEAN ordered, list_tspec*) __attribute__((warn_unused_result));
+BOOLEAN dlist_had(dlist *head, dlist* node);
+#define DLIST_ITERATE(_ITER, _HEAD, _CODE) {\
+	_ITER = _HEAD;\
+	size_t _depth = 0;\
+	do{\
+		{\
+			_CODE\
+		}\
+		_ITER = _ITER->next;\
+		_depth++;\
+	} while(_ITER != HEAD);\
+}
 
 
 //Binary Search Tree, a threaded tree would be nice, but determining leaf nodes is SIGNIFICANTLY more difficult
@@ -138,7 +164,7 @@ bstree* bstree_findmax(bstree *root);
 
 void   bstree_info(bstree *root, size_t *min, size_t *max, size_t *avg, size_t *leaves, size_t *size, dlist **lleaves, dlist **lnodes);
 
-BOOLEAN bstree_map(bstree *root, const TRAVERSAL_STRATEGY, void* aux, lMapFunc func);
+BOOLEAN bstree_map(bstree *root, const TRAVERSAL_STRATEGY, BOOLEAN more_info, void* aux, lMapFunc func);
 
 //Splay Trees
 splaytree* splay_insert(splaytree* root, void *data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
@@ -153,6 +179,7 @@ graph* graph_link(graph* root, graph* child, list_tspec*);
 graph* graph_remove(graph* root, void* key, void** data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
 graph* graph_remove_via_key(graph* root, void* key, void** data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
 graph_adjmat* graph_matrix(graph* root, void* key, void** data, BOOLEAN copy, list_tspec*) __attribute__((warn_unused_result));
+void graph_clear(graph *root, BOOLEAN destroy_data, list_tspec*);
 
 void graph_size(graph* root, size_t* nodes, size_t* edges);//count of all the nodes in the graph
 graph* graph_find(graph* root, TRAVERSAL_STRATEGY, void* key, list_tspec*);
@@ -162,6 +189,6 @@ graph* graph_find_via_key(graph* root, TRAVERSAL_STRATEGY, void* key, list_tspec
 dlist* graph_path(graph* root, TRAVERSAL_STRATEGY, void* key, list_tspec*) __attribute__((warn_unused_result));
 graph* graph_path_key_match(graph *root, dlist *key_path, list_tspec *type);
 
-BOOLEAN graph_map(graph* root, TRAVERSAL_STRATEGY, void* aux, lMapFunc func);
+BOOLEAN graph_map(graph* root, TRAVERSAL_STRATEGY, BOOLEAN more_info, void* aux, lMapFunc func);
 
 #endif //_LINKED_STRUCTURES_H_

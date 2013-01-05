@@ -36,9 +36,13 @@ graph_remove(graph* root, void* key, void** data, BOOLEAN copy, list_tspec* type
 #error "Unimplmented"
 }
 #endif
+void
+graph_clear(graph *root, BOOLEAN destroy_data, list_tspec *type){
+
+}
 
 static BOOLEAN
-graph_dfs_filter(graph *child, size_t depth, splaytree** tree){
+graph_dfs_filter(graph *child, splaytree** tree){
 	*tree = splay_find(*tree, child, NULL);
 	if((*tree)->data == child) return FALSE;
 	return TRUE;
@@ -49,50 +53,84 @@ struct graph_map_internal_dfs_d {
 	dlist *stk;
 	lMapFunc func;
 	void *aux;
-	size_t depth;
-	graph *prev;
+	size_t depth, size, position;
+	BOOLEAN more_data, pass_data;
 };
 static BOOLEAN
-graph_map_internal_bfs_f(graph* child, size_t depth, struct graph_map_internal_dfs_d *aux){
-	if((aux->visited = splay_find(aux->visited, child, NULL))->data == child){
+graph_map_internal_bfs_f(graph* child, struct graph_map_internal_dfs_d *aux){
+	if(!aux->visited ||
+			(aux->visited = splay_find(aux->visited, child, NULL))->data != child){
 		aux->visited = splay_insert(aux->visited, child, FALSE, NULL);
 		aux->stk = dlist_concat(aux->stk,
 				dlist_filter(child->edges, &aux->visited,
 					(lMapFunc)graph_dfs_filter, FALSE, NULL));
-		if(!aux->func(child->data, aux->depth, aux->aux)) return FALSE;
+		if(aux->more_data){
+			lMapFuncAux ax = {
+				.isAux = TRUE,
+				.depth = aux->depth,
+				.position = aux->position,
+				.size = aux->size,
+				.aux = aux->aux
+			};
+			if(!aux->func(aux->pass_data?child->data:child, &ax)) return FALSE;
+			aux->position++;
+		} else {
+			if(!aux->func(aux->pass_data?child->data:child, aux->aux)) return FALSE;
+		}
 	}
 	return TRUE;
 }
 static BOOLEAN
-graph_map_internal_dfs_f(graph* child, size_t depth, struct graph_map_internal_dfs_d *aux){
-	if((aux->visited = splay_find(aux->visited, child, NULL))->data == child){
+graph_map_internal_dfs_f(graph* child, struct graph_map_internal_dfs_d *aux){
+	if(!aux->visited ||
+			(aux->visited = splay_find(aux->visited, child, NULL))->data != child){
 		aux->visited = splay_insert(aux->visited, child, FALSE, NULL);
 		aux->stk = dlist_concat(dlist_filter(child->edges, &aux->visited,
 					(lMapFunc)graph_dfs_filter, FALSE, NULL),
 				aux->stk);
-		if(!aux->func(child->data, aux->depth, aux->aux)) return FALSE;
-		aux->depth++;
+		if(aux->more_data){
+			lMapFuncAux ax = {
+				.isAux = TRUE,
+				.depth = aux->depth,
+				.position = aux->position,
+				.size = aux->size,
+				.aux = aux->aux
+			};
+			if(!aux->func(aux->pass_data?child->data:child, &ax)) return FALSE;
+			aux->position++;
+		} else {
+			if(!aux->func(aux->pass_data?child->data:child, aux->aux)) return FALSE;
+		}
 	}
 	return TRUE;
 }
 
 static BOOLEAN
-graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, void* aux, lMapFunc func){
+graph_print_children(graph *graphs, void* _noaux/*NULL*/){
+	printf("%ld ", (long)graphs->data);
+	(void)_noaux;
+	return TRUE;
+}
+
+static BOOLEAN
+graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
 	struct graph_map_internal_dfs_d df = {
-		.visited = splay_insert(NULL, root, FALSE, NULL),
-		.stk = dlist_copy(root->edges, FALSE, NULL),
+		.visited = NULL,
+		.stk = dlist_append(NULL, root, FALSE, NULL),
 		.func = func,
-		.depth = 0,
-		.aux = aux
+		.depth = 0, .position = 0, .size = 0,
+		.aux = aux,
+		.more_data = more_info, .pass_data = pass_data
 	};
+	if(more_info) graph_size(root, &df.size, NULL);
 	lMapFunc search = (method==BREADTH_FIRST)?
 		(lMapFunc)graph_map_internal_bfs_f:
 		(lMapFunc)graph_map_internal_dfs_f;
 	while(df.stk){
 		graph *g;
 		df.stk = dlist_dequeue(df.stk, (void**)&g, FALSE, NULL);
-		df.depth--;
-		if(!dlist_map(g->edges, &df, search)){
+		dlist_map(g->edges, FALSE, NULL, (lMapFunc)graph_print_children);
+		if(!dlist_map(g->edges, FALSE, &df, search)){
 			bstree_clear(df.visited, FALSE, NULL);
 			dlist_clear(df.stk, FALSE, NULL);
 			return FALSE;
@@ -102,23 +140,9 @@ graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, void* aux, lMapFunc f
 	return TRUE;
 }
 
-struct graph_map_d {
-	void* aux;
-	lMapFunc func;
-};
-
-static BOOLEAN
-graph_map_f(graph *root, size_t depth, struct graph_map_d* aux){
-	return aux->func(root->data, depth, aux->aux);
-}
-
 BOOLEAN
-graph_map(graph *root, TRAVERSAL_STRATEGY strat, void* aux, lMapFunc func){
-	struct graph_map_d data = {
-		.aux = aux,
-		.func = func
-	};
-	return graph_map_internal(root, strat, &data, (lMapFunc)graph_map_f);
+graph_map(graph *root, TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void* aux, lMapFunc func){
+	return graph_map_internal(root, strat, TRUE, more_info, aux, func);
 }
 
 struct graph_find_d {
@@ -147,7 +171,7 @@ graph_find(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec* type){
 		.rtn = NULL,
 		.goal = dat
 	};
-	if(!graph_map_internal(root, strat, &mm, (lMapFunc)graph_find_f) && mm.rtn)
+	if(!graph_map_internal(root, strat, FALSE, FALSE, &mm, (lMapFunc)graph_find_f) && mm.rtn)
 		return mm.rtn;
 	return NULL;
 }
@@ -160,7 +184,7 @@ graph_find_via_key(graph *root, TRAVERSAL_STRATEGY strat, void* dat, list_tspec*
 		.rtn = NULL,
 		.goal = dat
 	};
-	if(!graph_map_internal(root, strat, &mm, (lMapFunc)graph_find_f) && mm.rtn)
+	if(!graph_map_internal(root, strat, FALSE, FALSE, &mm, (lMapFunc)graph_find_f) && mm.rtn)
 		return mm.rtn;
 	return NULL;
 }
@@ -183,7 +207,7 @@ graph_size(graph* root, size_t *nodes, size_t *edges){
 		.nodes = 0,
 		.edges = 0
 	};
-	graph_map_internal(root, BREADTH_FIRST, &mm, (lMapFunc)graph_size_f);
+	graph_map_internal(root, BREADTH_FIRST, FALSE, FALSE, &mm, (lMapFunc)graph_size_f);
 	*nodes = mm.nodes;
 	*edges = mm.edges;
 }
@@ -203,7 +227,7 @@ struct graph_path_d {
 };
 static BOOLEAN
 graph_path_bfs_f(graph* child, struct graph_path_d *aux){
-	if((aux->visited = splay_find(aux->visited, child, NULL))->data == child){
+	if((aux->visited = splay_find(aux->visited, child, NULL))->data != child){
 		aux->visited = splay_insert(aux->visited, child, FALSE, NULL);
 		aux->stk = dlist_concat(aux->stk,
 				dlist_transform(
@@ -217,7 +241,7 @@ graph_path_bfs_f(graph* child, struct graph_path_d *aux){
 }
 static BOOLEAN
 graph_path_dfs_f(graph* child, struct graph_path_d *aux){
-	if((aux->visited = splay_find(aux->visited, child, NULL))->data == child){
+	if((aux->visited = splay_find(aux->visited, child, NULL))->data != child){
 		aux->visited = splay_insert(aux->visited, child, FALSE, NULL);
 		aux->stk = dlist_concat(
 				dlist_transform(
@@ -253,7 +277,7 @@ graph_path(graph *root, TRAVERSAL_STRATEGY strat, void* key, list_tspec* type){
 	while(df.stk){
 		df.stk = dlist_dequeue(df.stk, (void**)&df.cpath, FALSE, &type_l);
 		//get the data at the tail of the list
-		if(!dlist_map(((graph*)df.cpath->prev->data)->edges, &df, (lMapFunc)search)){
+		if(!dlist_map(((graph*)df.cpath->prev->data)->edges, FALSE, &df, (lMapFunc)search)){
 			bstree_clear(df.visited, FALSE, NULL);
 			dlist_clear(df.stk, TRUE, &type_l);
 			return df.cpath;
@@ -279,6 +303,7 @@ graph_path_key_match(graph *root, dlist *key_path, list_tspec *type){
 	}
 	return troot;
 }
+
 
 #if 0
 graph*
