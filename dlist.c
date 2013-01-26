@@ -1,6 +1,7 @@
 #include "linked_structures.h"
 #include "tlsf/tlsf.h"
 #include "allocator.h"
+//#include "assert.h"
 
 static long
 memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
@@ -46,14 +47,24 @@ dlist_addOrdered(dlist* he, void* buf, BOOLEAN deep_copy, list_tspec *type){
 	if(he == NULL){
 		he = lm;
 	} else {
-		run = he; do{ if(compar(run->data, buf) >= 0){ break; } run = run->next; } while(run != he);
+		run = he; do{ if(compar(buf, run->data) > 0){ break; } run = run->next; } while(run != he);
 		//unified cases, since we enforce a FILO-like queue if they
-		//are equal
-		lm->next = run;
-		lm->prev = run->prev;
-		run->prev->next = lm;
-		run->prev = lm;
-		if(he == run && compar(run->data, buf) >= 0) he = lm;
+		if(he == run && compar(buf, run->data) > 0){
+			//are equal (insert before)
+			lm->next = run;
+			lm->prev = run->prev;
+			run->prev->next = lm;
+			run->prev = lm;
+		} else {
+			//insert after
+			run->next->prev = lm;
+			lm->next = run->next;
+			run->next = lm;
+			lm->prev = run;
+			if( he == run ) he = lm;
+		}
+		//assert( lm == he       || (compar(lm->prev->data, lm->data) <= 0) );
+		//assert( lm->next == he || (compar(lm->next->data, lm->data) >= 0) );
 	}
 	return he;
 }
@@ -94,6 +105,9 @@ dlist_length(dlist *head){
 	return i;
 }
 
+/**
+ * Remove head node and return new head
+ */
 dlist*
 dlist_dequeue(dlist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	if(!head) return NULL;
@@ -115,6 +129,9 @@ dlist_dequeue(dlist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	return head;
 }
 
+/**
+ * Remove node at end of list and return new head
+ */
 dlist*
 dlist_pop(dlist *head, void** dat, BOOLEAN destroy_data, list_tspec* type){
 	return dlist_dequeue(head->prev, dat, destroy_data, type);
@@ -215,6 +232,30 @@ dlist_filter(dlist *head, void* aux, lMapFunc func, BOOLEAN deep, list_tspec* ty
 	};
 	dlist_map(head, FALSE, &dd, (lMapFunc)dlist_filter_f);
 	return dd.list;
+}
+
+dlist*
+dlist_filter_i(dlist *head, void* aux, lMapFunc func, BOOLEAN free_data, list_tspec* type){
+	if(!func || !head) return head;
+	dlist *run = head;
+	do{
+		if(!func(run->data, aux)){
+			if(run == head){
+				BOOLEAN first = TRUE;
+				while(head && run == head && (first || !func(run->data, aux))){
+					head = run = dlist_dequeue(run, NULL, free_data, type);
+					first = FALSE;
+				}
+				if(!head) break;
+				run = run->next;
+			} else {
+				run = dlist_dequeue(run, NULL, free_data, type);
+			}
+		} else {
+			run = run->next;
+		}
+	} while(run != head);
+	return head;
 }
 
 struct dlist_transform_d {

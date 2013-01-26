@@ -169,9 +169,19 @@ test_bstree(){
 	printf("Finished bstree ---------------------------------\n");
 }
 
+#define GRAPH_TEST_SIZE 7
+typedef struct graph_dump_map_d {
+	size_t pos;
+	size_t max;
+	long test[GRAPH_TEST_SIZE];
+} graph_dump_map_d;
+
 static BOOLEAN
-graph_dump_map_f(void* data, void* aux){
-	printf("<%lu> ", (long)data);
+graph_dump_map_f(void* data, graph_dump_map_d* aux){
+	aux->test[aux->pos] = (long)data;
+	aux->pos++;
+	if(aux->pos >= aux->max)
+		return FALSE;
 	return TRUE;
 }
 
@@ -188,18 +198,78 @@ test_graph(){
 		graph_insert(NULL, (void*)nums[5], FALSE, NULL),
 		graph_insert(NULL, (void*)nums[6], FALSE, NULL)
 	};
-	graph_link(g[0], g[1], NULL); graph_link(g[0], g[6], NULL); graph_link(g[0], g[4], NULL);
-	graph_link(g[1], g[6], NULL); graph_link(g[1], g[5], NULL); graph_link(g[1], g[2], NULL);
+	graph_link(g[0], g[1], NULL); graph_link(g[0], g[4], NULL); graph_link(g[0], g[6], NULL);
+	graph_link(g[1], g[2], NULL); graph_link(g[1], g[5], NULL); graph_link(g[1], g[6], NULL);
 	graph_link(g[2], g[3], NULL); graph_link(g[2], g[4], NULL); graph_link(g[2], g[4], NULL);
 	graph_link(g[3], g[4], NULL);
 	graph_link(g[4], g[0], NULL);
 	graph_link(g[5], g[4], NULL);
 	graph_link(g[6], g[5], NULL);
-	printf("Depth First: ");
-	graph_map(g[0], DEPTH_FIRST, FALSE, NULL, (lMapFunc)graph_dump_map_f);
-	printf("\nBreadth First: ");
-	graph_map(g[0], BREADTH_FIRST, FALSE, NULL, (lMapFunc)graph_dump_map_f);
-	printf("\n");
+	{
+		printf("Depth First Search: ");
+		long expect[] = {0,1,2,3,4,5,6};
+		graph_dump_map_d buffer = {
+			.max = GRAPH_TEST_SIZE,
+			.pos = 0,
+			.test = {0}
+		};
+		graph_map(g[0], DEPTH_FIRST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		size_t i = 0;
+		BOOLEAN failure = FALSE;
+		if(buffer.pos != buffer.max){
+			printf("FAILURE, inconsitent number of nodes\n");
+		} else {
+			for(; i < GRAPH_TEST_SIZE; i++){
+				if(expect[i] != buffer.test[i]){
+					printf("FAILURE, value %lu does not match (Got: (", i);
+					for(i=0; i < GRAPH_TEST_SIZE; i++)
+						printf("%ld ", buffer.test[i]);
+					printf("), Expected: (");
+					for(i=0; i < GRAPH_TEST_SIZE; i++)
+						printf("%ld ", expect[i]);
+					printf(")\n");
+					failure=TRUE;
+					break;
+				}
+			}
+			if(!failure) printf("PASS\n");
+		}
+	}
+	{
+		printf("Breadth First Search: ");
+		long expect[] = {0,1,4,6,2,5,3};
+		graph_dump_map_d buffer = {
+			.max = GRAPH_TEST_SIZE,
+			.pos = 0,
+			.test = {0}
+		};
+		graph_map(g[0], BREADTH_FIRST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		size_t i = 0;
+		BOOLEAN failure = FALSE;
+		if(buffer.pos != buffer.max){
+			printf("FAILURE, inconsitent number of nodes\n");
+		} else {
+			for(; i < GRAPH_TEST_SIZE; i++){
+				if(expect[i] != buffer.test[i]){
+					printf("FAILURE, value %lu does not match (Got: (", i);
+					for(i=0; i < GRAPH_TEST_SIZE; i++)
+						printf("%ld ", buffer.test[i]);
+					printf("), Expected: (");
+					for(i=0; i < GRAPH_TEST_SIZE; i++)
+						printf("%ld ", expect[i]);
+					printf(")\n");
+					failure=TRUE;
+					break;
+				}
+			}
+			if(!failure) printf("PASS\n");
+		}
+	}
+	{
+		size_t nodes, edges;
+		graph_size(g[0], &nodes, &edges);
+		printf("Graph Size: %s\n", (nodes == GRAPH_TEST_SIZE && edges == 13)?"PASS":"FAIL");
+	}
 
 	graph_clear(g[0], FALSE, NULL);
 	printf("Finished graphs ---------------------------------\n");

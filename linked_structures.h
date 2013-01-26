@@ -115,6 +115,7 @@ dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data, list_t
 
 //Other Operations
 dlist* dlist_filter(dlist *head, void* aux, lMapFunc, BOOLEAN deep, list_tspec*) __attribute__((warn_unused_result));
+dlist* dlist_filter_i(dlist *head, void *aux, lMapFunc, BOOLEAN free_data, list_tspec*) __attribute__((warn_unused_result));
 dlist* dlist_transform(dlist *head, void* aux, lTransFunc);
 BOOLEAN dlist_map(dlist *head, BOOLEAN more_info, void* aux, lMapFunc);
 size_t dlist_length(dlist *head);

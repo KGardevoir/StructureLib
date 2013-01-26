@@ -1,5 +1,5 @@
 SRC=dlist.c slist.c splaytree.c bstree.c graphs.c
-CFLAGS:=-Wall -Wno-pointer-sign -O2 $(CFLAGS)
+CFLAGS:=-g -Wall -Wno-pointer-sign -O2 $(CFLAGS)
 OBJ=$(addsuffix .o, $(basename $(SRC))) #tlsf/tlsf.o
 LIB=liblinked.a
 CC=gcc
