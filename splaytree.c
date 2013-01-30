@@ -10,7 +10,7 @@ new_splaynode(void* data, BOOLEAN deep_copy, list_tspec* type) {
 	splaytree init = {
 		.right = NULL,
 		.left = NULL,
-		.data = deep_copy?type->deep_copy(data):data
+		.data = deep_copy?type->deep_copy(data, type):data
 	};
 	splaytree *n = MALLOC(sizeof(splaytree));//TODO check if we run out of memory
 	memcpy(n, &init, sizeof(*n));
@@ -28,9 +28,9 @@ splay(splaytree* root, void* data, list_tspec* type) {
 	t = root;
 	header.left = header.right = NULL;
 	for(;;){
-		if(compar(data, t->data) < 0){
+		if(compar(data, t->data, type) < 0){
 			if(t->left == NULL) break;
-			if(compar(data, t->left->data) < 0){ //rotate right
+			if(compar(data, t->left->data, type) < 0){ //rotate right
 				y = t->left;
 				t->left = y->right;
 				y->right = t;
@@ -41,9 +41,9 @@ splay(splaytree* root, void* data, list_tspec* type) {
 			r->left = t; //link right
 			r = t;
 			t = t->left;
-		} else if(compar(data, t->data) > 0){
+		} else if(compar(data, t->data, type) > 0){
 			if(t->right == NULL) break;
-			if(compar(data, t->right->data) > 0){ //rotate left
+			if(compar(data, t->right->data, type) > 0){ //rotate left
 				y = t->right;
 				t->right = y->left;
 				//if(t->right != NULL) t->right->parent = t;
@@ -80,7 +80,7 @@ splay_insert(splaytree* root, void* data, BOOLEAN copy, list_tspec* type){
 	if(root == NULL) return new_splaynode(data, copy, type);
 
 	root = splay(root, data, type);
-	if((c = compar(data, root->data)) == 0) return root;//disallow duplicate elements (for now)
+	if((c = compar(data, root->data, type)) == 0) return root;//disallow duplicate elements (for now)
 	n = new_splaynode(data, copy, type);
 	if(c < 0){
 		n->left = root->left;
@@ -101,9 +101,9 @@ splay_remove(splaytree* root, void* data, void** rtn, BOOLEAN destroy_data, list
 	destroy_data = destroy_data && type && type->destroy;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	root = splay(root, data, type);
-	if(compar(data, root->data) == 0){// match found
+	if(compar(data, root->data, type) == 0){// match found
 		if(destroy_data){
-			type->destroy(root->data);
+			type->destroy(root->data, type);
 			root->data = NULL;
 		}
 		if(rtn){
@@ -126,7 +126,7 @@ splay_find(splaytree* root, void* data, list_tspec* type){
 	if(root == NULL) return root;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	root = splay(root, data, type);
-	if(compar(root->data, data) != 0) return root;
+	if(compar(root->data, data, type) != 0) return root;
 	return root;
 }
 

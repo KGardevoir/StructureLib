@@ -5,7 +5,7 @@
 /* Algorithms adapted from Ch.12 of Introduction To Algorithms by Thomas H. Cormen, Charles E. Leiserson, Ronald L.
  * Rivest, Clifford Stein */
 static long
-memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
+memcomp(void *a, void* b, list_tspec* type){ return (a>b?1:(a<b?-1:0)); }
 
 static bstree*
 new_bsnode(void* data, BOOLEAN deep_copy, list_tspec*type){
@@ -13,7 +13,7 @@ new_bsnode(void* data, BOOLEAN deep_copy, list_tspec*type){
 	bstree init = {
 		.left = NULL,
 		.right = NULL,
-		.data = deep_copy?type->deep_copy(data):data
+		.data = deep_copy?type->deep_copy(data, type):data
 	};
 	bstree *n = MALLOC(sizeof(bstree));
 	memcpy(n, &init, sizeof(*n));
@@ -27,9 +27,9 @@ bstree_insert(bstree *root, void* data, BOOLEAN copy, list_tspec* type){
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	if(p == NULL){//tree was NULL
 		root = new;
-	} else if(compar(data, p->data) < 0) {
+	} else if(compar(data, p->data, type) < 0) {
 		p->left = new;
-	} else if(compar(data, p->data) > 0) {
+	} else if(compar(data, p->data, type) > 0) {
 		p->right = new;
 	} else {//are equal, ignore for now (no duplicates)
 		FREE(new);
@@ -72,7 +72,7 @@ bstree_remove(bstree *root, void* data, void** rtn, BOOLEAN destroy_data, list_t
 	data = node->data;
 	FREE(node);
 	if(destroy_data){
-		type->destroy(data);
+		type->destroy(data, type);
 		data = NULL;
 	}
 	if(rtn) *rtn = data;
@@ -84,7 +84,7 @@ bstree_find(bstree *root, void *data, list_tspec* type){
 	long c;
 	if(root == NULL) return root;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	while(root != NULL && (c = compar(data, root->data)) != 0){
+	while(root != NULL && (c = compar(data, root->data, type)) != 0){
 		if(c < 0){
 			root = root->left;
 		} else {
@@ -98,7 +98,7 @@ bstree_find_via_key(bstree *root, const void const *key, list_tspec* type){
 	long c;
 	if(root == NULL) return root;
 	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
-	while(root != NULL && (c = key_compar(key, root->data)) != 0){
+	while(root != NULL && (c = key_compar(key, root->data, type)) != 0){
 		if(c < 0){
 			root = root->left;
 		} else {
@@ -114,7 +114,7 @@ bstree_parent(bstree *root, void *data, list_tspec* type){
 	bstree *parent = root;
 	if(root == NULL) return root;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	while(root != NULL && (c = compar(data, root->data)) != 0){
+	while(root != NULL && (c = compar(data, root->data, type)) != 0){
 		parent = root;
 		if(c < 0){
 			root = root->left;
@@ -131,7 +131,7 @@ bstree_path(bstree *root, void *data, list_tspec* type){
 	long c;
 	if(root == NULL) return NULL;
 	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	while(root != NULL && (c = compar(data, root->data)) != 0){
+	while(root != NULL && (c = compar(data, root->data, type)) != 0){
 		head = dlist_append(head, root, FALSE, NULL);
 		if(c < 0){
 			root = root->left;
@@ -195,7 +195,7 @@ struct free_cluster {
 
 static BOOLEAN
 bstree_clear_map(bstree* root, struct free_cluster *aux){
-	if(aux->destroy_data) aux->type->destroy(root->data);
+	if(aux->destroy_data) aux->type->destroy(root->data, NULL);
 	FREE(root);
 	return TRUE;
 }
@@ -368,6 +368,8 @@ bstree_map_breadth_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, 
 
 static inline BOOLEAN
 bstree_map_internal(bstree *root, const TRAVERSAL_STRATEGY strat, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+	if(!func) return FALSE;
+	if(!root) return TRUE;
 	if(strat == DEPTH_FIRST_PRE || strat == DEPTH_FIRST_IN){
 		return bstree_map_pre_in_internal(root, pass_data, more_info, strat == DEPTH_FIRST_IN, aux, func);
 	} else if( strat == DEPTH_FIRST_POST){

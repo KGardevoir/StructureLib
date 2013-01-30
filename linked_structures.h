@@ -3,10 +3,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-typedef void  (*lDestroy)(void* data);//how to destroy our data
-typedef void* (*lDeepCopy)(const void* src); //return a copy of the information (within a newly allocated buffer)
-typedef long  (*lCompare)(const void* key, const void*); //how to compare (NULL if undesired)
-typedef long  (*lKeyCompare)(const void *key, const void*);
+#include <inttypes.h>
+typedef struct list_tspec list_tspec;
+typedef void  (*lDestroy)(void* data, list_tspec*);//how to destroy our data
+typedef void* (*lDeepCopy)(const void* src, list_tspec*); //return a copy of the information (within a newly allocated buffer)
+typedef long  (*lCompare)(const void* key, const void*, list_tspec*); //how to compare (NULL if undesired)
+typedef long  (*lKeyCompare)(const void *key, const void*, list_tspec*);
 
 typedef enum TRAVERSAL_STRATEGY {
 	BREADTH_FIRST=0,
@@ -16,12 +18,13 @@ typedef enum TRAVERSAL_STRATEGY {
 	DEPTH_FIRST_POST=3,
 } TRAVERSAL_STRATEGY;
 
-typedef struct list_tspec {
+struct list_tspec {
 	const lDestroy destroy;
 	const lDeepCopy deep_copy;
 	const lCompare compar;
 	const lKeyCompare key_compar;
-} list_tspec;
+	struct list_tspec **parent;//pointer to an array of parents
+};
 
 typedef struct slist {
 	struct slist *next;
@@ -54,6 +57,18 @@ typedef struct graph_adjmat {
 typedef tree bstree;
 typedef bstree splaytree;
 
+typedef struct htable {
+	const size_t size;
+	size_t filled;
+	splaytree *array[1];//with type htable_data_cluster
+} htable;
+
+typedef struct htable_cluster {
+	void* key;
+	void* data;
+	uint64_t hash;
+} htable_cluster;
+
 typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
 typedef struct lMapFuncAux {
 	BOOLEAN isAux;
@@ -61,7 +76,7 @@ typedef struct lMapFuncAux {
 	size_t position;
 	size_t size;
 	void* aux;//user data
-} lMapFuncAux;
+} lMapFuncAux;//TODO finish implementing all fields for graphs and htable
 typedef BOOLEAN (*lMapFunc)(void *data, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
 typedef BOOLEAN (*lTransFunc)(void **data, void* aux);/*in-place data transformation, should always return TRUE as FALSE means stop*/
 
@@ -192,4 +207,10 @@ graph* graph_path_key_match(graph *root, dlist *key_path, list_tspec *type);
 
 BOOLEAN graph_map(graph* root, TRAVERSAL_STRATEGY, BOOLEAN more_info, void* aux, lMapFunc func);
 
+//Hash Tables
+htable* htable_insert(htable *table, void *key, size_t key_size, void *data, BOOLEAN copy, size_t isize, list_tspec*) __attribute__((warn_unused_result));
+htable* htable_remove(htable *table, void *key, size_t key_size, void **rtn, BOOLEAN destroy_data, list_tspec*) __attribute__((warn_unused_result)); 
+BOOLEAN htable_map(htable *table, TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void*, lMapFunc);
+void htable_clear(htable* tbl, BOOLEAN destroy_data, list_tspec*);
+void* htable_element(htable *table, void *key, size_t key_size, list_tspec* type);
 #endif //_LINKED_STRUCTURES_H_

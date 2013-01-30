@@ -12,7 +12,7 @@ new_slist(void* data, BOOLEAN deep_copy, slist* next, list_tspec *type){
 	slist *new = (slist*)MALLOC(sizeof(slist));
 	slist init = {
 		.next = next,
-		.data = deep_copy?type->deep_copy(data):data
+		.data = deep_copy?type->deep_copy(data, type):data
 	};
 	memcpy(new, &init, sizeof(*new));
 	return new;
@@ -52,12 +52,12 @@ slist_addOrdered(slist* he, void* buf, BOOLEAN deep_copy, BOOLEAN overwrite, lis
 	if(he == NULL) {
 		he = lm;
 	} else {
-		for(run = he; run && compar(buf, run->data) > 0; run = run->next){
+		for(run = he; run && compar(buf, run->data, type) > 0; run = run->next){
 			runp = run;
 		}
-		if(overwrite && run && compar(buf, run->data) == 0){
+		if(overwrite && run && compar(buf, run->data, type) == 0){
 			if(type && type->destroy)
-				type->destroy(run->data);
+				type->destroy(run->data, type);
 			run->data = lm->data;
 			FREE(lm);
 		} else {
@@ -92,7 +92,7 @@ slist_clear(slist *head, BOOLEAN destroy_data, list_tspec* type){
 	slist *run = head, *p = head;
 	destroy_data = destroy_data && type && type->destroy;
 	for(; run; run = p){
-		if(destroy_data) type->destroy(run->data);
+		if(destroy_data) type->destroy(run->data, type);
 		p = run->next;
 		FREE(run);
 	}
@@ -114,13 +114,13 @@ slist_dequeue(slist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	slist *run = head;
 	if(!run->next){
 		if(data) *data = run->next->data;
-		if(destroy_data) type->destroy(run->data);
+		if(destroy_data) type->destroy(run->data, type);
 		FREE(run);
 		return NULL;
 	}
 	for(; run->next && run->next->next; run = run->next);
 	if(data) *data = run->next->data;
-	if(destroy_data) type->destroy(run->next->data);
+	if(destroy_data) type->destroy(run->next->data, type);
 	FREE(run->next);
 	run->next = NULL;
 	return head;
@@ -133,7 +133,7 @@ slist_pop(slist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
 	run = head;
 	head = head->next;
 	if(data) *data = run->data;
-	if(destroy_data) type->destroy(run->data);
+	if(destroy_data) type->destroy(run->data, type);
 	FREE(run);
 	return head;
 }
@@ -143,19 +143,19 @@ slist_removeViaKey(slist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN
 	if(head == NULL) return head;
 	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
 	destroy_data = destroy_data && type && type->destroy;
-	for(run = head; run && (ordered?key_compar(key, run->data) <= 0:key_compar(key, run->data) != 0); run = run->next){
+	for(run = head; run && (ordered?key_compar(key, run->data, type) <= 0:key_compar(key, run->data, type) != 0); run = run->next){
 		runp = run;
 	}
-	if(run && key_compar(key, run->data) == 0){
+	if(run && key_compar(key, run->data, type) == 0){
 		if(runp){
 			runp->next = run->next;
 			if(data) *data = run->data;
-			if(destroy_data) type->destroy(run->data);
+			if(destroy_data) type->destroy(run->data, type);
 			FREE(run);
 		} else {
 			head = run->next;
 			if(data) *data = run->data;
-			if(destroy_data) type->destroy(run->data);
+			if(destroy_data) type->destroy(run->data, type);
 			FREE(run);
 		}
 	}
@@ -170,17 +170,17 @@ slist_removeAllViaKey(slist *head, void** data, void* key, BOOLEAN ordered, BOOL
 	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
 	destroy_data = destroy_data && type && type->destroy;
 	for(run = head; run; run = run->next){
-		if(ordered && key_compar(key, run->data) > 0) break;
-		if(key_compar(key, run->data) == 0){
+		if(ordered && key_compar(key, run->data, type) > 0) break;
+		if(key_compar(key, run->data, type) == 0){
 			if(runp){
 				runp->next = run->next;
 				if(data) *data = run->data;
-				if(destroy_data) type->destroy(run->data);
+				if(destroy_data) type->destroy(run->data, type);
 				FREE(run);
 			} else {
 				head = run->next;
 				if(data) *data = run->data;
-				if(destroy_data) type->destroy(run->data);
+				if(destroy_data) type->destroy(run->data, type);
 				FREE(run);
 			}
 		}
@@ -199,11 +199,11 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data, list_tspec* t
 	if(run && rem == run){
 		if(runp){
 			runp->next = run->next;
-			if(destroy_data) type->destroy(run->data);
+			if(destroy_data) type->destroy(run->data, type);
 			FREE(run);
 		} else {
 			head = run->next;
-			if(destroy_data) type->destroy(run->data);
+			if(destroy_data) type->destroy(run->data, type);
 			FREE(run);
 		}
 	}
@@ -249,7 +249,7 @@ slist* p = head;
 	void **values = (void**)MALLOC((len+1)*sizeof(void*));
 	for(len = 0, p = head; p->next && p->data; len++){
 		if(deep){
-			values[len] = type->deep_copy(p->data);
+			values[len] = type->deep_copy(p->data, type);
 		} else {
 			values[len] = p->data;
 		}
@@ -270,7 +270,7 @@ slist* p = head;
 	void **values = (void**)MALLOC((len+1)*sizeof(void*));
 	for(i = 0, p = head; p && p->data; i++, p = p->next){
 		if(deep){
-			values[len] = type->deep_copy(p->data);
+			values[len] = type->deep_copy(p->data, type);
 		} else {
 			values[len] = p->data;
 		}
@@ -302,7 +302,7 @@ slist_find(slist *head, void* key, BOOLEAN ordered, list_tspec *type){
 	if(!head) return NULL;
 slist* p = head;
 	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
-	for(; p->next && (ordered?key_compar(key, p->data) > 0:key_compar(key, p->data) != 0); p = p->next);
-	if(p && key_compar(key, p->data) == 0) return p->data;
+	for(; p->next && (ordered?key_compar(key, p->data, type) > 0:key_compar(key, p->data, type) != 0); p = p->next);
+	if(p && key_compar(key, p->data, type) == 0) return p->data;
 	return NULL;
 }

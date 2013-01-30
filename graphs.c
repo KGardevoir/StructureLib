@@ -13,7 +13,7 @@ static list_tspec graph_type_default = {
 static graph*
 new_graph_node(void* data, BOOLEAN copy, list_tspec* type){
 	graph init = {
-		.data = copy?type->deep_copy(data):data,
+		.data = copy?type->deep_copy(data, type):data,
 		.edges = NULL
 	};
 	graph *mem = MALLOC(sizeof(graph));
@@ -134,8 +134,8 @@ struct graph_find_d {
 static BOOLEAN
 graph_find_f(graph* node, struct graph_find_d *aux){
 	if((aux->type->key_compar?
-			aux->type->compar(aux->goal, node->data):
-			aux->type->key_compar(aux->goal, node->data)) == 0){
+			aux->type->compar(aux->goal, node->data, NULL):
+			aux->type->key_compar(aux->goal, node->data, NULL)) == 0){
 		aux->rtn = node;
 		return FALSE;
 	}

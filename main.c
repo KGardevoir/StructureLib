@@ -5,6 +5,29 @@
 #define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 long compare_ints(void *a, void *b){ return (long)((long)(a) - (long)(b)); }
 
+BOOLEAN
+compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
+	size_t i = 0;
+	if(length != got_length){
+		printf("FAILURE, inconsitent number of nodes (Got: %ld, Expected: %ld)\n", got_length, length);
+		return FALSE;
+	}
+	for(; i < length; i++){
+		if(expect[i] != got[i]){
+			printf("FAILURE, value %lu does not match (Got: (", i);
+			for(i=0; i < length; i++)
+				printf("%ld ", got[i]);
+			printf("), Expected: (");
+			for(i=0; i < length; i++)
+				printf("%ld ", expect[i]);
+			printf(")\n");
+			return FALSE;
+		}
+	}
+	printf("PASS\n");
+	return TRUE;
+}
+
 dlist*
 make_dlist(long a[], size_t s, list_tspec* type){
 	long i = 0;
@@ -41,25 +64,25 @@ print_splay_values(splaytree* root, size_t i){
 void
 test_splay(){
 	splaytree *t = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
-	size_t NUMS = 40000;
-	size_t GAP  = 307;
+	const size_t NUMS = 40000;
+	const size_t GAP  = 307;
 	printf("Checking Splay Tree -----------------------------\n");
-	printf("Checking... (no bad output means success)--------\n");
+	//printf("Checking... (no bad output means success)--------\n");
 	{
 		long i;
 		size_t min, max, avg, nodes, leaves;
 		for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
 			t = splay_insert(t, (void*)i, FALSE, &type);
-		printf("Inserts complete\n");
 		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
-		printf("%lu Nodes, %lu leaves\n", nodes, leaves);
-		printf("min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
+		printf("Inserts: %s\n", (NUMS == nodes)?"PASS":"FAIL");
+		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
+		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 		for(i = 1; i < NUMS; i += 2)
 			t = splay_remove(t, (void*)i, NULL, FALSE, &type);
-		printf("Removes complete\n");
 		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
-		printf("%lu Nodes, %lu leaves\n", nodes, leaves);
-		printf("min: %lu, max: %lu, avg: %lu optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
+		printf("Removes: %s\n", (NUMS/2 == nodes)?"PASS":"FAIL");
+		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
+		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 	}
 
 	{
@@ -124,17 +147,31 @@ test_dlist(){
 	printf("Finished dlists ---------------------------------\n");
 }
 
+#define BSTREE_TEST_SIZE 8
+typedef struct bstree_dump_map_d {
+	size_t pos;
+	size_t max;
+	long test1[BSTREE_TEST_SIZE];
+	long test2[BSTREE_TEST_SIZE];
+} bstree_dump_map_d;
+
 static BOOLEAN
-bstree_dump_map_f(long node, lMapFuncAux *aux){
-	printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
+bstree_dump_map_f(void* data, lMapFuncAux* more){
+	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
+	bstree_dump_map_d *aux = more->aux;
+	aux->test1[aux->pos] = (long)data;
+	aux->test2[aux->pos] = (long)more->depth;
+	aux->pos++;
+	if(aux->pos >= aux->max)
+		return FALSE;
 	return TRUE;
 }
+
 
 void
 test_bstree(){
 	bstree *t1 = NULL, *t2 = NULL, *t3 = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
 	printf("Checking bstree ---------------------------------\n");
-	printf("BST Tests starting\n");
 	//long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
 	//long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
 	long x2[] = {8, 3, 1, 6, 4, 7, 10, 14, 13};
@@ -157,17 +194,60 @@ test_bstree(){
 	if(mp != x2[5])
 		printf("Error: Unable to remove element\n");
 	printf("Tree Structures:\n");
-	printf("Pre Order:\n"); bstree_map(t1, DEPTH_FIRST_PRE, TRUE, NULL, (lMapFunc)bstree_dump_map_f);
-	printf("In Order:\n");  bstree_map(t1, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)bstree_dump_map_f);
-	printf("Post Order:\n");bstree_map(t1, DEPTH_FIRST_POST, TRUE, NULL, (lMapFunc)bstree_dump_map_f);
+	{
+		const long expect1[] = {8,3,1,6,4,10,14,13};
+		const long expect2[] = {1,2,3,3,4,2,3,4};
+		bstree_dump_map_d buffer = {
+			.max = BSTREE_TEST_SIZE,
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		bstree_map(t1, DEPTH_FIRST_PRE, TRUE, &buffer, (lMapFunc)bstree_dump_map_f);
+		printf("Pre Order (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("Pre Order (Level Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+	}
+	{
+		const long expect1[] = {1,3,4,6,8,10,13,14};
+		const long expect2[] = {3,2,4,3,1,2,4,3};
+		bstree_dump_map_d buffer = {
+			.max = BSTREE_TEST_SIZE,
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		bstree_map(t1, DEPTH_FIRST_IN, TRUE, &buffer, (lMapFunc)bstree_dump_map_f);
+		printf("In Order (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("In Order (Level Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+	}
+	{
+		const long expect1[] = {1,4,6,3,13,14,10,8};
+		const long expect2[] = {2,3,2,1,3,2,1,0};
+		bstree_dump_map_d buffer = {
+			.max = BSTREE_TEST_SIZE,
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		bstree_map(t1, DEPTH_FIRST_POST, TRUE, &buffer, (lMapFunc)bstree_dump_map_f);
+		printf("Post Order (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("Post Order (Level Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+	}
 	size_t min, max, avg, nodes;
 	bstree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
-	printf("min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
+	//printf("Tree Statistics: min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
 	bstree_clear(t1, FALSE, &type);
 	bstree_clear(t2, FALSE, &type);
 	bstree_clear(t3, FALSE, &type);
 	printf("Finished bstree ---------------------------------\n");
 }
+
 
 #define GRAPH_TEST_SIZE 7
 typedef struct graph_dump_map_d {
@@ -207,63 +287,25 @@ test_graph(){
 	graph_link(g[6], g[5], NULL);
 	{
 		printf("Depth First Search: ");
-		long expect[] = {0,1,2,3,4,5,6};
+		const long expect[] = {0,1,2,3,4,5,6};
 		graph_dump_map_d buffer = {
 			.max = GRAPH_TEST_SIZE,
 			.pos = 0,
 			.test = {0}
 		};
 		graph_map(g[0], DEPTH_FIRST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
-		size_t i = 0;
-		BOOLEAN failure = FALSE;
-		if(buffer.pos != buffer.max){
-			printf("FAILURE, inconsitent number of nodes\n");
-		} else {
-			for(; i < GRAPH_TEST_SIZE; i++){
-				if(expect[i] != buffer.test[i]){
-					printf("FAILURE, value %lu does not match (Got: (", i);
-					for(i=0; i < GRAPH_TEST_SIZE; i++)
-						printf("%ld ", buffer.test[i]);
-					printf("), Expected: (");
-					for(i=0; i < GRAPH_TEST_SIZE; i++)
-						printf("%ld ", expect[i]);
-					printf(")\n");
-					failure=TRUE;
-					break;
-				}
-			}
-			if(!failure) printf("PASS\n");
-		}
+		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
 		printf("Breadth First Search: ");
-		long expect[] = {0,1,4,6,2,5,3};
+		const long expect[] = {0,1,4,6,2,5,3};
 		graph_dump_map_d buffer = {
 			.max = GRAPH_TEST_SIZE,
 			.pos = 0,
 			.test = {0}
 		};
 		graph_map(g[0], BREADTH_FIRST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
-		size_t i = 0;
-		BOOLEAN failure = FALSE;
-		if(buffer.pos != buffer.max){
-			printf("FAILURE, inconsitent number of nodes\n");
-		} else {
-			for(; i < GRAPH_TEST_SIZE; i++){
-				if(expect[i] != buffer.test[i]){
-					printf("FAILURE, value %lu does not match (Got: (", i);
-					for(i=0; i < GRAPH_TEST_SIZE; i++)
-						printf("%ld ", buffer.test[i]);
-					printf("), Expected: (");
-					for(i=0; i < GRAPH_TEST_SIZE; i++)
-						printf("%ld ", expect[i]);
-					printf(")\n");
-					failure=TRUE;
-					break;
-				}
-			}
-			if(!failure) printf("PASS\n");
-		}
+		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
 		size_t nodes, edges;
@@ -273,6 +315,11 @@ test_graph(){
 
 	graph_clear(g[0], FALSE, NULL);
 	printf("Finished graphs ---------------------------------\n");
+}
+
+void
+test_htable(){
+
 }
 
 int
