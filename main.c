@@ -3,7 +3,8 @@
 #include "linked_structures.h"
 #define MAX(a,b) ({ typeof(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
 #define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
-long compare_ints(void *a, void *b){ return (long)((long)(a) - (long)(b)); }
+#define ARRLENGTH(A) ( sizeof(A)/sizeof(typeof(A[0])) )
+long long_cmp(void *a, void *b){ return (long)((long)(a) - (long)(b)); }
 
 BOOLEAN
 compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
@@ -29,15 +30,6 @@ compare_arrs(const long *expect, const size_t length, const long *got, const siz
 }
 
 dlist*
-make_dlist(long a[], size_t s, list_tspec* type){
-	long i = 0;
-	dlist* newl = NULL;
-	for(; i < s; i++){
-		newl = dlist_append(newl, (void*)a[i], 0, type);
-	}
-	return newl;
-}
-dlist*
 print_list(dlist* list){
 	dlist* run = list;
 	do {
@@ -45,18 +37,6 @@ print_list(dlist* list){
 		run = run->next;
 	} while(run != list);
 	return list;
-}
-
-static long
-long long_cmp(long a, long b){ return a - b; }
-
-size_t
-print_splay_values(splaytree* root, size_t i){
-	if(root == NULL) return i;
-	i = print_splay_values(root->left, i);
-	//printf("%lu <%p,%p,%p>\n", root->data, root->left, root, root->right);
-	i = print_splay_values(root->right, i);
-	return i + 1;
 }
 
 //extern void print_bstree_structure(bstree*, list_tspec*);
@@ -114,36 +94,133 @@ test_splay(){
 	printf("Finished Checking Splay Trees -------------------\n");
 }
 
+dlist*
+make_dlist(const long a[], size_t s, list_tspec* type){
+	long i = 0;
+	dlist* newl = NULL;
+	for(; i < s; i++){
+		newl = dlist_append(newl, (void*)a[i], 0, type);
+	}
+	return newl;
+}
+#define DLIST_TEST_SIZE 12
+typedef struct dlist_dump_map_f {
+	size_t pos;
+	size_t max;
+	long test1[DLIST_TEST_SIZE];
+	long test2[DLIST_TEST_SIZE];
+} dlist_dump_map_d;
+
+BOOLEAN
+dlist_dump_map_f(void *data, lMapFuncAux *more){
+	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
+	dlist_dump_map_d *aux = more->aux;
+	aux->test1[aux->pos] = (long)data;
+	aux->test2[aux->pos] = (long)more->position;
+	aux->pos++;
+	if(aux->pos >= aux->max)
+		return FALSE;
+	return TRUE;
+}
+
 void
 test_dlist(){
 	printf("Checking dlists ---------------------------------\n");
 	list_tspec list_type = {
 		.destroy = NULL,
-		.compar = (lCompare)compare_ints,
-		.key_compar = (lKeyCompare)compare_ints,
+		.compar = (lCompare)long_cmp,
+		.key_compar = (lKeyCompare)long_cmp,
 		.deep_copy = NULL
 	};
-	long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
-	long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
-	long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
-	printf("List  1---------------------------\n");
-	dlist *l1 = print_list(make_dlist(x1, sizeof(x1)/sizeof(long), &list_type));
-	printf("List  2---------------------------\n");
-	dlist *l2 = print_list(make_dlist(x2, sizeof(x2)/sizeof(long), &list_type));
-	printf("List  3---------------------------\n");
-	dlist *l3 = print_list(make_dlist(x3, sizeof(x3)/sizeof(long), &list_type));
-	//printf("Test  1---------------------------\n");
-	//print_list(double_concatLists(l1, l3));
-	//print_list(double_concatLists(l1, l2));
-	//print_list(double_mergeLists(l1, l3, compare_ints));
-	printf("Test  2---------------------------\n");
-	print_list(l2 = dlist_sort(l2, &list_type));
-	printf("Test  3---------------------------\n");
-	l2 = dlist_dequeue(l2, NULL, FALSE, &list_type);
-	print_list(l2);
-	dlist_clear(l1, FALSE, &list_type);
-	dlist_clear(l2, FALSE, &list_type);
-	dlist_clear(l3, FALSE, &list_type);
+	{
+		const long expect1[] = { 1, 3, 5, 6, 9, 10, 13 };
+		const long expect2[] = { 0, 1, 2, 3, 4,  5,  6 };
+		dlist_dump_map_d buffer = {
+			.max = ARRLENGTH(expect1),
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		dlist *l1 = make_dlist(expect1, buffer.max, &list_type);
+		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		printf("List 1 (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("List 1 (Index Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+		dlist_clear(l1, FALSE, &list_type);
+	}
+	{
+		const long expect1[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14,  9, 10 };
+		const long expect2[] = { 0, 1, 2, 3, 4, 5, 6, 7,  8,  9, 10, 11 };
+		dlist_dump_map_d buffer = {
+			.max = ARRLENGTH(expect1),
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		dlist *l1 = make_dlist(expect1, buffer.max, &list_type);
+		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		printf("List 2 (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("List 2 (Index Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+		dlist_clear(l1, FALSE, &list_type);
+	}
+	{
+		const long expect1[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
+		const long expect2[] = { 0, 1, 2, 3, 4, 5, 6, 7,  8,  9, 10, 11 };
+		dlist_dump_map_d buffer = {
+			.max = ARRLENGTH(expect1),
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		dlist *l1 = make_dlist(expect1, ARRLENGTH(expect1), &list_type);
+		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		printf("List 3 (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("List 3 (Index Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+		dlist_clear(l1, FALSE, &list_type);
+	}
+	{
+		const long expect1[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14 };
+		const long expect2[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11 };
+		const long init[]    = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14,  9, 10 };
+		dlist_dump_map_d buffer = {
+			.max = ARRLENGTH(expect1),
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		dlist *l1 = make_dlist(init, buffer.max, &list_type);
+		l1 = dlist_sort(l1, &list_type);
+		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		printf("List 2 Sort (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("List 2 Sort (Index Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+		dlist_clear(l1, FALSE, &list_type);
+	}
+	{
+		const long expect1[] = { 6, 5, 4, 3, 2, 1, 8, 11, 14,  9, 10 };
+		const long expect2[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11 };
+		const long init[]    = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14,  9, 10 };
+		dlist_dump_map_d buffer = {
+			.max = ARRLENGTH(expect1),
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		dlist *l1 = make_dlist(init, ARRLENGTH(init), &list_type);
+		l1 = dlist_dequeue(l1, NULL, FALSE, &list_type);
+		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		printf("List 2 Dequeue (Element Order): ");
+		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		printf("List 2 Dequeue (Index Order): ");
+		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
+		dlist_clear(l1, FALSE, &list_type);
+	}
 	printf("Finished dlists ---------------------------------\n");
 }
 
@@ -319,7 +396,7 @@ test_graph(){
 
 void
 test_htable(){
-
+	
 }
 
 int

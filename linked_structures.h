@@ -59,7 +59,7 @@ typedef bstree splaytree;
 
 typedef struct htable {
 	const size_t size;
-	size_t filled;
+	size_t filled, collision;
 	splaytree *array[1];//with type htable_data_cluster
 } htable;
 

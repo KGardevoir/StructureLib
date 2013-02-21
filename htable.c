@@ -69,8 +69,9 @@ new_derived_type(list_tspec* ddtype){
 static BOOLEAN
 htable_recompute_f(htable_cluster *data, htable_recompute_d* aux){
 	//TODO remove old data first, assuming new entry
-	aux->tbl->array[data->hash%aux->tbl->size] =
-		splay_insert(aux->tbl->array[data->hash%aux->tbl->size], data, FALSE, aux->type);
+	uint64_t idx = data->hash%aux->tbl->size;
+	if(aux->tbl->array[idx] != NULL) aux->tbl->collision++;
+	aux->tbl->array[idx] = splay_insert(aux->tbl->array[idx], data, FALSE, aux->type);
 	return TRUE;
 }
 
@@ -91,7 +92,8 @@ htable_resize(htable* tbl, double scalar, size_t isize, list_tspec* type){
 	isize = (tbl?tbl->size:(isize==0?(isize = DEFAULT_SIZE):isize));
 	htable init = {
 		.size = next_prime(isize*scalar),
-		.filled = tbl->filled
+		.filled = 0,
+		.collision = 0
 	};
 	htable *ntbl = MALLOC(sizeof(htable)+sizeof(splaytree*)*init.size);
 	memcpy(ntbl, &init, sizeof(htable));
@@ -100,7 +102,7 @@ htable_resize(htable* tbl, double scalar, size_t isize, list_tspec* type){
 		.tbl = ntbl,
 		.type = type
 	};
-	htable_map(tbl, DEPTH_FIRST_PRE, &dat, (lMapFunc)htable_recompute_f);
+	htable_map(tbl, DEPTH_FIRST_PRE, FALSE, &dat, (lMapFunc)htable_recompute_f);
 	return ntbl;
 }
 
@@ -115,6 +117,7 @@ htable_insert(htable* table, void* key, size_t key_size, void *data, BOOLEAN cop
 		htable_clear(table, FALSE, type);
 		table = tbl;
 	}
+	if(table->array[at] != NULL) table->collision++;
 	table->array[at] = splay_insert(table->array[at], data, copy, type);
 	table->filled++;
 	free(type);
@@ -125,17 +128,23 @@ htable*
 htable_remove(htable* table, void* key, size_t key_size, void **rtn, BOOLEAN destroy_data, list_tspec* type){
 	if(!table) return table;
 	type = new_derived_type(type);
+	htable_cluster **rtn2 = NULL;
 	size_t at = CityHash64((const char*)key, key_size) % table->size;
-	if(rtn) *rtn = table->array[at];
-	if(table->array[at] && destroy_data) type->destroy(table->array[at], type);
-	table->array[at] = NULL;
-	table->filled--;
-	if(table->filled < table->size/4){//make table smaller
-		htable *tbl = htable_resize(table, 0.5, 0, type);
-		htable_clear(table, FALSE, type);
-		table = tbl;
-		//rehash table
+	table->array[at] = splay_remove(table->array[at], key, (void**)rtn2, FALSE, type);
+	if(rtn && *rtn2) *rtn = (*rtn2)->data;
+	if(*rtn2){
+		if(destroy_data) type->destroy((*rtn2)->data, type);
+		if(table->array[at] != NULL) table->collision--;//means there was a collision
+		table->filled--;
+		if(table->filled < table->size/4){//make table smaller
+			htable *tbl = htable_resize(table, 0.5, 0, type);
+			htable_clear(table, FALSE, type);
+			table = tbl;
+			//rehash table
+		}
+		htable_cluster_destroy(*rtn2, NULL);
 	}
+	free(type);
 	return table;
 }
 
