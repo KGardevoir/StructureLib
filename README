@@ -1,0 +1,17 @@
+StructureLib
+------------
+
+A library for linked structures, implemented in C, for C, with plans for C++ bindings.
+
+This project aims to do nothing more than provide some structures to be used in C. They range from Hash Tables to Linked
+Lists. Generally a structure is written in a manner to have its implementation decoupled from its usage, as such a
+system of inheritence is used for structures which are markedly similar.
+
+Current issues are:
+
+	* Hash Tables have not been tested, so bugs have not been fixed.
+
+Future Work:
+
+	* Red-black, AVL, and Scapegoat Trees
+	* Bloom filter for Hash Tables.
