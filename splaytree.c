@@ -5,32 +5,27 @@
 /*Adapted from ftp://ftp.cs.cmu.edu/usr/ftp/usr/sleator/splaying*/
 splaytree header = {.left = NULL, .right = NULL, .data = NULL};
 static splaytree*
-new_splaynode(void* data, BOOLEAN deep_copy, list_tspec* type) {
-	deep_copy = deep_copy && type && type->deep_copy;
+new_splaynode(aComparable* data, BOOLEAN deep_copy) {
 	splaytree init = {
 		.right = NULL,
 		.left = NULL,
-		.data = deep_copy?type->deep_copy(data, type):data
+		.data = deep_copy?(aComparable*)data->method->parent.copy((anObject*)data):data
 	};
-	splaytree *n = MALLOC(sizeof(splaytree));//TODO check if we run out of memory
+	splaytree *n = (splaytree*)MALLOC(sizeof(splaytree));//TODO check if we run out of memory
 	memcpy(n, &init, sizeof(*n));
 	return n;
 }
 
-static long
-memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
-
 static splaytree*
-splay(splaytree* root, void* data, list_tspec* type) {
+splay(splaytree* root, aComparable* data) {
 	splaytree *l, *r, *t, *y;
-	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
 	l = r = &header;
 	t = root;
 	header.left = header.right = NULL;
 	for(;;){
-		if(compar(data, t->data, type) < 0){
+		if(data->method->compare(data, (anObject*)t->data) < 0){
 			if(t->left == NULL) break;
-			if(compar(data, t->left->data, type) < 0){ //rotate right
+			if(data->method->compare(data, (anObject*)t->left->data) < 0){ //rotate right
 				y = t->left;
 				t->left = y->right;
 				y->right = t;
@@ -41,9 +36,9 @@ splay(splaytree* root, void* data, list_tspec* type) {
 			r->left = t; //link right
 			r = t;
 			t = t->left;
-		} else if(compar(data, t->data, type) > 0){
+		} else if(data->method->compare(data, (anObject*)t->data) > 0){
 			if(t->right == NULL) break;
-			if(compar(data, t->right->data, type) > 0){ //rotate left
+			if(data->method->compare(data, (anObject*)t->right->data) > 0){ //rotate left
 				y = t->right;
 				t->right = y->left;
 				//if(t->right != NULL) t->right->parent = t;
@@ -73,15 +68,14 @@ splay(splaytree* root, void* data, list_tspec* type) {
 }
 
 splaytree*
-splay_insert(splaytree* root, void* data, BOOLEAN copy, list_tspec* type){
+splay_insert(splaytree* root, aComparable* data, BOOLEAN copy){
 	splaytree* n;
 	long c;
-	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	if(root == NULL) return new_splaynode(data, copy, type);
+	if(root == NULL) return new_splaynode(data, copy);
 
-	root = splay(root, data, type);
-	if((c = compar(data, root->data, type)) == 0) return root;//disallow duplicate elements (for now)
-	n = new_splaynode(data, copy, type);
+	root = splay(root, data);
+	if((c = data->method->compare(data, (anObject*)root->data)) == 0) return root;//disallow duplicate elements (for now)
+	n = new_splaynode(data, copy);
 	if(c < 0){
 		n->left = root->left;
 		n->right = root;
@@ -95,24 +89,20 @@ splay_insert(splaytree* root, void* data, BOOLEAN copy, list_tspec* type){
 }
 
 splaytree*
-splay_remove(splaytree* root, void* data, void** rtn, BOOLEAN destroy_data, list_tspec* type){
+splay_remove(splaytree* root, aComparable* data, aComparable **rtn, BOOLEAN destroy_data){
 	splaytree* x;
 	if(root == NULL) return root;
-	destroy_data = destroy_data && type && type->destroy;
-	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	root = splay(root, data, type);
-	if(compar(data, root->data, type) == 0){// match found
+	root = splay(root, data);
+	if(data->method->compare(data, (anObject*)root->data) == 0){// match found
+		if(rtn) *rtn = root->data;
 		if(destroy_data){
-			type->destroy(root->data, type);
+			root->data->method->parent.destroy((anObject*)root->data);
 			root->data = NULL;
-		}
-		if(rtn){
-			*rtn = root->data;
 		}
 		if(root->left == NULL){
 			x = root->right;
 		} else {
-			x = splay(root->left, data, type);
+			x = splay(root->left, data);
 			x->right = root->right;
 		}
 		FREE(root);
@@ -122,11 +112,10 @@ splay_remove(splaytree* root, void* data, void** rtn, BOOLEAN destroy_data, list
 }
 
 splaytree*
-splay_find(splaytree* root, void* data, list_tspec* type){
+splay_find(splaytree* root, aComparable* data){
 	if(root == NULL) return root;
-	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	root = splay(root, data, type);
-	if(compar(root->data, data, type) != 0) return root;
+	root = splay(root, data);
+	if(data->method->compare(data, (anObject*)root->data) != 0) return root;
 	return root;
 }
 

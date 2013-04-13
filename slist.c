@@ -2,26 +2,21 @@
 #include "tlsf/tlsf.h"
 #include "allocator.h"
 
-
-static long
-memcomp(void *a, void* b){ return (a>b?1:(a<b?-1:0)); }
-
 static slist*
-new_slist(void* data, BOOLEAN deep_copy, slist* next, list_tspec *type){
-	deep_copy = deep_copy && type && type->deep_copy;
-	slist *new = (slist*)MALLOC(sizeof(slist));
+new_slist(anObject* data, BOOLEAN deep_copy, slist* next){
+	slist *lnew = (slist*)MALLOC(sizeof(slist));
 	slist init = {
 		.next = next,
-		.data = deep_copy?type->deep_copy(data, type):data
+		.data = deep_copy?data->method->copy(data):data
 	};
-	memcpy(new, &init, sizeof(*new));
-	return new;
+	memcpy(lnew, &init, sizeof(*lnew));
+	return lnew;
 }
 
 slist*
-slist_push(slist* he, void* buf, BOOLEAN copy, list_tspec *type){
+slist_push(slist* he, anObject* buf, BOOLEAN copy){
 	slist *lm;
-	lm = new_slist(buf, copy, NULL, type);
+	lm = new_slist(buf, copy, NULL);
 	if(he == NULL){
 		he = lm;
 	} else {
@@ -32,9 +27,9 @@ slist_push(slist* he, void* buf, BOOLEAN copy, list_tspec *type){
 }
 
 slist*
-slist_append(slist* he, void* buf, BOOLEAN copy, list_tspec* type){
+slist_append(slist* he, anObject* buf, BOOLEAN copy){
 	slist *lm, *he2;
-	lm = new_slist(buf, copy, NULL, type);
+	lm = new_slist(buf, copy, NULL);
 	if(he == NULL){
 		he = lm;
 	} else {
@@ -45,19 +40,17 @@ slist_append(slist* he, void* buf, BOOLEAN copy, list_tspec* type){
 }
 
 slist*
-slist_addOrdered(slist* he, void* buf, BOOLEAN deep_copy, BOOLEAN overwrite, list_tspec* type){
+slist_addOrdered(slist* he, aComparable* buf, BOOLEAN deep_copy, BOOLEAN overwrite){
 	slist *run, *lm, *runp = NULL;
-	lCompare compar = (type && type->compar)?type->compar:(lCompare)memcomp;
-	lm = new_slist(buf, deep_copy, NULL, type);
+	lm = new_slist((anObject*)buf, deep_copy, NULL);
 	if(he == NULL) {
 		he = lm;
 	} else {
-		for(run = he; run && compar(buf, run->data, type) > 0; run = run->next){
+		for(run = he; run && buf->method->compare(buf, run->data) > 0; run = run->next){
 			runp = run;
 		}
-		if(overwrite && run && compar(buf, run->data, type) == 0){
-			if(type && type->destroy)
-				type->destroy(run->data, type);
+		if(overwrite && run && buf->method->compare(buf, run->data) == 0){
+			run->data->method->destroy(run->data);
 			run->data = lm->data;
 			FREE(lm);
 		} else {
@@ -74,25 +67,24 @@ slist_addOrdered(slist* he, void* buf, BOOLEAN deep_copy, BOOLEAN overwrite, lis
 }
 
 slist*
-slist_copy(slist* src, BOOLEAN deep_copy, list_tspec* type){
+slist_copy(slist* src, BOOLEAN deep_copy){
 	slist *the_list, *list_start, *runner = src;
-	void* new_data = runner->data;
-	the_list = list_start = slist_push(NULL, new_data, deep_copy, type);
+	anObject* new_data = runner->data;
+	the_list = list_start = slist_push(NULL, new_data, deep_copy);
 	runner = runner->next;
 	for(; runner != NULL; runner = runner->next){
-		void* new_data = runner->data;
-		the_list = slist_append(the_list, new_data, deep_copy, type)->next;
+		anObject* new_data = runner->data;
+		the_list = slist_append(the_list, new_data, deep_copy)->next;
 	}
 	return list_start;
 }
 
 
 void
-slist_clear(slist *head, BOOLEAN destroy_data, list_tspec* type){
+slist_clear(slist *head, BOOLEAN destroy_data){
 	slist *run = head, *p = head;
-	destroy_data = destroy_data && type && type->destroy;
 	for(; run; run = p){
-		if(destroy_data) type->destroy(run->data, type);
+		if(destroy_data) run->data->method->destroy(run->data);
 		p = run->next;
 		FREE(run);
 	}
@@ -108,79 +100,70 @@ slist_length(slist *head){
 }
 
 slist*
-slist_dequeue(slist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
+slist_dequeue(slist *head, anObject** data, BOOLEAN destroy_data){
 	if(!head) return NULL;
-	destroy_data = destroy_data && type && type->destroy;
 	slist *run = head;
 	if(!run->next){
 		if(data) *data = run->next->data;
-		if(destroy_data) type->destroy(run->data, type);
+		if(destroy_data) run->data->method->destroy(run->data);
 		FREE(run);
 		return NULL;
 	}
 	for(; run->next && run->next->next; run = run->next);
 	if(data) *data = run->next->data;
-	if(destroy_data) type->destroy(run->next->data, type);
+	if(destroy_data) run->next->data->method->destroy(run->next->data);
 	FREE(run->next);
 	run->next = NULL;
 	return head;
 }
 slist*
-slist_pop(slist *head, void** data, BOOLEAN destroy_data, list_tspec* type){
+slist_pop(slist *head, anObject** data, BOOLEAN destroy_data){
 	slist *run = head;
 	if(!head) return head;
-	destroy_data = destroy_data && type && type->destroy;
 	run = head;
 	head = head->next;
 	if(data) *data = run->data;
-	if(destroy_data) type->destroy(run->data, type);
+	if(destroy_data) run->data->method->destroy(run->data);
 	FREE(run);
 	return head;
 }
+
 slist*
-slist_removeViaKey(slist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec* type){
+slist_remove(slist *head, aComparable* key, BOOLEAN ordered, BOOLEAN destroy_data){
 	slist *run = head, *runp = NULL;
 	if(head == NULL) return head;
-	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
-	destroy_data = destroy_data && type && type->destroy;
-	for(run = head; run && (ordered?key_compar(key, run->data, type) <= 0:key_compar(key, run->data, type) != 0); run = run->next){
+	for(run = head; run && (ordered?key->method->compare(key, run->data) <= 0:key->method->compare(key, run->data) != 0); run = run->next){
 		runp = run;
 	}
-	if(run && key_compar(key, run->data, type) == 0){
+	if(run && key->method->compare(key, run->data) == 0){
 		if(runp){
 			runp->next = run->next;
-			if(data) *data = run->data;
-			if(destroy_data) type->destroy(run->data, type);
+			if(destroy_data) run->data->method->destroy(run->data);
 			FREE(run);
 		} else {
 			head = run->next;
-			if(data) *data = run->data;
-			if(destroy_data) type->destroy(run->data, type);
+			if(destroy_data) run->data->method->destroy(run->data);
 			FREE(run);
 		}
 	}
 	return head;
 }
 slist*
-slist_removeAllViaKey(slist *head, void** data, void* key, BOOLEAN ordered, BOOLEAN destroy_data, list_tspec* type){
+slist_removeAll(slist *head, aComparable* key, BOOLEAN ordered, BOOLEAN destroy_data){
 	slist *run = head, *runp = NULL;
 	if(head == NULL) {
 		return NULL;
 	}
-	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
-	destroy_data = destroy_data && type && type->destroy;
 	for(run = head; run; run = run->next){
-		if(ordered && key_compar(key, run->data, type) > 0) break;
-		if(key_compar(key, run->data, type) == 0){
+		if(ordered && key->method->compare(key, run->data) > 0) break;
+		if(key->method->compare(key, run->data) == 0){
 			if(runp){
 				runp->next = run->next;
-				if(data) *data = run->data;
-				if(destroy_data) type->destroy(run->data, type);
+				if(destroy_data) run->data->method->destroy(run->data);
 				FREE(run);
 			} else {
 				head = run->next;
-				if(data) *data = run->data;
-				if(destroy_data) type->destroy(run->data, type);
+				if(destroy_data) run->data->method->destroy(run->data);
 				FREE(run);
 			}
 		}
@@ -189,21 +172,20 @@ slist_removeAllViaKey(slist *head, void** data, void* key, BOOLEAN ordered, BOOL
 	return head;
 }
 slist*
-slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data, list_tspec* type){
+slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data){
 	slist *run = head, *runp = NULL;
 	if(head == NULL) return head;
-	destroy_data = destroy_data && type && type->destroy;
 	for(run = head; run && run != 0; run = run->next){
 		runp = run;
 	}
 	if(run && rem == run){
 		if(runp){
 			runp->next = run->next;
-			if(destroy_data) type->destroy(run->data, type);
+			if(destroy_data) run->data->method->destroy(run->data);
 			FREE(run);
 		} else {
 			head = run->next;
-			if(destroy_data) type->destroy(run->data, type);
+			if(destroy_data) run->data->method->destroy(run->data);
 			FREE(run);
 		}
 	}
@@ -239,17 +221,16 @@ slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc func){
 }
 
 
-void**
-slist_toArray(slist *head, BOOLEAN deep, list_tspec* type){
+anObject**
+slist_toArray(slist *head, BOOLEAN deep){
 size_t len = 0;
 slist* p = head;
 	if(!head) return NULL;
-	deep = deep && type && type->deep_copy;
 	for(; p->next && p->data; p = p->next, len++);
-	void **values = (void**)MALLOC((len+1)*sizeof(void*));
+	anObject **values = (anObject**)MALLOC((len+1)*sizeof(anObject*));
 	for(len = 0, p = head; p->next && p->data; len++){
 		if(deep){
-			values[len] = type->deep_copy(p->data, type);
+			values[len] = p->data->method->copy(p->data);
 		} else {
 			values[len] = p->data;
 		}
@@ -259,24 +240,23 @@ slist* p = head;
 	return values;
 }
 
-void**
-slist_toArrayReverse(slist *head, BOOLEAN deep, list_tspec* type){
+anObject**
+slist_toArrayReverse(slist *head, BOOLEAN deep){
 size_t i = 0, len = 0;
 slist* p = head;
 	if(!head) return NULL;
-	deep = deep && type && type->deep_copy;
 	for(; p && p->data; p = p->next, i++);
 	len = i;
-	void **values = (void**)MALLOC((len+1)*sizeof(void*));
+	anObject **values = (anObject**)MALLOC((len+1)*sizeof(anObject*));
 	for(i = 0, p = head; p && p->data; i++, p = p->next){
 		if(deep){
-			values[len] = type->deep_copy(p->data, type);
+			values[len] = p->data->method->copy(p->data);
 		} else {
 			values[len] = p->data;
 		}
 	}
 	for(i = 0; i < len/2; i++){
-		void **k = values[len-i-1];
+		anObject *k = values[len-i-1];
 		values[len-i-1] = values[i];
 		values[i] = k;
 	}
@@ -286,11 +266,11 @@ slist* p = head;
 }
 
 dlist*
-slist_to_dlist(slist *head, BOOLEAN deep, list_tspec* type){
+slist_to_dlist(slist *head, BOOLEAN deep){
 	slist* p = head;
 	dlist* d = NULL;
 	for(; p; p = p->next){
-		d = dlist_append(d, p->data, deep, type);
+		d = dlist_append(d, p->data, deep);
 	}
 	return d;
 }
@@ -298,11 +278,10 @@ slist_to_dlist(slist *head, BOOLEAN deep, list_tspec* type){
 
 
 void*
-slist_find(slist *head, void* key, BOOLEAN ordered, list_tspec *type){
+slist_find(slist *head, aComparable* key, BOOLEAN ordered){
 	if(!head) return NULL;
 slist* p = head;
-	lKeyCompare key_compar = (type && type->key_compar)?type->key_compar:(lKeyCompare)memcomp;
-	for(; p->next && (ordered?key_compar(key, p->data, type) > 0:key_compar(key, p->data, type) != 0); p = p->next);
-	if(p && key_compar(key, p->data, type) == 0) return p->data;
+	for(; p->next && (ordered?key->method->compare(key, p->data) > 0:key->method->compare(key, p->data) != 0); p = p->next);
+	if(p && key->method->compare(key, p->data) == 0) return p->data;
 	return NULL;
 }

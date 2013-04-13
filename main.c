@@ -1,10 +1,36 @@
 #include <stdio.h>
 #include <math.h>
+#include "allocator.h"
 #include "linked_structures.h"
 #define MAX(a,b) ({ typeof(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
 #define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 #define ARRLENGTH(A) ( sizeof(A)/sizeof(typeof(A[0])) )
-long long_cmp(void *a, void *b){ return (long)((long)(a) - (long)(b)); }
+
+typedef struct aLong {
+	const Comparable *method;
+	long data;
+} aLong;
+static long aLong_compare(aLong *self, aLong *b){ return self->data - b->data; }
+static size_t aLong_size(aLong *self){ return sizeof(aLong); }
+static void aLong_destroy(aLong *self) { FREE(self); }
+static Comparable long_type = {
+	.parent = {
+		.destroy = aLong_destroy,
+		.copy = NULL,
+		.getSize = aLong_size
+	},
+	.compare = aLong_compare
+};
+
+static aLong* aLong_new(long a){ 
+	aLong init = {
+		.method = &long_type,
+		.data = a
+	};
+	aLong *lnew = (aLong*)MALLOC(sizeof(init));
+	memcpy(lnew, &init, sizeof(init));
+	return lnew;
+}
 
 BOOLEAN
 compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
@@ -43,7 +69,7 @@ print_list(dlist* list){
 
 void
 test_splay(){
-	splaytree *t = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
+	splaytree *t = NULL;
 	const size_t NUMS = 40000;
 	const size_t GAP  = 307;
 	printf("Checking Splay Tree -----------------------------\n");
@@ -52,13 +78,13 @@ test_splay(){
 		long i;
 		size_t min, max, avg, nodes, leaves;
 		for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
-			t = splay_insert(t, (void*)i, FALSE, &type);
+			t = splay_insert(t, aLong_new(i), FALSE);
 		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Inserts: %s\n", (NUMS == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 		for(i = 1; i < NUMS; i += 2)
-			t = splay_remove(t, (void*)i, NULL, FALSE, &type);
+			t = splay_remove(t, aLong_new(i), NULL, TRUE);
 		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Removes: %s\n", (NUMS/2 == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
@@ -67,11 +93,11 @@ test_splay(){
 
 	{
 		long i;
-		t = splay_find(t, bstree_findmin(t)->data, &type); i = (long)t->data;
-		long nm = (long)bstree_successor(t, t, &type)->data;
+		t = splay_find(t, bstree_findmin(t)->data); i = ((aLong*)t->data)->data;
+		long nm = ((aLong*)bstree_successor(t, t)->data)->data;
 		long j;
-		t = splay_find(t, bstree_findmax(t)->data, &type); j = (long)t->data;
-		long k = (long)bstree_predessor(t, t, &type)->data;
+		t = splay_find(t, bstree_findmax(t)->data); j = ((aLong*)t->data)->data;
+		long k = ((aLong*)bstree_predessor(t, t)->data)->data;
 		if(i != 2 || nm != 4 || j != NUMS-2 || k != NUMS-4)
 			printf("FindMin or FindMax error! Got %lu and %lu, head successor: %lu, tail predessor: %lu\n", i, j, k, nm);
 	}
@@ -79,32 +105,40 @@ test_splay(){
 		long i;
 		for(i = 2; i < NUMS; i+=2){
 			long k;
-			t = splay_find(t, (void*)i, &type); k = (long)t->data;
+			aLong tmp = {
+				.method = &long_type,
+				.data = i
+			};
+			t = splay_find(t, &tmp); k = ((aLong*)t->data)->data;
 			if(k != i)
 				printf("Error: find fails for %ld\n",i);
 		}
 		for(i = 1; i < NUMS; i+=2){
 			long k;
-			t = splay_find(t, (void*)i, &type); k = (long)t->data;
+			aLong tmp = {
+				.method = &long_type,
+				.data = i
+			};
+			t = splay_find(t, &tmp); k = ((aLong*)t->data)->data;
 			if(k == i)
 				printf("Error: Found deleted item %ld\n",i);
 		}
 	}
-	bstree_clear(t,FALSE,NULL);
+	bstree_clear(t,TRUE);
 	printf("Finished Checking Splay Trees -------------------\n");
 }
 
 dlist*
-make_dlist(const long a[], size_t s, list_tspec* type){
+make_dlist(const long a[], size_t s){
 	long i = 0;
 	dlist* newl = NULL;
 	for(; i < s; i++){
-		newl = dlist_append(newl, (void*)a[i], 0, type);
+		newl = dlist_append(newl, aLong_new(a[i]), FALSE);
 	}
 	return newl;
 }
 #define DLIST_TEST_SIZE 12
-typedef struct dlist_dump_map_f {
+typedef struct dlist_dump_map_d {
 	size_t pos;
 	size_t max;
 	long test1[DLIST_TEST_SIZE];
@@ -112,10 +146,10 @@ typedef struct dlist_dump_map_f {
 } dlist_dump_map_d;
 
 BOOLEAN
-dlist_dump_map_f(void *data, lMapFuncAux *more){
+dlist_dump_map_f(aLong *data, lMapFuncAux *more){
 	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
 	dlist_dump_map_d *aux = more->aux;
-	aux->test1[aux->pos] = (long)data;
+	aux->test1[aux->pos] = data->data;
 	aux->test2[aux->pos] = (long)more->position;
 	aux->pos++;
 	if(aux->pos >= aux->max)
@@ -126,12 +160,6 @@ dlist_dump_map_f(void *data, lMapFuncAux *more){
 void
 test_dlist(){
 	printf("Checking dlists ---------------------------------\n");
-	list_tspec list_type = {
-		.destroy = NULL,
-		.compar = (lCompare)long_cmp,
-		.key_compar = (lKeyCompare)long_cmp,
-		.deep_copy = NULL
-	};
 	{
 		const long expect1[] = { 1, 3, 5, 6, 9, 10, 13 };
 		const long expect2[] = { 0, 1, 2, 3, 4,  5,  6 };
@@ -141,13 +169,13 @@ test_dlist(){
 			.test1 = {0},
 			.test2 = {0}
 		};
-		dlist *l1 = make_dlist(expect1, buffer.max, &list_type);
+		dlist *l1 = make_dlist(expect1, buffer.max);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
 		printf("List 1 (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("List 1 (Index Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
-		dlist_clear(l1, FALSE, &list_type);
+		dlist_clear(l1, TRUE);
 	}
 	{
 		const long expect1[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14,  9, 10 };
@@ -158,13 +186,13 @@ test_dlist(){
 			.test1 = {0},
 			.test2 = {0}
 		};
-		dlist *l1 = make_dlist(expect1, buffer.max, &list_type);
+		dlist *l1 = make_dlist(expect1, buffer.max);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
 		printf("List 2 (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("List 2 (Index Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
-		dlist_clear(l1, FALSE, &list_type);
+		dlist_clear(l1, TRUE);
 	}
 	{
 		const long expect1[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
@@ -175,13 +203,14 @@ test_dlist(){
 			.test1 = {0},
 			.test2 = {0}
 		};
-		dlist *l1 = make_dlist(expect1, ARRLENGTH(expect1), &list_type);
+		dlist *l1 = make_dlist(expect1, buffer.max);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
 		printf("List 3 (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("List 3 (Index Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
-		dlist_clear(l1, FALSE, &list_type);
+		dlist_clear(l1, TRUE);
+		l1 = NULL;
 	}
 	{
 		const long expect1[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14 };
@@ -193,14 +222,15 @@ test_dlist(){
 			.test1 = {0},
 			.test2 = {0}
 		};
-		dlist *l1 = make_dlist(init, buffer.max, &list_type);
-		l1 = dlist_sort(l1, &list_type);
+		dlist *l1 = make_dlist(init, buffer.max);
+		l1 = dlist_sort(l1);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
 		printf("List 2 Sort (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("List 2 Sort (Index Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
-		dlist_clear(l1, FALSE, &list_type);
+		dlist_clear(l1, TRUE);
+		l1 = NULL;
 	}
 	{
 		const long expect1[] = { 6, 5, 4, 3, 2, 1, 8, 11, 14,  9, 10 };
@@ -212,14 +242,15 @@ test_dlist(){
 			.test1 = {0},
 			.test2 = {0}
 		};
-		dlist *l1 = make_dlist(init, ARRLENGTH(init), &list_type);
-		l1 = dlist_dequeue(l1, NULL, FALSE, &list_type);
+		dlist *l1 = make_dlist(init, ARRLENGTH(init));
+		l1 = dlist_dequeue(l1, NULL, TRUE);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
 		printf("List 2 Dequeue (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("List 2 Dequeue (Index Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
-		dlist_clear(l1, FALSE, &list_type);
+		dlist_clear(l1, TRUE);
+		l1 = NULL;
 	}
 	printf("Finished dlists ---------------------------------\n");
 }
@@ -233,10 +264,10 @@ typedef struct bstree_dump_map_d {
 } bstree_dump_map_d;
 
 static BOOLEAN
-bstree_dump_map_f(void* data, lMapFuncAux* more){
+bstree_dump_map_f(aLong* data, lMapFuncAux* more){
 	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
 	bstree_dump_map_d *aux = more->aux;
-	aux->test1[aux->pos] = (long)data;
+	aux->test1[aux->pos] = data->data;
 	aux->test2[aux->pos] = (long)more->depth;
 	aux->pos++;
 	if(aux->pos >= aux->max)
@@ -247,7 +278,7 @@ bstree_dump_map_f(void* data, lMapFuncAux* more){
 
 void
 test_bstree(){
-	bstree *t1 = NULL, *t2 = NULL, *t3 = NULL; list_tspec type = {.compar = (lCompare)long_cmp};
+	bstree *t1 = NULL, *t2 = NULL, *t3 = NULL;
 	printf("Checking bstree ---------------------------------\n");
 	//long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
 	//long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
@@ -255,7 +286,7 @@ test_bstree(){
 	//long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
 	size_t i = 0;
 	for(; i < sizeof(x2)/sizeof(x2[0]); i++){
-		t1 = bstree_insert(t1, (void*)x2[i], FALSE, &type);
+		t1 = bstree_insert(t1, aLong_new(x2[i]), FALSE);
 	}
 	//for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
 	//	t2 = splay_insert(t2, (void*)x2[i], FALSE, &type);
@@ -263,13 +294,18 @@ test_bstree(){
 	//for(i = 0; i < sizeof(x3)/sizeof(x3[0]); i++){
 	//	t3 = splay_insert(t3, (void*)x3[i], FALSE, &type);
 	//}
-	bstree *f = bstree_find(t1, (void*)x2[5], &type);
-	long mp;
-	if((long)f->data != x2[5])
+	aLong tmp = {
+		.method = &long_type,
+		.data = x2[5]
+	};
+	bstree *f = bstree_find(t1, &tmp);
+	aLong *mp;
+	if(((aLong*)f->data)->data != x2[5])
 		printf("Error: Not able to find element\n");
-	t1 = bstree_remove(t1, (void*)x2[5], (void**)&mp, FALSE, &type);
-	if(mp != x2[5])
+	t1 = bstree_remove(t1, &tmp, (aLong**)&mp, FALSE);
+	if(mp->data != x2[5])
 		printf("Error: Unable to remove element\n");
+	mp->method->parent.destroy(mp);
 	printf("Tree Structures:\n");
 	{
 		const long expect1[] = {8,3,1,6,4,10,14,13};
@@ -319,9 +355,9 @@ test_bstree(){
 	size_t min, max, avg, nodes;
 	bstree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
 	//printf("Tree Statistics: min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
-	bstree_clear(t1, FALSE, &type);
-	bstree_clear(t2, FALSE, &type);
-	bstree_clear(t3, FALSE, &type);
+	bstree_clear(t1, TRUE);
+	bstree_clear(t2, TRUE);
+	bstree_clear(t3, TRUE);
 	printf("Finished bstree ---------------------------------\n");
 }
 
@@ -334,8 +370,8 @@ typedef struct graph_dump_map_d {
 } graph_dump_map_d;
 
 static BOOLEAN
-graph_dump_map_f(void* data, graph_dump_map_d* aux){
-	aux->test[aux->pos] = (long)data;
+graph_dump_map_f(aLong* data, graph_dump_map_d* aux){
+	aux->test[aux->pos] = data->data;
 	aux->pos++;
 	if(aux->pos >= aux->max)
 		return FALSE;
@@ -347,21 +383,21 @@ test_graph(){
 	printf("Checking graphs ---------------------------------\n");
 	long nums[] = {0,1,2,3,4,5,6};
 	graph *g[] = {
-		graph_insert(NULL, (void*)nums[0], FALSE, NULL),
-		graph_insert(NULL, (void*)nums[1], FALSE, NULL),
-		graph_insert(NULL, (void*)nums[2], FALSE, NULL),
-		graph_insert(NULL, (void*)nums[3], FALSE, NULL),
-		graph_insert(NULL, (void*)nums[4], FALSE, NULL),
-		graph_insert(NULL, (void*)nums[5], FALSE, NULL),
-		graph_insert(NULL, (void*)nums[6], FALSE, NULL)
+		graph_insert(NULL, aLong_new(nums[0]), FALSE),
+		graph_insert(NULL, aLong_new(nums[1]), FALSE),
+		graph_insert(NULL, aLong_new(nums[2]), FALSE),
+		graph_insert(NULL, aLong_new(nums[3]), FALSE),
+		graph_insert(NULL, aLong_new(nums[4]), FALSE),
+		graph_insert(NULL, aLong_new(nums[5]), FALSE),
+		graph_insert(NULL, aLong_new(nums[6]), FALSE)
 	};
-	graph_link(g[0], g[1], NULL); graph_link(g[0], g[4], NULL); graph_link(g[0], g[6], NULL);
-	graph_link(g[1], g[2], NULL); graph_link(g[1], g[5], NULL); graph_link(g[1], g[6], NULL);
-	graph_link(g[2], g[3], NULL); graph_link(g[2], g[4], NULL); graph_link(g[2], g[4], NULL);
-	graph_link(g[3], g[4], NULL);
-	graph_link(g[4], g[0], NULL);
-	graph_link(g[5], g[4], NULL);
-	graph_link(g[6], g[5], NULL);
+	graph_link(g[0], g[1]); graph_link(g[0], g[4]); graph_link(g[0], g[6]);
+	graph_link(g[1], g[2]); graph_link(g[1], g[5]); graph_link(g[1], g[6]);
+	graph_link(g[2], g[3]); graph_link(g[2], g[4]); graph_link(g[2], g[4]);
+	graph_link(g[3], g[4]);
+	graph_link(g[4], g[0]);
+	graph_link(g[5], g[4]);
+	graph_link(g[6], g[5]);
 	{
 		printf("Depth First Search: ");
 		const long expect[] = {0,1,2,3,4,5,6};
@@ -390,7 +426,7 @@ test_graph(){
 		printf("Graph Size: %s\n", (nodes == GRAPH_TEST_SIZE && edges == 13)?"PASS":"FAIL");
 	}
 
-	graph_clear(g[0], FALSE, NULL);
+	graph_clear(g[0], TRUE); //FIXME since this is apparently unimplented, we leak tons of memory
 	printf("Finished graphs ---------------------------------\n");
 }
 
