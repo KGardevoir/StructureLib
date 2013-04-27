@@ -4,24 +4,24 @@
 #include "assert.h"
 
 static dlist*
-new_dlist(anObject* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
+new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
 	dlist *lnew = (dlist*)MALLOC(sizeof(dlist));
 	dlist init = {
 		.next = (next==NULL&&prev==NULL)?lnew:next,
 		.prev = (next==NULL&&prev==NULL)?lnew:prev,
-		.data = deep_copy?data->method->copy(data):data
+		.data = deep_copy?data->method->copy(data, MALLOC(data->method->size)):data
 	};
 	memcpy(lnew, &init, sizeof(*lnew));
 	return lnew;
 }
 
 dlist*
-dlist_push(dlist* he, anObject* buf, BOOLEAN deep_copy){
+dlist_push(dlist* he, Object* buf, BOOLEAN deep_copy){
 	return dlist_append(he, buf, deep_copy)->prev;
 }
 
 dlist*
-dlist_append(dlist* he, anObject* buf, BOOLEAN deep_copy){
+dlist_append(dlist* he, Object* buf, BOOLEAN deep_copy){
 	dlist *lm;
 	lm = new_dlist(buf, deep_copy, NULL, NULL);
 	if(he == NULL){
@@ -36,15 +36,15 @@ dlist_append(dlist* he, anObject* buf, BOOLEAN deep_copy){
 }
 
 dlist*
-dlist_addOrdered(dlist* he, aComparable* buf, BOOLEAN deep_copy){
+dlist_addOrdered(dlist* he, void* buf, const Comparable_vtable* buf_method, BOOLEAN deep_copy){
 	dlist *lm, *run;
-	lm = new_dlist((anObject*)buf, deep_copy, NULL, NULL);
+	lm = new_dlist((Object*)buf, deep_copy, NULL, NULL);
 	if(he == NULL){
 		he = lm;
 	} else {
-		run = he; do{ if(buf->method->compare(buf, run->data) > 0){ break; } run = run->next; } while(run != he);
+		run = he; do{ if(buf_method->compare(buf, run->data) > 0){ break; } run = run->next; } while(run != he);
 		//unified cases, since we enforce a FILO-like queue if they
-		if(he == run && buf->method->compare(buf, run->data) > 0){
+		if(he == run && buf_method->compare(buf, run->data) > 0){
 			//are equal (insert before)
 			lm->next = run;
 			lm->prev = run->prev;
@@ -68,7 +68,7 @@ dlist*
 dlist_copy(dlist* src, BOOLEAN deep_copy){
 	dlist* mnew = NULL, *runner = src;
 	do{
-		anObject* new_data = runner->data;
+		Object* new_data = runner->data;
 		mnew = dlist_push(mnew, new_data, deep_copy);
 		runner = runner->next;
 	} while(runner != src);
@@ -103,7 +103,7 @@ dlist_length(dlist *head){
  * Remove head node and return new head
  */
 dlist*
-dlist_dequeue(dlist *head, anObject** data, BOOLEAN destroy_data){
+dlist_dequeue(dlist *head, Object** data, BOOLEAN destroy_data){
 	if(!head) return NULL;
 	if(head->next == head){
 		if(data) *data = head->data;
@@ -126,31 +126,31 @@ dlist_dequeue(dlist *head, anObject** data, BOOLEAN destroy_data){
  * Remove node at end of list and return new head
  */
 dlist*
-dlist_pop(dlist *head, anObject** dat, BOOLEAN destroy_data){
+dlist_pop(dlist *head, Object** dat, BOOLEAN destroy_data){
 	return dlist_dequeue(head->prev, dat, destroy_data);
 }
 
 dlist*
-dlist_remove(dlist *head, aComparable* key, BOOLEAN ordered, BOOLEAN destroy_data){
+dlist_remove(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data){
 	dlist *run = head;
 	if(!head) return head;
 	do {
-		if(ordered?key->method->compare(key, run->data) >= 0:key->method->compare(key, run->data) == 0) break;
+		if(ordered?key_method->compare(key, run->data) >= 0:key_method->compare(key, run->data) == 0) break;
 		run = run->next;
 	} while(run != head);
-	if(key->method->compare(key, run->data) == 0){
+	if(key_method->compare(key, run->data) == 0){
 		head = dlist_removeElement(head, run, destroy_data);
 	}
 	return head;
 }
 
 dlist*
-dlist_removeAll(dlist *head, aComparable* key, BOOLEAN ordered, BOOLEAN destroy_data){
+dlist_removeAll(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data){
 	dlist *run = head;
 	if(!head) return head;
 	do{
-		if(ordered && key->method->compare(key, run->data) > 0) break;
-		if(key->method->compare(key, run->data) == 0)
+		if(ordered && key_method->compare(key, run->data) > 0) break;
+		if(key_method->compare(key, run->data) == 0)
 			head = dlist_removeElement(head, run, destroy_data);
 		run = run->next;
 	} while(run != head);
@@ -180,9 +180,9 @@ dlist_map_internal(dlist *head, BOOLEAN pass_data, BOOLEAN more_info, void* aux,
 				.size = length,
 				.aux = aux
 			};
-			if(!func(pass_data?run->data:(anObject*)run, (void*)&ax)) return FALSE;
+			if(!func(pass_data?run->data:(Object*)run, (void*)&ax)) return FALSE;
 		} else {
-			if(!func(pass_data?run->data:(anObject*)run, aux)) return FALSE;
+			if(!func(pass_data?run->data:(Object*)run, aux)) return FALSE;
 		}
 		run = run->next;
 		depth++;
@@ -204,7 +204,7 @@ struct dlist_filter_d {
 };
 
 static BOOLEAN
-dlist_filter_f(anObject *data, struct dlist_filter_d *aux){
+dlist_filter_f(Object *data, struct dlist_filter_d *aux){
 	if(aux->func(data, aux->aux)){
 		aux->list = dlist_append(aux->list, data, aux->deep);
 	}
@@ -270,17 +270,17 @@ dlist_transform(dlist *head, void* aux, lTransFunc func){
 	return head;
 }
 
-anObject**
+Object**
 dlist_toArray(dlist *head, BOOLEAN deep_copy){
 size_t len = 0;
 dlist* p = head;
 	if(!head) return NULL;
 	do{ p = p->next; len++; } while(p != head);
-	anObject **values = (anObject**)MALLOC((len+1)*sizeof(anObject*));
+	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
 	len = 0; p = head;
 	do{
 		if(deep_copy){
-			values[len] = p->data->method->copy(p->data);
+			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
@@ -290,17 +290,17 @@ dlist* p = head;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
 	return values;
 }
-anObject**
+Object**
 dlist_toArrayReverse(dlist *head, BOOLEAN deep_copy){
 size_t i = 0, len = 0;
 dlist* p = head;
 	if(!head) return NULL;
 	do{ p = p->next; i++; } while(p != head);
-	anObject **values = (anObject**)MALLOC((len+1)*sizeof(anObject*));
+	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
 	len = 0; p = head;
 	do{
 		if(deep_copy){
-			values[len] = p->data->method->copy(p->data);
+			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
@@ -342,8 +342,8 @@ ldp(char* t, dlist* l, dlist* n){
 #endif
 
 dlist*
-dlist_merge(dlist* dst, dlist* src){//IF YOUR OBJECT IS NOT COMPARABLE DO NOT USE THIS!!!
-	if(((aComparable*)src->data)->method->compare((aComparable*)src->data, dst->data) < 0){ //always merge into list with smaller head
+dlist_merge(dlist* dst, dlist* src, void *comp, const Comparator_vtable* comp_method){//IF YOUR OBJECT IS NOT COMPARABLE DO NOT USE THIS!!!
+	if(comp_method->compare(comp, src->data, dst->data) < 0){ //always merge into list with smaller head
 		dlist *tmp = dst;
 		dst = src;
 		src = tmp;
@@ -358,14 +358,14 @@ dlist_merge(dlist* dst, dlist* src){//IF YOUR OBJECT IS NOT COMPARABLE DO NOT US
 		if(!l1_done){//never iterate through once we have gone entirely through the list
 			do{
 				rundst = rundst->next;
-			} while(rundst != dst && ((aComparable*)rundst->data)->method->compare((aComparable*)rundst->data, runsrc->data) < 0); //find start
-			if(rundst == dst && ((aComparable*)rundst->data)->method->compare((aComparable*)rundst->data, runsrc->data) != 0) l1_done = TRUE;
+			} while(rundst != dst && comp_method->compare(comp, rundst->data, runsrc->data) < 0); //find start
+			if(rundst == dst && comp_method->compare(comp, rundst->data, runsrc->data) != 0) l1_done = TRUE;
 		}
 		//ldp("---------------\nInterstate 1", dst, rundst);
 		if(!l2_done){
 			do {
 				runsrc_end = runsrc_end->next;
-			} while(runsrc_end != runsrc && ((aComparable*)rundst->data)->method->compare((aComparable*)rundst->data, runsrc_end->data) >= 0);
+			} while(runsrc_end != runsrc && comp_method->compare(comp, rundst->data, runsrc_end->data) >= 0);
 			if(runsrc_end == runsrc) l2_done = TRUE;
 			//ldp("Interstate 2", runsrc, runsrc_end);
 			(void)dlist_split(runsrc, runsrc_end);
@@ -381,7 +381,7 @@ dlist_merge(dlist* dst, dlist* src){//IF YOUR OBJECT IS NOT COMPARABLE DO NOT US
 }
 
 dlist*
-dlist_sort(dlist* head){//XXX this can be faster, using "natural" mergesort
+dlist_sort(dlist* head, void* key, const Comparator_vtable* key_method){//XXX this can be faster, using "natural" mergesort
 	dlist *left = head, *right = head->next;
 	if(left != right){
 		/*do{
@@ -397,9 +397,9 @@ dlist_sort(dlist* head){//XXX this can be faster, using "natural" mergesort
 		right = tortise;
 		//ldp("->Middle", head, right);
 		(void)dlist_split(left, right);//suppress warning
-		left = dlist_sort(left);
-		right = dlist_sort(right);
-		return dlist_merge(left, right);
+		left = dlist_sort(left, key, key_method);
+		right = dlist_sort(right, key, key_method);
+		return dlist_merge(left, right, key, key_method);
 	}
 	return head;
 }
@@ -426,14 +426,14 @@ dlist_concat(dlist* dsthead, dlist* srchead){
 //End Merging
 
 dlist*
-dlist_find(dlist *head, const aComparable* key, BOOLEAN ordered){
+dlist_find(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered){
 	if(!head) return NULL;
 	dlist* p = head;
 	do {
-		if(ordered?(key->method->compare(key,p->data) <= 0):(key->method->compare(key,p->data) == 0)) break;
+		if(ordered?(key_method->compare(key,p->data) <= 0):(key_method->compare(key,p->data) == 0)) break;
 		p = p->next;
 	} while(p != head);
-	if(key->method->compare(key, p->data) == 0) return p;
+	if(key_method->compare(key, p->data) == 0) return p;
 	return NULL;
 }
 

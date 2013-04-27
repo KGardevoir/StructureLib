@@ -6,11 +6,11 @@
  * Rivest, Clifford Stein */
 
 static bstree*
-new_bsnode(aComparable* data, BOOLEAN deep_copy){
+new_bsnode(Object* data, BOOLEAN deep_copy){
 	bstree init = {
 		.left = NULL,
 		.right = NULL,
-		.data = deep_copy?(aComparable*)data->method->parent.copy((anObject*)data):data
+		.data = deep_copy?data->method->copy(data, MALLOC(data->method->size)):data
 	};
 	bstree *n = (bstree*)MALLOC(sizeof(bstree));
 	memcpy(n, &init, sizeof(*n));
@@ -18,14 +18,14 @@ new_bsnode(aComparable* data, BOOLEAN deep_copy){
 }
 
 bstree*
-bstree_insert(bstree *root, aComparable* data, BOOLEAN copy){
-	bstree *p = bstree_parent(root, data);
+bstree_insert(bstree *root, Object* data, const Comparable_vtable* data_method, BOOLEAN copy){
+	bstree *p = bstree_parent(root, data, data_method);
 	bstree *lnew = new_bsnode(data, copy);
 	if(p == NULL){//tree was NULL
 		root = lnew;
-	} else if(data->method->compare(data, (anObject*)p->data) < 0) {
+	} else if(data_method->compare(data, p->data) < 0) {
 		p->left = lnew;
-	} else if(data->method->compare(data, (anObject*)p->data) > 0) {
+	} else if(data_method->compare(data, p->data) > 0) {
 		p->right = lnew;
 	} else {//are equal, ignore for now (no duplicates)
 		FREE(lnew);
@@ -46,17 +46,17 @@ bstree_transplant(bstree *root, bstree *u, bstree *v, bstree *up, bstree *vp){
 }
 
 bstree*
-bstree_remove(bstree *root, aComparable* data, aComparable** rtn, BOOLEAN destroy_data){
-	bstree *node = bstree_find(root, data);
+bstree_remove(bstree *root, Object* data, const Comparable_vtable* data_method, Object** rtn, BOOLEAN destroy_data){
+	bstree *node = bstree_find(root, data, data_method);
 	if(node == NULL) return NULL;//nothing to return, no such element
-	bstree *nodep = bstree_parent(root, data);
+	bstree *nodep = bstree_parent(root, data, data_method);
 	if(node->left == NULL){
 		root = bstree_transplant(root, node, node->right, nodep, node);
 	} else if(node->right == NULL){
 		root = bstree_transplant(root, node, node->left, nodep, node);
 	} else {
 		bstree* min = bstree_findmin(node->right);
-		bstree* par = bstree_parent(root, min->data);
+		bstree* par = bstree_parent(root, min->data, data_method);
 		if(par != node){
 			root = bstree_transplant(root, min, min->right, par, min);
 			min->right = node->right;
@@ -67,7 +67,7 @@ bstree_remove(bstree *root, aComparable* data, aComparable** rtn, BOOLEAN destro
 	data = node->data;
 	FREE(node);
 	if(destroy_data){
-		data->method->parent.destroy((anObject*)data);
+		data->method->destroy(data);
 		data = NULL;
 	}
 	if(rtn) *rtn = data;
@@ -75,10 +75,10 @@ bstree_remove(bstree *root, aComparable* data, aComparable** rtn, BOOLEAN destro
 }
 
 bstree*
-bstree_find(bstree *root, aComparable *data){
+bstree_find(bstree *root, Object *data, const Comparable_vtable *data_method){
 	long c;
 	if(root == NULL) return root;
-	while(root != NULL && (c = data->method->compare(data, (anObject*)root->data)) != 0){
+	while(root != NULL && (c = data_method->compare(data, root->data)) != 0){
 		if(c < 0){
 			root = root->left;
 		} else {
@@ -89,11 +89,11 @@ bstree_find(bstree *root, aComparable *data){
 }
 
 bstree*
-bstree_parent(bstree *root, aComparable *data){
+bstree_parent(bstree *root, Object* data, const Comparable_vtable *data_method){
 	long c;
 	bstree *parent = root;
 	if(root == NULL) return root;
-	while(root != NULL && (c = data->method->compare(data, (anObject*)root->data)) != 0){
+	while(root != NULL && (c = data_method->compare(data, root->data)) != 0){
 		parent = root;
 		if(c < 0){
 			root = root->left;
@@ -105,26 +105,26 @@ bstree_parent(bstree *root, aComparable *data){
 }
 
 dlist* /* with type bstree*/
-bstree_path(bstree *root, aComparable *data){
+bstree_path(bstree *root, Object* data, const Comparable_vtable *data_method){
 	dlist *head = NULL;
 	long c;
 	if(root == NULL) return NULL;
-	while(root != NULL && (c = data->method->compare(data, (anObject*)root->data)) != 0){
-		head = dlist_append(head, (anObject*)root, FALSE);
+	while(root != NULL && (c = data_method->compare(data, root->data)) != 0){
+		head = dlist_append(head, (Object*)root, FALSE);
 		if(c < 0){
 			root = root->left;
 		} else {
 			root = root->right;
 		}
 	}
-	return (root==NULL)?head:dlist_append(head, (anObject*)root, FALSE);
+	return (root==NULL)?head:dlist_append(head, (Object*)root, FALSE);
 }
 
 bstree*
-bstree_predessor(bstree* root, bstree* node){
+bstree_predessor(bstree* root, bstree* node, const Comparable_vtable *data_method){
 	if(root == NULL || node == NULL) return NULL;
 	if(node->left != NULL) return bstree_findmax(node->left);
-	dlist* parent = bstree_path(root, node->data);//use bstree_path instead
+	dlist* parent = bstree_path(root, node->data, data_method);//use bstree_path instead
 	if(parent == NULL) return root;
 	dlist* head = parent;
 	parent = parent->prev;
@@ -137,10 +137,10 @@ bstree_predessor(bstree* root, bstree* node){
 }
 
 bstree*
-bstree_successor(bstree* root, bstree* node){
+bstree_successor(bstree* root, bstree* node, const Comparable_vtable *data_method){
 	if(root == NULL || node == NULL) return NULL;
 	if(node->right != NULL) return bstree_findmin(node->right);
-	dlist* parent = bstree_path(root, node->data);//use bstree_path instead
+	dlist* parent = bstree_path(root, node->data, data_method);//use bstree_path instead
 	if(parent == NULL) return root;
 	dlist* head = parent;
 	parent = parent->prev;
@@ -172,7 +172,7 @@ struct free_cluster {
 
 static BOOLEAN
 bstree_clear_map(bstree* root, struct free_cluster *aux){
-	if(aux->destroy_data) root->data->method->parent.destroy((anObject*)root->data);
+	if(aux->destroy_data) root->data->method->destroy(root->data);
 	FREE(root);
 	return TRUE;
 }
@@ -183,11 +183,11 @@ bstree_clear(bstree* root, BOOLEAN destroy_data){//iterate in postfix order
 	bstree *cur = root;
 	while(stk != NULL || cur != NULL){
 		if(cur){
-			stk = dlist_push(stk, (anObject*)cur, FALSE);
+			stk = dlist_push(stk, (Object*)cur, FALSE);
 			cur = cur->left;
 		} else {
-			stk = dlist_pop(stk, (anObject**)&cur, FALSE);
-			freer = dlist_append(freer, (anObject*)cur, FALSE);
+			stk = dlist_pop(stk, (Object**)&cur, FALSE);
+			freer = dlist_append(freer, (Object*)cur, FALSE);
 			cur = cur->right;
 		}
 	}
@@ -207,7 +207,7 @@ new_node_and_depth(size_t depth, bstree *node){
 		.node = node,
 		.depth = depth
 	};
-	struct node_and_depth *new = malloc(sizeof(typeof(init)));
+	struct node_and_depth *new = malloc(sizeof(struct node_and_depth));
 	memcpy(new, &init, sizeof(typeof(init)));
 	return new;
 }
@@ -221,7 +221,7 @@ bstree_map_pre_in_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, B
 	while(stk || cur){
 		if(cur){
 			depth++;
-			stk = dlist_append(stk, (anObject*)new_node_and_depth(depth, cur), FALSE);
+			stk = dlist_append(stk, (Object*)new_node_and_depth(depth, cur), FALSE);
 			if(!IN_ORDER){
 				if(more_info){
 					lMapFuncAux ax = {
@@ -231,16 +231,16 @@ bstree_map_pre_in_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, B
 						.size = size,
 						.aux = aux
 					};
-					if(!func(pass_data?(anObject*)cur->data:(anObject*)cur, &ax)) return FALSE;
+					if(!func(pass_data?cur->data:(Object*)cur, &ax)) return FALSE;
 					position++;
 				} else {
-					if(!func(pass_data?(anObject*)cur->data:(anObject*)cur, aux)) return FALSE;
+					if(!func(pass_data?cur->data:(Object*)cur, aux)) return FALSE;
 				}
 			}
 			cur = cur->left;
 		} else {
 			struct node_and_depth *node = NULL;
-			stk = dlist_pop(stk, (anObject**)&node, FALSE);
+			stk = dlist_pop(stk, (Object**)&node, FALSE);
 			cur = node->node;
 			depth = node->depth;
 			free(node);
@@ -255,10 +255,10 @@ bstree_map_pre_in_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, B
 						.size = size,
 						.aux = aux
 					};
-					if(!func(pass_data?(anObject*)cur->data:(anObject*)cur, &ax)) return FALSE;
+					if(!func(pass_data?cur->data:(Object*)cur, &ax)) return FALSE;
 					position++;
 				} else {
-					if(!func(pass_data?(anObject*)cur->data:(anObject*)cur, aux)) return FALSE;
+					if(!func(pass_data?cur->data:(Object*)cur, aux)) return FALSE;
 				}
 			}
 			cur = cur->right;
@@ -273,7 +273,7 @@ bstree_map_post_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, voi
 	if(more_info){
 		bstree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
 	}
-	dlist *stk = dlist_push(NULL, (anObject*)new_node_and_depth(depth, root), FALSE);
+	dlist *stk = dlist_push(NULL, (Object*)new_node_and_depth(depth, root), FALSE);
 	bstree *prev = NULL;
 	while(stk){
 		struct node_and_depth* node = (struct node_and_depth*)stk->data;
@@ -281,11 +281,11 @@ bstree_map_post_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, voi
 		depth = node->depth;
 		if(!prev || prev->left == cur || prev->right == cur){
 			if(cur->left || cur->right){
-				stk = dlist_push(stk, (anObject*)new_node_and_depth(depth+1, cur->left?cur->left:cur->right), FALSE);
+				stk = dlist_push(stk, (Object*)new_node_and_depth(depth+1, cur->left?cur->left:cur->right), FALSE);
 			}
 		} else if(cur->left == prev){
 			if(cur->right)
-				stk = dlist_push(stk, (anObject*)new_node_and_depth(depth+1, cur->right), FALSE);
+				stk = dlist_push(stk, (Object*)new_node_and_depth(depth+1, cur->right), FALSE);
 		} else {
 			if(more_info){
 				lMapFuncAux ax = {
@@ -295,12 +295,12 @@ bstree_map_post_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, voi
 					.size = size,
 					.aux = aux
 				};
-				if(!func(pass_data?(anObject*)cur->data:(anObject*)cur, &ax)) return FALSE;
+				if(!func(pass_data?cur->data:(Object*)cur, &ax)) return FALSE;
 				position++;
 			} else {
-				if(!func(pass_data?(anObject*)cur->data:(anObject*)cur, aux)) return FALSE;
+				if(!func(pass_data?cur->data:(Object*)cur, aux)) return FALSE;
 			}
-			stk = dlist_dequeue(stk, (anObject**)&node, FALSE);
+			stk = dlist_dequeue(stk, (Object**)&node, FALSE);
 			free(node);
 		}
 		prev = cur;
@@ -309,13 +309,13 @@ bstree_map_post_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, voi
 }
 static inline BOOLEAN
 bstree_map_breadth_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
-	dlist* q = dlist_append(NULL, (anObject*)new_node_and_depth(0, root), FALSE);
+	dlist* q = dlist_append(NULL, (Object*)new_node_and_depth(0, root), FALSE);
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) bstree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
 	bstree *prev = root;
 	while(q){
 		bstree *node;
-		q = dlist_dequeue(q, (anObject**)&node, FALSE);
+		q = dlist_dequeue(q, (Object**)&node, FALSE);
 		if(more_info){
 			lMapFuncAux ax = {
 				.isAux = TRUE,
@@ -324,10 +324,10 @@ bstree_map_breadth_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, 
 				.size = size,
 				.aux = aux
 			};
-			if(!func(pass_data?(anObject*)node->data:(anObject*)node, &ax)) return FALSE;
+			if(!func(pass_data?node->data:(Object*)node, &ax)) return FALSE;
 			position++;
 		} else {
-			if(!func(pass_data?(anObject*)node->data:(anObject*)node, aux)) return FALSE;
+			if(!func(pass_data?node->data:(Object*)node, aux)) return FALSE;
 		}
 		if(prev && (prev->left == node || prev->right == node)){//new level
 			depth++;
@@ -336,9 +336,9 @@ bstree_map_breadth_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, 
 		if(!prev)
 			prev = node->left?node->left:node->right;
 		if(node->left)
-			q = dlist_append(q, (anObject*)node->left, FALSE);
+			q = dlist_append(q, (Object*)node->left, FALSE);
 		if(node->right)
-			q = dlist_append(q, (anObject*)node->right, FALSE);
+			q = dlist_append(q, (Object*)node->right, FALSE);
 	}
 	return TRUE;
 }
@@ -385,18 +385,18 @@ bstree_info(bstree *root, size_t *min, size_t *max, size_t *avg, size_t *num_lea
 	bstree *cur = root;
 	while(stk || cur){
 		if(cur){
-			stk = dlist_append(stk, (anObject*)cur, FALSE);
-			if(rnodes) nodes = dlist_append(nodes, (anObject*)cur, FALSE);
+			stk = dlist_append(stk, (Object*)cur, FALSE);
+			if(rnodes) nodes = dlist_append(nodes, (Object*)cur, FALSE);
 			cur = cur->left;
 			depth++;
 			tsize++;
 		} else {
-			stk = dlist_dequeue(stk, (anObject**)&cur, FALSE);
+			stk = dlist_dequeue(stk, (Object**)&cur, FALSE);
 			depth--;
 			if(cur->left == NULL && cur->right == NULL){
 				tleaves++;
 				if(rleaves)
-					leaves = dlist_append(leaves, (anObject*)cur, FALSE);
+					leaves = dlist_append(leaves, (Object*)cur, FALSE);
 			}
 			if(init){
 				tmin = MIN(tmin, depth);

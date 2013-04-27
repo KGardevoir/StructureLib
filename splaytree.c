@@ -5,11 +5,11 @@
 /*Adapted from ftp://ftp.cs.cmu.edu/usr/ftp/usr/sleator/splaying*/
 splaytree header = {.left = NULL, .right = NULL, .data = NULL};
 static splaytree*
-new_splaynode(aComparable* data, BOOLEAN deep_copy) {
+new_splaynode(Object* data, BOOLEAN deep_copy) {
 	splaytree init = {
 		.right = NULL,
 		.left = NULL,
-		.data = deep_copy?(aComparable*)data->method->parent.copy((anObject*)data):data
+		.data = deep_copy?(data->method->copy(data, MALLOC(data->method->size))):data
 	};
 	splaytree *n = (splaytree*)MALLOC(sizeof(splaytree));//TODO check if we run out of memory
 	memcpy(n, &init, sizeof(*n));
@@ -17,15 +17,15 @@ new_splaynode(aComparable* data, BOOLEAN deep_copy) {
 }
 
 static splaytree*
-splay(splaytree* root, aComparable* data) {
+splay(splaytree* root, Object* data, const Comparable_vtable* data_method) {
 	splaytree *l, *r, *t, *y;
 	l = r = &header;
 	t = root;
 	header.left = header.right = NULL;
 	for(;;){
-		if(data->method->compare(data, (anObject*)t->data) < 0){
+		if(data_method->compare(data, (Object*)t->data) < 0){
 			if(t->left == NULL) break;
-			if(data->method->compare(data, (anObject*)t->left->data) < 0){ //rotate right
+			if(data_method->compare(data, (Object*)t->left->data) < 0){ //rotate right
 				y = t->left;
 				t->left = y->right;
 				y->right = t;
@@ -36,9 +36,9 @@ splay(splaytree* root, aComparable* data) {
 			r->left = t; //link right
 			r = t;
 			t = t->left;
-		} else if(data->method->compare(data, (anObject*)t->data) > 0){
+		} else if(data_method->compare(data, (Object*)t->data) > 0){
 			if(t->right == NULL) break;
-			if(data->method->compare(data, (anObject*)t->right->data) > 0){ //rotate left
+			if(data_method->compare(data, (Object*)t->right->data) > 0){ //rotate left
 				y = t->right;
 				t->right = y->left;
 				//if(t->right != NULL) t->right->parent = t;
@@ -68,13 +68,13 @@ splay(splaytree* root, aComparable* data) {
 }
 
 splaytree*
-splay_insert(splaytree* root, aComparable* data, BOOLEAN copy){
+splay_insert(splaytree* root, Object* data, const Comparable_vtable* method, BOOLEAN copy){
 	splaytree* n;
 	long c;
 	if(root == NULL) return new_splaynode(data, copy);
 
-	root = splay(root, data);
-	if((c = data->method->compare(data, (anObject*)root->data)) == 0) return root;//disallow duplicate elements (for now)
+	root = splay(root, data, method);
+	if((c = method->compare(data, (Object*)root->data)) == 0) return root;//disallow duplicate elements (for now)
 	n = new_splaynode(data, copy);
 	if(c < 0){
 		n->left = root->left;
@@ -89,20 +89,20 @@ splay_insert(splaytree* root, aComparable* data, BOOLEAN copy){
 }
 
 splaytree*
-splay_remove(splaytree* root, aComparable* data, aComparable **rtn, BOOLEAN destroy_data){
+splay_remove(splaytree* root, Object *data, const Comparable_vtable *data_method, Object **rtn, BOOLEAN destroy_data){
 	splaytree* x;
 	if(root == NULL) return root;
-	root = splay(root, data);
-	if(data->method->compare(data, (anObject*)root->data) == 0){// match found
+	root = splay(root, data, data_method);
+	if(data_method->compare(data, (Object*)root->data) == 0){// match found
 		if(rtn) *rtn = root->data;
 		if(destroy_data){
-			root->data->method->parent.destroy((anObject*)root->data);
+			root->data->method->destroy(root->data);
 			root->data = NULL;
 		}
 		if(root->left == NULL){
 			x = root->right;
 		} else {
-			x = splay(root->left, data);
+			x = splay(root->left, data, data_method);
 			x->right = root->right;
 		}
 		FREE(root);
@@ -112,10 +112,10 @@ splay_remove(splaytree* root, aComparable* data, aComparable **rtn, BOOLEAN dest
 }
 
 splaytree*
-splay_find(splaytree* root, aComparable* data){
+splay_find(splaytree* root, Object* data, const Comparable_vtable* data_method){
 	if(root == NULL) return root;
-	root = splay(root, data);
-	if(data->method->compare(data, (anObject*)root->data) != 0) return root;
+	root = splay(root, data, data_method);
+	if(data_method->compare(data, (Object*)root->data) != 0) return root;
 	return root;
 }
 

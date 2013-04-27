@@ -2,43 +2,46 @@
 #include "tlsf/tlsf.h"
 #include "allocator.h"
 
-static void graph_node_destroy(graph* self){ }
-static size_t graph_node_getSize(graph* self){ return sizeof(graph); }
+static void graph_node_destroy(graph* self){ (void)self; }
+static char* graph_node_hashable(const graph* self, size_t *size){ *size = self->method->parent.size; return (char*)self; }
 static long graph_node_compare(graph* self, graph* oth);
-static graph* graph_node_copy(graph* self);
-static Comparable graph_methods = {
-	.parent = {
-		.copy = (anObject*(*)(const anObject *self))graph_node_copy,
-		.destroy = (void(*)(const anObject *self))graph_node_destroy,
-		.getSize = (size_t(*)(const anObject *self))graph_node_getSize
-	},
-	.compare = (long(*)(const aComparable* self, const anObject *oth))graph_node_compare
-};
+static graph* graph_node_copy(graph* self, void* mem);
+static graph_vtable _graph_vtable = {
+		.parent = {
+			.copy = (Object*(*)(const Object *self, void* mem))graph_node_copy,
+			.destroy  = (void(*)(const Object *self))graph_node_destroy,
+			.hashable = (char*(*)(const Object *self, size_t* size))graph_node_hashable,
+			.equals   = NULL,
+			.size = sizeof(graph)
+		},
+		.comparable = {
+			.compare = (long(*)(const void* self, const void *oth))graph_node_compare
+		}
+	};
 static long graph_node_compare(graph* self, graph* oth){ return self>oth?1:(self==oth?0:-1); }
 //static long graph_node_compare(graph* self, graph* oth){
 //	return ((aComparable*)self->data)->method->compare(self->data, oth->data);
 //}
 
 static graph*
-graph_node_new(anObject* data, BOOLEAN copy){
+graph_node_new(graph* self, Object* data, BOOLEAN copy){
 	graph init = {
-		.method = &graph_methods,
-		.data = copy?data->method->copy(data):data,
+		.method = &_graph_vtable,
+		.data = copy?data->method->copy(data, MALLOC(self->method->parent.size)):data,
 		.edges = NULL
 	};
-	graph *mem = (graph*)MALLOC(sizeof(graph));
-	memcpy(mem, &init, sizeof(*mem));
-	return mem;
+	//graph *mem = (graph*)MALLOC(sizeof(graph));
+	memcpy(self, &init, sizeof(init));
+	return self;
 }
 
 static graph*
-graph_node_copy(graph* self){
+graph_node_copy(graph* self, void* mem){
 	graph init = {
-		.method = &graph_methods,
+		.method = &_graph_vtable,
 		.data = self->data,
 		.edges = self->edges
 	};
-	graph *mem = (graph*)MALLOC(sizeof(graph));
 	memcpy(mem, &init, sizeof(*mem));
 	return mem;
 }
@@ -46,9 +49,9 @@ graph_node_copy(graph* self){
 
 
 graph*
-graph_insert(graph* root, anObject* data, BOOLEAN copy){
+graph_insert(graph* root, Object* data, BOOLEAN copy){
 	//add a new node the child of this node.
-	return graph_link(root, graph_node_new(data, copy));
+	return graph_link(root, graph_node_new(MALLOC(_graph_vtable.parent.size), data, copy));
 }
 
 graph*
@@ -56,7 +59,7 @@ graph_link(graph* root, graph* child){
 	if(child == NULL) return root;
 	if(root == NULL) return child;
 	//printf("%p %p %p\n", child, child->data, child->edges);
-	root->edges = dlist_append(root->edges, (anObject*)child, FALSE);
+	root->edges = dlist_append(root->edges, (Object*)child, FALSE);
 	//Rather than adding ordered, order based on arrival time
 	return root;
 }
@@ -74,8 +77,8 @@ graph_clear(graph *root, BOOLEAN destroy_data){
 
 static BOOLEAN
 graph_map_filter_f(graph *child, splaytree** tree){
-	*tree = splay_find(*tree, (aComparable*)child);
-	if(*tree && child->method->compare((aComparable*)child, (anObject*)(*tree)->data) == 0){
+	*tree = splay_find(*tree, child, &child->method->comparable);
+	if(*tree && child->method->comparable.compare(child, (*tree)->data) == 0){
 		//printf("E");
 		return FALSE;
 	}
@@ -84,7 +87,7 @@ graph_map_filter_f(graph *child, splaytree** tree){
 }
 
 typedef struct aLong {
-	const Comparable *method;
+	const Comparable_vtable *method;
 	long data;
 } aLong;
 static BOOLEAN
@@ -96,14 +99,14 @@ graph_print_children(graph *graphs, void* _noaux/*NULL*/){
 
 static BOOLEAN
 graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
-	splaytree *visited = splay_insert(NULL, (aComparable*)root, FALSE);
-	dlist *stk = dlist_append(NULL, (anObject*)root, FALSE);
+	splaytree *visited = splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
+	dlist *stk = dlist_append(NULL, (Object*)root, FALSE);
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) graph_size(root, &size, NULL);
 	while(stk){
 		graph *g;
-		stk = dlist_dequeue(stk, (anObject**)&g, FALSE);
-		visited = splay_insert(visited, (aComparable*)g, FALSE);
+		stk = dlist_dequeue(stk, (Object**)&g, FALSE);
+		visited = splay_insert(visited, (Object*)g, &root->method->comparable, FALSE);
 		stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
 		if(method == DEPTH_FIRST){
 			stk = dlist_concat(
@@ -131,11 +134,11 @@ graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, BOOLEAN pass_data, BO
 				.size = size,
 				.aux = aux
 			};
-			if(!func(pass_data?g->data:(anObject*)g, &ax))
+			if(!func(pass_data?g->data:(Object*)g, &ax))
 				goto cleanup;
 			position++;
 		} else {
-			if(!func(pass_data?g->data:(anObject*)g, aux))
+			if(!func(pass_data?g->data:(Object*)g, aux))
 				goto cleanup;
 		}
 	}
@@ -154,12 +157,13 @@ graph_map(graph *root, TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void* aux, l
 
 struct graph_find_d {
 	graph *rtn;
-	aComparable *goal;
+	void* goal;
+	const Comparable_vtable *goal_method;
 };
 
 static BOOLEAN
 graph_find_f(graph* node, struct graph_find_d *aux){
-	if(aux->goal->method->compare(aux->goal, node->data) == 0){
+	if(aux->goal_method->compare(aux->goal, node->data) == 0){
 		aux->rtn = node;
 		return FALSE;
 	}
@@ -167,10 +171,11 @@ graph_find_f(graph* node, struct graph_find_d *aux){
 }
 
 graph*
-graph_find(graph *root, TRAVERSAL_STRATEGY strat, aComparable* dat){
+graph_find(graph *root, TRAVERSAL_STRATEGY strat, void* key, const Comparable_vtable* key_method){
 	struct graph_find_d mm = {
 		.rtn = NULL,
-		.goal = dat
+		.goal = key,
+		.goal_method = key_method
 	};
 	if(!graph_map_internal(root, strat, FALSE, FALSE, &mm, (lMapFunc)graph_find_f) && mm.rtn)
 		return mm.rtn;
@@ -207,7 +212,7 @@ graph_path_key_match(graph *root, dlist *key_path){
 	dlist *run = key_path;
 	graph *troot = root;
 	while(i < size){
-		dlist *descent = dlist_find(troot->edges, (aComparable*)run->data, FALSE);
+		dlist *descent = dlist_find(troot->edges, (void*)run->data, &root->method->comparable, FALSE);
 		if(descent == NULL) return NULL;
 		troot = (graph*)descent->data;
 		i++; run = run->next;

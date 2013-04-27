@@ -6,31 +6,58 @@
 #define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 #define ARRLENGTH(A) ( sizeof(A)/sizeof(typeof(A[0])) )
 
+
+typedef struct aLong_vtable {
+	Object_vtable parent;
+	Comparable_vtable compare;
+} aLong_vtable; 
 typedef struct aLong {
-	const Comparable *method;
+	const aLong_vtable *method;
 	long data;
 } aLong;
-static long aLong_compare(aLong *self, aLong *b){ return self->data - b->data; }
-static size_t aLong_size(aLong *self){ return sizeof(aLong); }
-static void aLong_destroy(aLong *self) { FREE(self); }
-static Comparable long_type = {
+static long aLong_compare(const aLong *self, const aLong *b){ return self->data - b->data; }
+static void aLong_destroy(aLong *self) { FREE(self); /*This is bad practice*/}
+
+static aLong_vtable aLong_type = {
 	.parent = {
+		.hashable = NULL,
 		.destroy = aLong_destroy,
 		.copy = NULL,
-		.getSize = aLong_size
+		.equals = NULL,
+		.size = sizeof(aLong)
 	},
-	.compare = aLong_compare
+	.compare = {
+		.compare = aLong_compare
+	}
 };
 
 static aLong* aLong_new(long a){ 
 	aLong init = {
-		.method = &long_type,
+		.method = &aLong_type,
 		.data = a
 	};
 	aLong *lnew = (aLong*)MALLOC(sizeof(init));
 	memcpy(lnew, &init, sizeof(init));
 	return lnew;
 }
+
+typedef struct aLong_comparator_vtable {
+	Comparator_vtable compare;
+} aLong_comparator_vtable;
+typedef struct aLong_comparator {
+	aLong_comparator_vtable *method;
+} aLong_comparator;
+
+static long aLong_comparator_compare(const aLong_comparator *self, const aLong *one, const aLong* two){
+	return aLong_compare(one, two);
+}
+
+static aLong_comparator_vtable aLong_comparator_type = {
+	.compare = {
+		.compare = aLong_comparator_compare
+	}
+};
+
 
 BOOLEAN
 compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
@@ -78,13 +105,13 @@ test_splay(){
 		long i;
 		size_t min, max, avg, nodes, leaves;
 		for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
-			t = splay_insert(t, aLong_new(i), FALSE);
+			t = splay_insert(t, (Object*)aLong_new(i), &aLong_type.compare, FALSE);//typically it is more appropriate to access via &Object->method->interface. It is OK here, because there is no polymorphism
 		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Inserts: %s\n", (NUMS == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 		for(i = 1; i < NUMS; i += 2)
-			t = splay_remove(t, aLong_new(i), NULL, TRUE);
+			t = splay_remove(t, (Object*)aLong_new(i), &aLong_type.compare, NULL, TRUE);
 		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Removes: %s\n", (NUMS/2 == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
@@ -93,11 +120,11 @@ test_splay(){
 
 	{
 		long i;
-		t = splay_find(t, bstree_findmin(t)->data); i = ((aLong*)t->data)->data;
-		long nm = ((aLong*)bstree_successor(t, t)->data)->data;
+		t = splay_find(t, bstree_findmin(t)->data, &aLong_type.compare); i = ((aLong*)t->data)->data;
+		long nm = ((aLong*)bstree_successor(t, t, &aLong_type.compare)->data)->data;
 		long j;
-		t = splay_find(t, bstree_findmax(t)->data); j = ((aLong*)t->data)->data;
-		long k = ((aLong*)bstree_predessor(t, t)->data)->data;
+		t = splay_find(t, bstree_findmax(t)->data, &aLong_type.compare); j = ((aLong*)t->data)->data;
+		long k = ((aLong*)bstree_predessor(t, t, &aLong_type.compare)->data)->data;
 		if(i != 2 || nm != 4 || j != NUMS-2 || k != NUMS-4)
 			printf("FindMin or FindMax error! Got %lu and %lu, head successor: %lu, tail predessor: %lu\n", i, j, k, nm);
 	}
@@ -106,20 +133,20 @@ test_splay(){
 		for(i = 2; i < NUMS; i+=2){
 			long k;
 			aLong tmp = {
-				.method = &long_type,
+				.method = &aLong_type,
 				.data = i
 			};
-			t = splay_find(t, &tmp); k = ((aLong*)t->data)->data;
+			t = splay_find(t, (Object*)&tmp, &tmp.method->compare); k = ((aLong*)t->data)->data;
 			if(k != i)
 				printf("Error: find fails for %ld\n",i);
 		}
 		for(i = 1; i < NUMS; i+=2){
 			long k;
 			aLong tmp = {
-				.method = &long_type,
+				.method = &aLong_type,
 				.data = i
 			};
-			t = splay_find(t, &tmp); k = ((aLong*)t->data)->data;
+			t = splay_find(t, (Object*)&tmp, &aLong_type.compare); k = ((aLong*)t->data)->data;
 			if(k == i)
 				printf("Error: Found deleted item %ld\n",i);
 		}
@@ -133,7 +160,7 @@ make_dlist(const long a[], size_t s){
 	long i = 0;
 	dlist* newl = NULL;
 	for(; i < s; i++){
-		newl = dlist_append(newl, aLong_new(a[i]), FALSE);
+		newl = dlist_append(newl, (Object*)aLong_new(a[i]), FALSE);
 	}
 	return newl;
 }
@@ -222,8 +249,11 @@ test_dlist(){
 			.test1 = {0},
 			.test2 = {0}
 		};
+		aLong_comparator cmp = {
+			.method = &aLong_comparator_type
+		};
 		dlist *l1 = make_dlist(init, buffer.max);
-		l1 = dlist_sort(l1);
+		l1 = dlist_sort(l1, &cmp, &aLong_comparator_type.compare);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
 		printf("List 2 Sort (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
@@ -286,7 +316,7 @@ test_bstree(){
 	//long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
 	size_t i = 0;
 	for(; i < sizeof(x2)/sizeof(x2[0]); i++){
-		t1 = bstree_insert(t1, aLong_new(x2[i]), FALSE);
+		t1 = bstree_insert(t1, (Object*)aLong_new(x2[i]), &aLong_type.compare, FALSE);
 	}
 	//for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
 	//	t2 = splay_insert(t2, (void*)x2[i], FALSE, &type);
@@ -295,17 +325,17 @@ test_bstree(){
 	//	t3 = splay_insert(t3, (void*)x3[i], FALSE, &type);
 	//}
 	aLong tmp = {
-		.method = &long_type,
+		.method = &aLong_type,
 		.data = x2[5]
 	};
-	bstree *f = bstree_find(t1, &tmp);
+	bstree *f = bstree_find(t1, (Object*)&tmp, &aLong_type.compare);
 	aLong *mp;
 	if(((aLong*)f->data)->data != x2[5])
 		printf("Error: Not able to find element\n");
-	t1 = bstree_remove(t1, &tmp, (aLong**)&mp, FALSE);
+	t1 = bstree_remove(t1, (Object*)&tmp, &aLong_type.compare, (Object**)&mp, FALSE);
 	if(mp->data != x2[5])
 		printf("Error: Unable to remove element\n");
-	mp->method->parent.destroy(mp);
+	mp->method->parent.destroy((Object*)mp);
 	printf("Tree Structures:\n");
 	{
 		const long expect1[] = {8,3,1,6,4,10,14,13};
@@ -383,13 +413,13 @@ test_graph(){
 	printf("Checking graphs ---------------------------------\n");
 	long nums[] = {0,1,2,3,4,5,6};
 	graph *g[] = {
-		graph_insert(NULL, aLong_new(nums[0]), FALSE),
-		graph_insert(NULL, aLong_new(nums[1]), FALSE),
-		graph_insert(NULL, aLong_new(nums[2]), FALSE),
-		graph_insert(NULL, aLong_new(nums[3]), FALSE),
-		graph_insert(NULL, aLong_new(nums[4]), FALSE),
-		graph_insert(NULL, aLong_new(nums[5]), FALSE),
-		graph_insert(NULL, aLong_new(nums[6]), FALSE)
+		graph_insert(NULL, (Object*)aLong_new(nums[0]), FALSE),
+		graph_insert(NULL, (Object*)aLong_new(nums[1]), FALSE),
+		graph_insert(NULL, (Object*)aLong_new(nums[2]), FALSE),
+		graph_insert(NULL, (Object*)aLong_new(nums[3]), FALSE),
+		graph_insert(NULL, (Object*)aLong_new(nums[4]), FALSE),
+		graph_insert(NULL, (Object*)aLong_new(nums[5]), FALSE),
+		graph_insert(NULL, (Object*)aLong_new(nums[6]), FALSE)
 	};
 	graph_link(g[0], g[1]); graph_link(g[0], g[4]); graph_link(g[0], g[6]);
 	graph_link(g[1], g[2]); graph_link(g[1], g[5]); graph_link(g[1], g[6]);

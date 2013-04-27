@@ -3,58 +3,63 @@
 #define DEFAULT_SIZE 256
 #include "city.h"
 #include <math.h>
-static void htable_cluster_destroy(const htable_cluster* tbl);
-static size_t htable_cluster_size(const htable_cluster*);
-static htable_cluster* htable_cluster_copy(const htable_cluster* tbl);
-static long htable_cluster_compare(const htable_cluster *self, const htable_cluster *oth);
+static const char* htable_node_hashables(const htable_node* tbl, size_t *size);
+static void htable_node_destroy(const htable_node* tbl);
+static htable_node* htable_node_copy(const htable_node* tbl, void* buf);
+static long htable_node_compare(const htable_node *self, const htable_node *oth);
 
-static Comparable hash_type = {
+
+static htable_node_vtable hash_type = {
 	.parent = {
-		.copy = (anObject*(*)(const anObject*))htable_cluster_copy,
-		.destroy = (void(*)(const anObject*))htable_cluster_destroy,
-		.getSize = (size_t(*)(const anObject*))htable_cluster_size
+		.hashable = (char*(*)(const Object*, size_t *size))htable_node_hashables,
+		.destroy = (void(*)(const Object*))htable_node_destroy,
+		.copy = (Object*(*)(const Object*, void*))htable_node_copy,
+		.equals = NULL,//TODO this shouldn't be null
+		.size = sizeof(htable_node)
 	},
-	.compare = (long(*)(const aComparable*, const anObject*))htable_cluster_compare
+	.compare = {
+		.compare = (long(*)(const void*, const void*))htable_node_compare
+	}
 };
-static htable_cluster*
-new_htable_cluster(aComparable* key, anObject* data, uint32_t hash){
-	htable_cluster init = {
+static htable_node*
+new_htable_node(Object* key, const Comparable_vtable *key_method, void* data, uint32_t hash, void* buf){
+	htable_node init = {
 		.method = &hash_type,
 		.hash = hash,
 		.key = key,
+		.key_method = key_method,
 		.data = data
 	};
-	htable_cluster *dat = (htable_cluster*)MALLOC(sizeof(init));
+	htable_node *dat = buf;
 	memcpy(dat, &init, sizeof(init));
 	return dat;
 }
 
 static void
-htable_cluster_destroy(const htable_cluster* self){
-	self->data->method->destroy(self->data);
-	self->key->method->parent.destroy((anObject*)self->key);
+htable_node_destroy(const htable_node* self){
+	//nothing to destroy...
 }
-static htable_cluster*
-htable_cluster_copy(const htable_cluster* self){
-	return new_htable_cluster(self->key, self->data, self->hash);
+const char*
+htable_node_hashables(const htable_node* self, size_t *len){
+	*len = self->method->parent.size;
+	return (const char*)self;
+}
+static htable_node*
+htable_node_copy(const htable_node* self, void *buf){
+	return new_htable_node(self->key, self->key_method, self->data, self->hash, buf);
 }
 static long
-htable_cluster_compare(const htable_cluster* self, const htable_cluster *oth){
+htable_node_compare(const htable_node* self, const htable_node *oth){
 	//return memcomp(self,oth);
-	return self->key->method->compare(self->key, (anObject*)oth->key);
+	return self->key_method->compare(self->key, oth->key);
 }
-static size_t
-htable_cluster_size(const htable_cluster *self){
-	return sizeof(htable_cluster);
-}
-
 
 static BOOLEAN
-htable_recompute_f(htable_cluster *data, htable* tbl){
+htable_recompute_f(htable_node *data, htable* tbl){
 	//TODO remove old data first, assuming new entry
 	uint64_t idx = data->hash%tbl->size;
 	if(tbl->array[idx] != NULL) tbl->collision++;
-	tbl->array[idx] = splay_insert(tbl->array[idx], (aComparable*)data, FALSE);
+	tbl->array[idx] = splay_insert(tbl->array[idx], (Object*)data, &data->method->compare, FALSE);
 	return TRUE;
 }
 
@@ -86,37 +91,39 @@ htable_resize(htable* tbl, double scalar, size_t isize){
 }
 
 htable*
-htable_insert(htable* table, aComparable* key, anObject *data, BOOLEAN copy, size_t isize){
+htable_insert(htable* table, Object* key, const Comparable_vtable* key_method, void *data, BOOLEAN copy, size_t isize){
 	isize = (table?table->size:(isize==0?(isize = DEFAULT_SIZE):isize));
-	htable_cluster* lnew;
-	size_t at = (lnew = new_htable_cluster(key, data, CityHash64((const char*)key, key->method->parent.getSize((anObject*)key))))->hash % isize;
+	htable_node* lnew;
+	size_t len;
+	const char* hashes = key->method->hashable(key, &len);
+	size_t at = (lnew = new_htable_node(key, key_method, data, CityHash64(hashes, len), MALLOC(sizeof(htable_node))))->hash % isize;
 	if(!table || table->filled > isize/2){//make table bigger
 		htable *tbl = htable_resize(table, 2.0, isize);
-		htable_clear(table, FALSE);
+		htable_clear(table);
 		table = tbl;
 	}
 	if(table->array[at] != NULL) table->collision++;
-	table->array[at] = splay_insert(table->array[at], (aComparable*)lnew, copy);
+	table->array[at] = splay_insert(table->array[at], (Object*)lnew, &lnew->method->compare, copy);
 	table->filled++;
 	return table;
 }
 
 htable*
-htable_remove(htable* table, aComparable* key, anObject **rtn, BOOLEAN destroy_data){
+htable_remove(htable* table, Object* key, const Comparable_vtable *key_method, Object** key_rtn, void **rtn){
 	if(!table) return table;
-	htable_cluster **rtn2 = NULL;
-	size_t at = CityHash64((const char*)key, key->method->parent.getSize((anObject*)key)) % table->size;
-	table->array[at] = splay_remove(table->array[at], key, (aComparable**)rtn2, FALSE);
+	htable_node **rtn2 = NULL;
+	size_t len;
+	const char* hashes = key->method->hashable(key, &len);
+	size_t at = CityHash64(hashes, len) % table->size;
+	table->array[at] = splay_remove(table->array[at], key, key_method, (Object**)rtn2, FALSE);
 	if(rtn && *rtn2) *rtn = (*rtn2)->data;
+	if(key_rtn && *rtn2) *rtn = (*rtn2)->key;
 	if(*rtn2){
-		if(destroy_data){
-			(*rtn2)->data->method->destroy((anObject*)*rtn2);
-		}
 		if(table->array[at] != NULL) table->collision--;//means there was a collision
 		table->filled--;
 		if(table->filled < table->size/4){//make table smaller
 			htable *tbl = htable_resize(table, 0.5, 0);
-			htable_clear(table, FALSE);
+			htable_clear(table);
 			table = tbl;
 			//rehash table
 		}
@@ -126,11 +133,13 @@ htable_remove(htable* table, aComparable* key, anObject **rtn, BOOLEAN destroy_d
 }
 
 void*
-htable_element(htable* table, aComparable* key){
+htable_element(htable* table, Object* key, const Comparable_vtable *key_method){
 	if(!table) return NULL;
-	size_t at = CityHash64((const char*)key, key->method->parent.getSize((anObject*)key)) % table->size;
-	table->array[at] = splay_find(table->array[at], key);
-	return ((htable_cluster*)table->array[at]->data)->data;
+	size_t len;
+	const char* hashes = key->method->hashable(key, &len);
+	size_t at = CityHash64(hashes, len) % table->size;
+	table->array[at] = splay_find(table->array[at], key, key_method);
+	return ((htable_node*)table->array[at]->data)->data;
 }
 
 BOOLEAN
@@ -145,10 +154,10 @@ htable_map(htable *table, const TRAVERSAL_STRATEGY strat, BOOLEAN more_info, voi
 }
 
 void
-htable_clear(htable *tbl, BOOLEAN destroy_data){
+htable_clear(htable *tbl){
 	if(!tbl) return;
 	size_t i = 0;
 	for(; i < tbl->size; i++){
-		bstree_clear(tbl->array[i], destroy_data);
+		bstree_clear(tbl->array[i], FALSE);
 	}
 }
