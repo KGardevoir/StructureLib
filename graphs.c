@@ -2,7 +2,7 @@
 #include "tlsf/tlsf.h"
 #include "allocator.h"
 
-static void graph_node_destroy(graph* self){ (void)self; }
+static void graph_node_destroy(graph* self){ dlist_clear(self->edges, FALSE); }
 static char* graph_node_hashable(const graph* self, size_t *size){ *size = self->method->parent.size; return (char*)self; }
 static long graph_node_compare(graph* self, graph* oth);
 static graph* graph_node_copy(graph* self, void* mem);
@@ -70,14 +70,10 @@ graph_remove(graph* root, void* key, void** data, BOOLEAN copy, list_tspec* type
 #error "Unimplmented"
 }
 #endif
-void
-graph_clear(graph *root, BOOLEAN destroy_data){
-	//TODO implement this...
-}
 
 static BOOLEAN
 graph_map_filter_f(graph *child, splaytree** tree){
-	*tree = splay_find(*tree, child, &child->method->comparable);
+	*tree = splay_find(*tree, (Object*)child, &child->method->comparable);
 	if(*tree && child->method->comparable.compare(child, (*tree)->data) == 0){
 		//printf("E");
 		return FALSE;
@@ -106,7 +102,7 @@ graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, BOOLEAN pass_data, BO
 	while(stk){
 		graph *g;
 		stk = dlist_dequeue(stk, (Object**)&g, FALSE);
-		visited = splay_insert(visited, (Object*)g, &root->method->comparable, FALSE);
+		visited = splay_insert(visited, (Object*)g, &g->method->comparable, FALSE);
 		stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
 		if(method == DEPTH_FIRST){
 			stk = dlist_concat(
@@ -153,6 +149,33 @@ cleanup:
 BOOLEAN
 graph_map(graph *root, TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void* aux, lMapFunc func){
 	return graph_map_internal(root, strat, TRUE, more_info, aux, func);
+}
+
+typedef struct
+graph_clear_d {
+	BOOLEAN destroy_data;
+	slist *head;
+} graph_clear_d;
+
+static BOOLEAN
+graph_clear_f(graph *node, graph_clear_d* aux){
+	if(aux->destroy_data) node->data->method->destroy(node->data);
+	aux->head = slist_push(aux->head, (Object*)node, FALSE);
+	return TRUE;
+}
+void
+graph_clear(graph *root, BOOLEAN destroy_data){
+	graph_clear_d aux = {
+		.destroy_data = destroy_data,
+		.head = NULL
+	};
+	graph_map_internal(root, DEPTH_FIRST, FALSE, FALSE, &aux, (lMapFunc)graph_clear_f);
+	slist *iter;
+	SLIST_ITERATE(iter, aux.head,
+		iter->data->method->destroy((Object*)iter->data);
+		FREE(iter->data);
+	);
+	slist_clear(aux.head, FALSE);
 }
 
 struct graph_find_d {

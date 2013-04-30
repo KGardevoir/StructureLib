@@ -207,8 +207,8 @@ new_node_and_depth(size_t depth, bstree *node){
 		.node = node,
 		.depth = depth
 	};
-	struct node_and_depth *new = malloc(sizeof(struct node_and_depth));
-	memcpy(new, &init, sizeof(typeof(init)));
+	struct node_and_depth *new = MALLOC(sizeof(init));
+	memcpy(new, &init, sizeof(init));
 	return new;
 }
 
@@ -243,7 +243,7 @@ bstree_map_pre_in_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, B
 			stk = dlist_pop(stk, (Object**)&node, FALSE);
 			cur = node->node;
 			depth = node->depth;
-			free(node);
+			FREE(node);
 			//by changing this from a stack to a queue, this can be transformed to a pre-order
 			//traversal
 			if(IN_ORDER){
@@ -301,7 +301,7 @@ bstree_map_post_internal(bstree *root, BOOLEAN pass_data, BOOLEAN more_info, voi
 				if(!func(pass_data?cur->data:(Object*)cur, aux)) return FALSE;
 			}
 			stk = dlist_dequeue(stk, (Object**)&node, FALSE);
-			free(node);
+			FREE(node);
 		}
 		prev = cur;
 	}
@@ -349,7 +349,7 @@ bstree_map_internal(bstree *root, const TRAVERSAL_STRATEGY strat, BOOLEAN pass_d
 	if(!root) return TRUE;
 	if(strat == DEPTH_FIRST_PRE || strat == DEPTH_FIRST_IN){
 		return bstree_map_pre_in_internal(root, pass_data, more_info, strat == DEPTH_FIRST_IN, aux, func);
-	} else if( strat == DEPTH_FIRST_POST){
+	} else if(strat == DEPTH_FIRST_POST){
 		return bstree_map_post_internal(root, pass_data, more_info, aux, func);
 	} else { //Breadth First
 		return bstree_map_breadth_internal(root, pass_data, more_info, aux, func);

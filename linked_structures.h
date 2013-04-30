@@ -158,7 +158,7 @@ BOOLEAN dlist_had(dlist *head, dlist* node);
 		}\
 		_ITER = _ITER->next;\
 		_depth++;\
-	} while(_ITER != HEAD);\
+	} while(_ITER != _HEAD);\
 }
 
 

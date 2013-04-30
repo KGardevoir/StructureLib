@@ -110,8 +110,11 @@ test_splay(){
 		printf("Inserts: %s\n", (NUMS == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
-		for(i = 1; i < NUMS; i += 2)
-			t = splay_remove(t, (Object*)aLong_new(i), &aLong_type.compare, NULL, TRUE);
+		for(i = 1; i < NUMS; i += 2){
+			aLong *anew = aLong_new(i);
+			t = splay_remove(t, (Object*)anew, &aLong_type.compare, NULL, TRUE);
+			FREE(anew);
+		}
 		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Removes: %s\n", (NUMS/2 == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
