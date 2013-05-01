@@ -82,19 +82,78 @@ graph_map_filter_f(graph *child, splaytree** tree){
 	return TRUE;
 }
 
-typedef struct aLong {
-	const Comparable_vtable *method;
-	long data;
-} aLong;
-static BOOLEAN
-graph_print_children(graph *graphs, void* _noaux/*NULL*/){
-	printf("%ld ", ((aLong*)graphs->data)->data);
-	(void)_noaux;
+/**
+ * Iterate through the graph in postfix order, normally this is performed prefix. The space complexity is O(3*E+N) worst
+ * case, time complexity is O(N) (approximately).
+ *
+ * @param root - the root of the graph
+ * @param pass_data - pass the data, instead of the node itself.
+ * @param more_info - give more info, as defined by the lMapFuncAux datatype.
+ * @param aux - auxillarly persistent data
+ * @param func - function to do
+ */
+static inline BOOLEAN
+graph_map_internal_dfs_po(graph *root, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){//Post fix
+	splaytree *visited = NULL; //splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
+	splaytree *processed = NULL;
+	dlist *stk = dlist_append(NULL, (Object*)root, FALSE);
+	size_t depth = 0, position = 0, size = 0;
+	if(more_info) graph_size(root, &size, NULL);
+	while(stk){
+		while(TRUE){//expand nodes to maximium (left-most)
+			graph *g;
+			size_t prev_size = dlist_length(stk);
+			stk = dlist_dequeue(stk, (Object**)&g, FALSE);
+			visited = splay_insert(visited, (Object*)g, &g->method->comparable, FALSE);
+			//stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
+			stk = dlist_concat(
+					dlist_append(dlist_filter(g->edges, &visited,
+						(lMapFunc)graph_map_filter_f, FALSE), (Object*)g, FALSE), stk);
+			size_t new_size = dlist_length(stk);
+			if(new_size <= prev_size) break;
+		}//expand till we can't expand any more.
+		graph *g;
+		stk = dlist_dequeue(stk, (Object**)&g, FALSE);
+		processed = splay_insert(processed, (Object*)g, &g->method->comparable, FALSE);
+		stk = dlist_filter_i(stk, &processed, (lMapFunc)graph_map_filter_f, FALSE);//clear entries we have now processed
+		/*
+		printf("<");
+		dlist_map(g->edges, FALSE, NULL, (lMapFunc)graph_print_children);
+		printf(">");
+		printf("[");
+		dlist_map(stk, FALSE, NULL, (lMapFunc)graph_print_children);
+		printf("]");
+		printf("(%ld);", g->data);
+		*/
+		if(more_info){
+			lMapFuncAux ax = {
+				.isAux = TRUE,
+				.depth = depth,
+				.position = position,
+				.size = size,
+				.aux = aux
+			};
+			if(!func(pass_data?g->data:(Object*)g, &ax))
+				goto cleanup;
+			position++;
+		} else {
+			if(!func(pass_data?g->data:(Object*)g, aux))
+				goto cleanup;
+		}
+	}
+	bstree_clear(visited, FALSE);
+	bstree_clear(processed, FALSE);
 	return TRUE;
+cleanup:
+	bstree_clear(visited, FALSE);
+	bstree_clear(processed, FALSE);
+	dlist_clear(stk, FALSE);
+	return FALSE;
 }
 
 static BOOLEAN
 graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+	if(method == DEPTH_FIRST_POST) return graph_map_internal_dfs_po(root, pass_data, more_info, aux, func);
 	splaytree *visited = splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
 	dlist *stk = dlist_append(NULL, (Object*)root, FALSE);
 	size_t depth = 0, position = 0, size = 0;
@@ -104,7 +163,7 @@ graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, BOOLEAN pass_data, BO
 		stk = dlist_dequeue(stk, (Object**)&g, FALSE);
 		visited = splay_insert(visited, (Object*)g, &g->method->comparable, FALSE);
 		stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
-		if(method == DEPTH_FIRST){
+		if(method == DEPTH_FIRST || method == DEPTH_FIRST_PRE){
 			stk = dlist_concat(
 					dlist_filter(g->edges, &visited,
 						(lMapFunc)graph_map_filter_f, FALSE), stk);

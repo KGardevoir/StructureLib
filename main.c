@@ -62,14 +62,11 @@ static aLong_comparator_vtable aLong_comparator_type = {
 BOOLEAN
 compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
 	size_t i = 0;
-	if(length != got_length){
-		printf("FAILURE, inconsitent number of nodes (Got: %ld, Expected: %ld)\n", got_length, length);
-		return FALSE;
-	}
-	for(; i < length; i++){
+	size_t minlen = MIN(length, got_length);
+	for(; i < minlen; i++){
 		if(expect[i] != got[i]){
 			printf("FAILURE, value %lu does not match (Got: (", i);
-			for(i=0; i < length; i++)
+			for(i=0; i < got_length; i++)
 				printf("%ld ", got[i]);
 			printf("), Expected: (");
 			for(i=0; i < length; i++)
@@ -77,6 +74,10 @@ compare_arrs(const long *expect, const size_t length, const long *got, const siz
 			printf(")\n");
 			return FALSE;
 		}
+	}
+	if(length != got_length){
+		printf("FAILURE, inconsitent number of nodes (Got: %ld, Expected: %ld)\n", got_length, length);
+		return FALSE;
 	}
 	printf("PASS\n");
 	return TRUE;
@@ -432,7 +433,7 @@ test_graph(){
 	graph_link(g[5], g[4]);
 	graph_link(g[6], g[5]);
 	{
-		printf("Depth First Search: ");
+		printf("Depth First Search (PRE): ");
 		const long expect[] = {0,1,2,3,4,5,6};
 		graph_dump_map_d buffer = {
 			.max = GRAPH_TEST_SIZE,
@@ -440,6 +441,17 @@ test_graph(){
 			.test = {0}
 		};
 		graph_map(g[0], DEPTH_FIRST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
+	}
+	{
+		printf("Depth First Search (POST): ");
+		const long expect[] = {4,3,2,5,6,1,0};
+		graph_dump_map_d buffer = {
+			.max = GRAPH_TEST_SIZE,
+			.pos = 0,
+			.test = {0}
+		};
+		graph_map(g[0], DEPTH_FIRST_POST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
