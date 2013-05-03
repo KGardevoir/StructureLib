@@ -2,7 +2,7 @@
 typedef struct Object_vtable Object_vtable;
 typedef struct Comparable_vtable Comparable_vtable;
 typedef struct Comparator_vtable Comparator_vtable;
-typedef enum BOOLEAN { FALSE=0, TRUE=-1 } BOOLEAN;
+typedef enum BOOLEAN { FALSE=0, TRUE=-1, MAYBE=-2 } BOOLEAN;
 
 typedef struct Object {
 	const Object_vtable *method;//also can be used as a key for the function type
