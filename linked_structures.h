@@ -87,6 +87,7 @@ slist* slist_push(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unus
 slist* slist_append(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
 slist* slist_addOrdered(slist* he, Object* buf, const Comparable_vtable* buf_method, BOOLEAN copy, BOOLEAN overwrite) __attribute__((warn_unused_result));
 slist* slist_copy(slist* src, BOOLEAN deep_copy) __attribute__((warn_unused_result));
+slist* slist_concat(slist *head, slist *tail) __attribute__((warn_unused_result));
 
 //Remove
 void slist_clear(slist *he, BOOLEAN destroy_data);
@@ -100,12 +101,13 @@ slist* slist_remove(slist *head, void* key, const Comparable_vtable* key_method,
 BOOLEAN slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc) __attribute__((warn_unused_result));
 size_t slist_length(slist* head);
 //Transform
-Object** slist_toArray(slist *head, BOOLEAN deep) __attribute__((warn_unused_result));
-Object** slist_toArrayReverse(slist *head, BOOLEAN deep) __attribute__((warn_unused_result));
-dlist* slist_to_dlist(slist *head, BOOLEAN deep) __attribute__((warn_unused_result));
+Object** slist_toArray(slist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
+Object** slist_toArrayReverse(slist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
+dlist* slist_toDlist(slist *head, BOOLEAN deep) __attribute__((warn_unused_result));
+slist* array_toSlist(Object** head, size_t size, BOOLEAN deep) __attribute__((warn_unused_result));
 
 //Find
-void* slist_find(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
+slist* slist_find(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
 #define SLIST_ITERATE(_ITER, _HEAD, _CODE) {\
 	_ITER = _HEAD;\
 	size_t _depth = 0;\
@@ -136,9 +138,10 @@ dlist* dlist_transform(dlist *head, void* aux, lTransFunc);
 BOOLEAN dlist_map(dlist *head, BOOLEAN more_info, void* aux, lMapFunc);
 size_t dlist_length(dlist *head);
 //Transform
-Object** dlist_toArray(dlist *head, BOOLEAN deep) __attribute__((warn_unused_result));
-Object** dlist_toArrayReverse(dlist *head, BOOLEAN deep) __attribute__((warn_unused_result));
-slist* dlist_to_slist(dlist *he, BOOLEAN deep) __attribute__((warn_unused_result));
+Object** dlist_toArray(dlist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
+Object** dlist_toArrayReverse(dlist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
+slist* dlist_toSlist(dlist *he, BOOLEAN deep) __attribute__((warn_unused_result));
+dlist* array_toDlist(Object **array, size_t size, BOOLEAN deep) __attribute__((warn_unused_result));
 
 //Merging
 dlist* dlist_sort(dlist* head, void* key, const Comparator_vtable* key_method) __attribute__((warn_unused_result));
@@ -148,7 +151,7 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 
 //Find
 dlist* dlist_find(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
-BOOLEAN dlist_had(dlist *head, dlist* node);
+BOOLEAN dlist_has(dlist *head, dlist* node);
 #define DLIST_ITERATE(_ITER, _HEAD, _CODE) {\
 	_ITER = _HEAD;\
 	size_t _depth = 0;\
@@ -157,6 +160,18 @@ BOOLEAN dlist_had(dlist *head, dlist* node);
 			_CODE\
 		}\
 		_ITER = _ITER->next;\
+		_depth++;\
+	} while(_ITER != _HEAD);\
+}
+
+#define DLIST_ITERATE_REVERSE(_ITER, _HEAD, _CODE) {\
+	_ITER = _HEAD;\
+	size_t _depth = 0;\
+	do{\
+		{\
+			_CODE\
+		}\
+		_ITER = _ITER->prev;\
 		_depth++;\
 	} while(_ITER != _HEAD);\
 }
@@ -199,7 +214,7 @@ graph* graph_find(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_v
 dlist* graph_path(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_vtable* key_method) __attribute__((warn_unused_result));
 graph* graph_path_key_match(graph *root, dlist *key_path);
 
-BOOLEAN graph_map(graph* root, TRAVERSAL_STRATEGY, BOOLEAN more_info, void* aux, lMapFunc func);
+BOOLEAN graph_map(graph* root, TRAVERSAL_STRATEGY, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func);
 
 //Hash Tables
 htable* htable_insert(htable *table, Object* key, const Comparable_vtable *key_method, void *data, BOOLEAN copy, size_t isize) __attribute__((warn_unused_result));

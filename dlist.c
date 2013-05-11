@@ -66,6 +66,7 @@ dlist_addOrdered(dlist* he, void* buf, const Comparable_vtable* buf_method, BOOL
 
 dlist*
 dlist_copy(dlist* src, BOOLEAN deep_copy){
+	if(!src) return NULL;
 	dlist* mnew = NULL, *runner = src;
 	do{
 		Object* new_data = runner->data;
@@ -252,7 +253,7 @@ struct dlist_transform_d {
 	lTransFunc func;
 };
 
-BOOLEAN
+static BOOLEAN
 dlist_transform_f(dlist* node, struct dlist_transform_d* aux){
 	return aux->func(&node->data, aux->aux);
 }
@@ -271,47 +272,51 @@ dlist_transform(dlist *head, void* aux, lTransFunc func){
 }
 
 Object**
-dlist_toArray(dlist *head, BOOLEAN deep_copy){
+dlist_toArray(dlist *head, size_t *size, BOOLEAN deep_copy){
 size_t len = 0;
 dlist* p = head;
 	if(!head) return NULL;
 	do{ p = p->next; len++; } while(p != head);
 	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
 	len = 0; p = head;
-	do{
+	DLIST_ITERATE(p, head, {
 		if(deep_copy){
 			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
-		p = p->next; len++;
-	} while(p != head);
+		len++;
+	});
 	values[len] = NULL;
+	*size = len;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
 	return values;
 }
+
 Object**
-dlist_toArrayReverse(dlist *head, BOOLEAN deep_copy){
+dlist_toArrayReverse(dlist *head, size_t *size, BOOLEAN deep_copy){
 size_t i = 0, len = 0;
 dlist* p = head;
 	if(!head) return NULL;
 	do{ p = p->next; i++; } while(p != head);
 	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
-	len = 0; p = head;
-	do{
+	len = 0;
+	DLIST_ITERATE_REVERSE(p, head, {
 		if(deep_copy){
 			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
-		p = p->prev; len++;
-	} while(p != head);
+		len++;
+	});
 	values[len] = NULL;
+	*size = len;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
 	return values;
 }
+
 slist*
-dlist_to_slist(dlist *head, BOOLEAN deep_copy){
+dlist_toSlist(dlist *head, BOOLEAN deep_copy){
 	slist* p = NULL;
 	dlist* d = head;
 	if(!d) return NULL;
@@ -319,6 +324,17 @@ dlist_to_slist(dlist *head, BOOLEAN deep_copy){
 	return p;
 }
 
+dlist*
+array_toDlist(Object** array, size_t size, BOOLEAN deep_copy){
+	dlist *p = NULL;
+	if(!array) return NULL;
+	if(size == 0) return NULL;
+	size_t i = 0;
+	for(; i < size; i++){
+		p = dlist_append(p, array[i], deep_copy);
+	}
+	return p;
+}
 
 #if 0 //debug
 void

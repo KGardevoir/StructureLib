@@ -206,8 +206,8 @@ cleanup:
 }
 
 BOOLEAN
-graph_map(graph *root, TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void* aux, lMapFunc func){
-	return graph_map_internal(root, strat, TRUE, more_info, aux, func);
+graph_map(graph *root, TRAVERSAL_STRATEGY strat, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+	return graph_map_internal(root, strat, pass_data, more_info, aux, func);
 }
 
 typedef struct

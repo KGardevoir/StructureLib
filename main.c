@@ -440,7 +440,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], DEPTH_FIRST, TRUE, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -451,7 +451,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST_POST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], DEPTH_FIRST_POST, TRUE, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -462,7 +462,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], BREADTH_FIRST, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], BREADTH_FIRST, TRUE, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{

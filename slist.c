@@ -68,7 +68,7 @@ slist_addOrdered(slist* he, Object* buf, const Comparable_vtable* buf_method, BO
 
 slist*
 slist_copy(slist* src, BOOLEAN deep_copy){
-	slist *the_list, *list_start, *runner = src;
+	slist *the_list = NULL, *list_start = NULL, *runner = src;
 	Object* new_data = runner->data;
 	the_list = list_start = slist_push(NULL, new_data, deep_copy);
 	runner = runner->next;
@@ -77,6 +77,16 @@ slist_copy(slist* src, BOOLEAN deep_copy){
 		the_list = slist_append(the_list, new_data, deep_copy)->next;
 	}
 	return list_start;
+}
+
+slist*
+slist_concat(slist *src, slist *tail){
+	if(src == NULL) return tail;
+	if(tail == NULL) return src;
+	slist *runner = src;
+	for(; runner->next != NULL; runner = runner->next);
+	runner->next = tail;
+	return src;
 }
 
 
@@ -222,40 +232,34 @@ slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc func){
 
 
 Object**
-slist_toArray(slist *head, BOOLEAN deep){
+slist_toArray(slist *head, size_t *size, BOOLEAN deep){
 size_t len = 0;
 slist* p = head;
 	if(!head) return NULL;
-	for(; p->next && p->data; p = p->next, len++);
+	for(; p->next; p = p->next, len++);
 	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
-	for(len = 0, p = head; p->next && p->data; len++){
+	len = 0;
+	SLIST_ITERATE(p, head, {
 		if(deep){
 			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
-	}
+		len++;
+	});
 	values[len] = NULL;
+	*size = len;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
 	return values;
 }
 
 Object**
-slist_toArrayReverse(slist *head, BOOLEAN deep){
+slist_toArrayReverse(slist *head, size_t *size, BOOLEAN deep){
 size_t i = 0, len = 0;
-slist* p = head;
-	if(!head) return NULL;
-	for(; p && p->data; p = p->next, i++);
-	len = i;
-	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
-	for(i = 0, p = head; p && p->data; i++, p = p->next){
-		if(deep){
-			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
-		} else {
-			values[len] = p->data;
-		}
-	}
-	for(i = 0; i < len/2; i++){
+	Object **values = slist_toArray(head, &len, deep);
+	if(values == NULL) return NULL;
+	*size = len;
+	for(i = 0; i < len/2; i++){//flip them around
 		Object *k = values[len-i-1];
 		values[len-i-1] = values[i];
 		values[i] = k;
@@ -265,8 +269,20 @@ slist* p = head;
 	return values;
 }
 
+slist*
+array_toSlist(Object** arr, size_t size, BOOLEAN deep){
+	if(arr == NULL) return NULL;
+	if(size == 0) return NULL;
+	size_t i = size;
+	slist *head = NULL;
+	for(; --i; ){
+		head = slist_push(head, arr[i], deep);
+	}
+	return head;
+}
+
 dlist*
-slist_to_dlist(slist *head, BOOLEAN deep){
+slist_toDlist(slist *head, BOOLEAN deep){
 	slist* p = head;
 	dlist* d = NULL;
 	for(; p; p = p->next){
@@ -277,11 +293,11 @@ slist_to_dlist(slist *head, BOOLEAN deep){
 //End Single Linked Transforms
 
 
-void*
+slist*
 slist_find(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered){
 	if(!head) return NULL;
 slist* p = head;
 	for(; p->next && (ordered?key_method->compare(key, p->data) > 0:key_method->compare(key, p->data) != 0); p = p->next);
-	if(p && key_method->compare(key, p->data) == 0) return p->data;
+	if(p && key_method->compare(key, p->data) == 0) return p;
 	return NULL;
 }
