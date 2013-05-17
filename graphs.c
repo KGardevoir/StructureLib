@@ -1,7 +1,5 @@
-#include "linked_structures.h"
-#include "tlsf/tlsf.h"
-#include "allocator.h"
-
+#include "graph.h"
+#include "splaytree.h"
 static void graph_node_destroy(graph* self){ dlist_clear(self->edges, FALSE); }
 static char* graph_node_hashable(const graph* self, size_t *size){ *size = self->method->parent.size; return (char*)self; }
 static long graph_node_compare(graph* self, graph* oth);
@@ -141,12 +139,12 @@ graph_map_internal_dfs_po(graph *root, BOOLEAN pass_data, BOOLEAN more_info, voi
 				goto cleanup;
 		}
 	}
-	bstree_clear(visited, FALSE);
-	bstree_clear(processed, FALSE);
+	btree_clear(visited, FALSE);
+	btree_clear(processed, FALSE);
 	return TRUE;
 cleanup:
-	bstree_clear(visited, FALSE);
-	bstree_clear(processed, FALSE);
+	btree_clear(visited, FALSE);
+	btree_clear(processed, FALSE);
 	dlist_clear(stk, FALSE);
 	return FALSE;
 }
@@ -197,10 +195,10 @@ graph_map_internal(graph *root, TRAVERSAL_STRATEGY method, BOOLEAN pass_data, BO
 				goto cleanup;
 		}
 	}
-	bstree_clear(visited, FALSE);
+	btree_clear(visited, FALSE);
 	return TRUE;
 cleanup:
-	bstree_clear(visited, FALSE);
+	btree_clear(visited, FALSE);
 	dlist_clear(stk, FALSE);
 	return FALSE;
 }

@@ -1,6 +1,4 @@
-#include "linked_structures.h"
-#include "tlsf/tlsf.h"
-#include "allocator.h"
+#include "slist.h"
 
 static slist*
 new_slist(Object* data, BOOLEAN deep_copy, slist* next){

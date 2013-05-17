@@ -1,6 +1,4 @@
-#include "linked_structures.h"
-#include "allocator.h"
-#include "tlsf/tlsf.h"
+#include "splaytree.h"
 
 /*Adapted from ftp://ftp.cs.cmu.edu/usr/ftp/usr/sleator/splaying*/
 splaytree header = {.left = NULL, .right = NULL, .data = NULL};

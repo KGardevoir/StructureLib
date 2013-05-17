@@ -1,7 +1,7 @@
+#include "linked_structures.h"
 #include <stdio.h>
 #include <math.h>
-#include "allocator.h"
-#include "linked_structures.h"
+
 #define MAX(a,b) ({ typeof(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
 #define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 #define ARRLENGTH(A) ( sizeof(A)/sizeof(typeof(A[0])) )
@@ -93,7 +93,7 @@ print_list(dlist* list){
 	return list;
 }
 
-//extern void print_bstree_structure(bstree*, list_tspec*);
+//extern void print_btree_structure(btree*, list_tspec*);
 
 void
 test_splay(){
@@ -107,7 +107,7 @@ test_splay(){
 		size_t min, max, avg, nodes, leaves;
 		for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
 			t = splay_insert(t, (Object*)aLong_new(i), &aLong_type.compare, FALSE);//typically it is more appropriate to access via &Object->method->interface. It is OK here, because there is no polymorphism
-		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
+		btree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Inserts: %s\n", (NUMS == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
@@ -116,7 +116,7 @@ test_splay(){
 			t = splay_remove(t, (Object*)anew, &aLong_type.compare, NULL, TRUE);
 			FREE(anew);
 		}
-		bstree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
+		btree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Removes: %s\n", (NUMS/2 == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
@@ -124,11 +124,11 @@ test_splay(){
 
 	{
 		long i;
-		t = splay_find(t, bstree_findmin(t)->data, &aLong_type.compare); i = ((aLong*)t->data)->data;
-		long nm = ((aLong*)bstree_successor(t, t, &aLong_type.compare)->data)->data;
+		t = splay_find(t, btree_findmin(t)->data, &aLong_type.compare); i = ((aLong*)t->data)->data;
+		long nm = ((aLong*)btree_successor(t, t, &aLong_type.compare)->data)->data;
 		long j;
-		t = splay_find(t, bstree_findmax(t)->data, &aLong_type.compare); j = ((aLong*)t->data)->data;
-		long k = ((aLong*)bstree_predessor(t, t, &aLong_type.compare)->data)->data;
+		t = splay_find(t, btree_findmax(t)->data, &aLong_type.compare); j = ((aLong*)t->data)->data;
+		long k = ((aLong*)btree_predessor(t, t, &aLong_type.compare)->data)->data;
 		if(i != 2 || nm != 4 || j != NUMS-2 || k != NUMS-4)
 			printf("FindMin or FindMax error! Got %lu and %lu, head successor: %lu, tail predessor: %lu\n", i, j, k, nm);
 	}
@@ -155,7 +155,7 @@ test_splay(){
 				printf("Error: Found deleted item %ld\n",i);
 		}
 	}
-	bstree_clear(t,TRUE);
+	btree_clear(t,TRUE);
 	printf("Finished Checking Splay Trees -------------------\n");
 }
 
@@ -290,17 +290,17 @@ test_dlist(){
 }
 
 #define BSTREE_TEST_SIZE 8
-typedef struct bstree_dump_map_d {
+typedef struct btree_dump_map_d {
 	size_t pos;
 	size_t max;
 	long test1[BSTREE_TEST_SIZE];
 	long test2[BSTREE_TEST_SIZE];
-} bstree_dump_map_d;
+} btree_dump_map_d;
 
 static BOOLEAN
-bstree_dump_map_f(aLong* data, lMapFuncAux* more){
+btree_dump_map_f(aLong* data, lMapFuncAux* more){
 	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
-	bstree_dump_map_d *aux = more->aux;
+	btree_dump_map_d *aux = more->aux;
 	aux->test1[aux->pos] = data->data;
 	aux->test2[aux->pos] = (long)more->depth;
 	aux->pos++;
@@ -311,16 +311,16 @@ bstree_dump_map_f(aLong* data, lMapFuncAux* more){
 
 
 void
-test_bstree(){
-	bstree *t1 = NULL, *t2 = NULL, *t3 = NULL;
-	printf("Checking bstree ---------------------------------\n");
+test_btree(){
+	btree *t1 = NULL, *t2 = NULL, *t3 = NULL;
+	printf("Checking btree ---------------------------------\n");
 	//long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
 	//long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
 	long x2[] = {8, 3, 1, 6, 4, 7, 10, 14, 13};
 	//long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
 	size_t i = 0;
 	for(; i < sizeof(x2)/sizeof(x2[0]); i++){
-		t1 = bstree_insert(t1, (Object*)aLong_new(x2[i]), &aLong_type.compare, FALSE);
+		t1 = btree_insert(t1, (Object*)aLong_new(x2[i]), &aLong_type.compare, FALSE);
 	}
 	//for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
 	//	t2 = splay_insert(t2, (void*)x2[i], FALSE, &type);
@@ -332,11 +332,11 @@ test_bstree(){
 		.method = &aLong_type,
 		.data = x2[5]
 	};
-	bstree *f = bstree_find(t1, (Object*)&tmp, &aLong_type.compare);
+	btree *f = btree_find(t1, (Object*)&tmp, &aLong_type.compare);
 	aLong *mp;
 	if(((aLong*)f->data)->data != x2[5])
 		printf("Error: Not able to find element\n");
-	t1 = bstree_remove(t1, (Object*)&tmp, &aLong_type.compare, (Object**)&mp, FALSE);
+	t1 = btree_remove(t1, (Object*)&tmp, &aLong_type.compare, (Object**)&mp, FALSE);
 	if(mp->data != x2[5])
 		printf("Error: Unable to remove element\n");
 	mp->method->parent.destroy((Object*)mp);
@@ -344,13 +344,13 @@ test_bstree(){
 	{
 		const long expect1[] = {8,3,1,6,4,10,14,13};
 		const long expect2[] = {1,2,3,3,4,2,3,4};
-		bstree_dump_map_d buffer = {
+		btree_dump_map_d buffer = {
 			.max = BSTREE_TEST_SIZE,
 			.pos = 0,
 			.test1 = {0},
 			.test2 = {0}
 		};
-		bstree_map(t1, DEPTH_FIRST_PRE, TRUE, &buffer, (lMapFunc)bstree_dump_map_f);
+		btree_map(t1, DEPTH_FIRST_PRE, TRUE, &buffer, (lMapFunc)btree_dump_map_f);
 		printf("Pre Order (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("Pre Order (Level Order): ");
@@ -359,13 +359,13 @@ test_bstree(){
 	{
 		const long expect1[] = {1,3,4,6,8,10,13,14};
 		const long expect2[] = {3,2,4,3,1,2,4,3};
-		bstree_dump_map_d buffer = {
+		btree_dump_map_d buffer = {
 			.max = BSTREE_TEST_SIZE,
 			.pos = 0,
 			.test1 = {0},
 			.test2 = {0}
 		};
-		bstree_map(t1, DEPTH_FIRST_IN, TRUE, &buffer, (lMapFunc)bstree_dump_map_f);
+		btree_map(t1, DEPTH_FIRST_IN, TRUE, &buffer, (lMapFunc)btree_dump_map_f);
 		printf("In Order (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("In Order (Level Order): ");
@@ -374,25 +374,25 @@ test_bstree(){
 	{
 		const long expect1[] = {1,4,6,3,13,14,10,8};
 		const long expect2[] = {2,3,2,1,3,2,1,0};
-		bstree_dump_map_d buffer = {
+		btree_dump_map_d buffer = {
 			.max = BSTREE_TEST_SIZE,
 			.pos = 0,
 			.test1 = {0},
 			.test2 = {0}
 		};
-		bstree_map(t1, DEPTH_FIRST_POST, TRUE, &buffer, (lMapFunc)bstree_dump_map_f);
+		btree_map(t1, DEPTH_FIRST_POST, TRUE, &buffer, (lMapFunc)btree_dump_map_f);
 		printf("Post Order (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 		printf("Post Order (Level Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
 	}
 	size_t min, max, avg, nodes;
-	bstree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
+	btree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
 	//printf("Tree Statistics: min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
-	bstree_clear(t1, TRUE);
-	bstree_clear(t2, TRUE);
-	bstree_clear(t3, TRUE);
-	printf("Finished bstree ---------------------------------\n");
+	btree_clear(t1, TRUE);
+	btree_clear(t2, TRUE);
+	btree_clear(t3, TRUE);
+	printf("Finished btree ---------------------------------\n");
 }
 
 
@@ -483,7 +483,7 @@ test_htable(){
 int
 main(int argc, char** argv){
 	test_dlist();
-	test_bstree();
+	test_btree();
 	test_splay();
 	test_graph();
 	return 0;

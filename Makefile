@@ -1,4 +1,4 @@
-SRC=dlist.c slist.c splaytree.c bstree.c graphs.c htable.c
+SRC=dlist.c slist.c splaytree.c btree.c graphs.c htable.c
 CFLAGS:=-g -Wall -Wno-pointer-sign -O2 $(CFLAGS) -Wmissing-prototypes -Wmissing-declarations
 OBJ=$(addsuffix .o, $(basename $(SRC))) #tlsf/tlsf.o
 LIB=liblinked.a

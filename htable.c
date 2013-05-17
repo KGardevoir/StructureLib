@@ -1,6 +1,5 @@
-#include "linked_structures.h"
-#include "allocator.h"
-#define DEFAULT_SIZE 256
+#include "htable.h"
+
 #include "city.h"
 #include <math.h>
 static const char* htable_node_hashables(const htable_node* tbl, size_t *size);
@@ -77,7 +76,7 @@ next_prime(size_t num){
 
 static htable*
 htable_resize(htable* tbl, double scalar, size_t isize){
-	isize = (tbl?tbl->size:(isize==0?(isize = DEFAULT_SIZE):isize));
+	isize = (tbl?tbl->size:(isize==0?(isize = DEFAULT_HTABLE_SIZE):isize));
 	htable init = {
 		.size = next_prime(isize*scalar),
 		.filled = 0,
@@ -92,7 +91,7 @@ htable_resize(htable* tbl, double scalar, size_t isize){
 
 htable*
 htable_insert(htable* table, Object* key, const Comparable_vtable* key_method, void *data, BOOLEAN copy, size_t isize){
-	isize = (table?table->size:(isize==0?(isize = DEFAULT_SIZE):isize));
+	isize = (table?table->size:(isize==0?(isize = DEFAULT_HTABLE_SIZE):isize));
 	htable_node* lnew;
 	size_t len;
 	const char* hashes = key->method->hashable(key, &len);
@@ -148,7 +147,7 @@ htable_map(htable *table, const TRAVERSAL_STRATEGY strat, BOOLEAN more_info, voi
 	if(!table) return TRUE;
 	size_t i = 0;
 	for(; i < table->size; i++){
-		if(!bstree_map(table->array[i], strat, FALSE, aux, func)) return FALSE;
+		if(!btree_map(table->array[i], strat, FALSE, aux, func)) return FALSE;
 	}
 	return TRUE;
 }
@@ -158,6 +157,6 @@ htable_clear(htable *tbl){
 	if(!tbl) return;
 	size_t i = 0;
 	for(; i < tbl->size; i++){
-		bstree_clear(tbl->array[i], FALSE);
+		btree_clear(tbl->array[i], FALSE);
 	}
 }
