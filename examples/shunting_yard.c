@@ -1,13 +1,16 @@
 #include "linked_structures.h"
 #include "stdio.h"
 #include "token_parser.h"
-//TODO Implement Identifiers (Requires deeper support)
+//TODO Implement Identifiers (Requires deeper support, some sort of external system)
 //TODO Implement Strings, Booleans (Partial)
 //TODO Implement Type Definition System
 //TODO Implement typecasting
-//TODO Ternary operator (?:) (it is 
-//TODO Implement subscription, e.g. expr[i] (it is right associative, 
-//TODO Create stdlib
+//TODO Implement ref-counting
+//TODO Implement member access operator actor.method(...) (flips "actor" such that method(actor, ...))
+//TODO Ternary operator (?:)                (it is left associative, precedence 2)
+//TODO Implement subscription, e.g. expr[i] (it is right associative, precedence 15)
+//TODO Implement varargs
+//TODO Create a stdlib
 
 #define MEMCMP(V1, V2) (((V1)>(V2))?1:(((V1)==(V2))?0:-1))
 #define ACCESS(TYPE, MEM) ((TYPE)MEM)
@@ -15,8 +18,7 @@
 #define GRAPH_LIST_ACCESS(DD) TL_ACCESS(graph*, (DD)->data, Token*, ->data)
 #define DESTROY_AND_FREE_GRAPH(DAT) do {\
 			DAT->data->method->destroy(DAT->data);\
-			DAT->method->parent.destroy((Object*)next);\
-			free(DAT->data);\
+			DAT->method->parent.destroy((Object*)DAT);\
 			free(DAT); } while(0)
 
 #define SLIST_POP(ROOT, TOK, ELSE_CODE) do{\
@@ -132,7 +134,7 @@ MethodOverload*
 MethodOverload_new(const char* final_method, dlist* args, dlist *rets, uint8_t flags){
 	MethodOverload init = {
 		.method = &MethodOverload_type,
-		.final_method = final_method,//TODO copy?
+		.final_method = strcpy(malloc((strlen(final_method)+1)*sizeof(char)),final_method),//TODO copy?
 		.flags = flags,
 	};
 	init.signature = (intptr_t*)dlist_toArray(args, &init.signature_length, FALSE);
@@ -194,7 +196,7 @@ MethodOverloadRoot*
 MethodOverloadRoot_new(const char *key){
 	MethodOverloadRoot init = {
 		.method = &MethodOverloadRoot_type,
-		.key = key,//TODO Copy maybe?
+		.key = strcpy(malloc((strlen(key)+1)*sizeof(char)),key),
 		.overloads = NULL
 	};
 	return memcpy(malloc(sizeof(MethodOverloadRoot)), &init, sizeof(init));
@@ -256,30 +258,31 @@ void
 Token_destroy(const Token* self){
 	free((void*)self->token);
 	dlist_clear(self->type_list, FALSE);
+	free((Token*)self);
 }
 
 /**
  * Precedence (.. is unactualized)
- * A[i]               ==> 15 .. subscription
- * f(x)               ==> 15 function call
- * '.'                ==> 15 .. member acquisition
- * '~'                ==> 14 unary '~'
- * '!'                ==> 14 unary '!'
- * '+' '-'            ==> 14 unary '+','-' respective
- * '*'                ==> 14 .. unary '*'
- * '*' '/' '%'        ==> 13 binary '*','/','%' respective
- * '+' '-'            ==> 12 binary '+','-' respective
- * '<<' '>>'          ==> 11 binary '<<','>>' respective
- * '<' '<=' '>' '>='  ==> 10 binary '<','<=','>','>=' respective
- * '==' '!='          ==> 9  binary '==','!=' respective
- * '&'                ==> 8  binary '&'
- * '^'                ==> 7  binary '|'
- * '|'                ==> 6  binary '^'
- * '&&'               ==> 5  binary '&&'
- * '^^'               ==> 4  binary '^^'
- * '||'               ==> 3  binary '||'
- * '?:'               ==> 2  ternary '?:'
- * '='                ==> 1  binary '='
+ * A[i]              ==> 15 .. subscription
+ * f(x)              ==> 15 function call
+ * '.'               ==> 15 .. member acquisition
+ * '~'               ==> 14 unary '~'
+ * '!'               ==> 14 unary '!'
+ * '+' '-'           ==> 14 unary '+','-' respective
+ * '*'               ==> 14 .. unary '*'
+ * '*' '/' '%'       ==> 13 binary '*','/','%' respective
+ * '+' '-'           ==> 12 binary '+','-' respective
+ * '<<' '>>'         ==> 11 binary '<<','>>' respective
+ * '<' '<=' '>' '>=' ==> 10 binary '<','<=','>','>=' respective
+ * '==' '!='         ==> 9  binary '==','!=' respective
+ * '&'               ==> 8  binary '&'
+ * '^'               ==> 7  binary '|'
+ * '|'               ==> 6  binary '^'
+ * '&&'              ==> 5  binary '&&'
+ * '^^'              ==> 4  binary '^^'
+ * '||'              ==> 3  binary '||'
+ * '?:'              ==> 2  ternary '?:'
+ * '='               ==> 1  binary '='
  */
 void
 Token_setupPrecedence(Token *self){
@@ -430,7 +433,7 @@ shunting_yard(const char* begin, slist **treestk, size_t line, size_t *col){
 		} else if(ACCESS(Token*, next->data)->flags & TOKEN_FLAG_OP){
 			DPRINTFERR("(OP: '%s', %d)\n", ACCESS(Token*, next->data)->token, ACCESS(Token*, next->data)->tokenid);
 			DUMP_OPSTACK(opstk);
-			if(ACCESS(Token*, next->data)->flags & TOKEN_FLAG_BINARY_MAYBE){//TODO check if previous token actually makes no sense
+			if(ACCESS(Token*, next->data)->flags & TOKEN_FLAG_BINARY_MAYBE){
 				ACCESS(Token*, next->data)->flags &= ~TOKEN_FLAG_BINARY_MAYBE;
 				if(!prev || (ACCESS(Token*, prev->data)->flags & TOKEN_FLAG_OP)){
 					ACCESS(Token*, next->data)->flags &= ~TOKEN_FLAG_BINARY;
@@ -460,8 +463,7 @@ shunting_yard(const char* begin, slist **treestk, size_t line, size_t *col){
 			opstk = slist_push(opstk, (Object*)next, FALSE);
 		} else if(id == RPAREN){
 			DPRINTFERR("(RPAREN)");
-			next->method->parent.destroy((Object*)next);
-			free(next);
+			DESTROY_AND_FREE_GRAPH(next);
 			DUMP_OPSTACK(opstk);
 			while(opstk && GRAPH_LIST_ACCESS(opstk)->tokenid != FUNCTION && GRAPH_LIST_ACCESS(opstk)->tokenid != LPAREN){
 				graph *token;
@@ -496,7 +498,6 @@ shunting_yard(const char* begin, slist **treestk, size_t line, size_t *col){
 					DESTROY_AND_FREE_GRAPH(token);
 				}
 			} else {
-				//TODO tell user about op mismatch
 				DPRINTFERR("(ERROR PAREN MISMATCH: %d)", ACCESS(Token*,next->data)->tokenid);
 				DESTROY_AND_FREE_GRAPH(next);
 				*col = *col + (begin - rbegin);
@@ -663,7 +664,11 @@ main(int argc, const char **argv){
 					graph_map(ACCESS(graph*, iter->data), DEPTH_FIRST_POST, FALSE, FALSE, NULL, (lMapFunc)process_tree);
 					printf(", ");
 				);
+				SLIST_ITERATE(iter, gdata,
+					graph_clear(ACCESS(graph*, iter->data), TRUE);
+				);
 				slist_clear(gdata, FALSE);
+				bstree_clear(METHOD_OVERLOADS, TRUE);
 				//TODO process tokens, ensure type congruency
 				return 0;//TODO may continue?
 			}
