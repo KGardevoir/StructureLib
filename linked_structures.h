@@ -33,12 +33,12 @@ typedef struct tree {
 } tree;
 
 typedef struct graph_vtable {
-	Object_vtable parent;
-	Comparable_vtable comparable;
+	const Object_vtable parent;
+	const Comparable_vtable comparable;
 } graph_vtable;
 
 typedef struct graph {
-	const graph_vtable *method;
+	const graph_vtable const* method;
 	Object* data;
 	dlist* edges;//ordered by key value (if possible)
 } graph; //adjacencly list
@@ -59,14 +59,14 @@ typedef struct htable {
 } htable;
 
 typedef struct htable_node_vtable {
-	Object_vtable parent;
-	Comparable_vtable compare;
+	const Object_vtable parent;
+	const Comparable_vtable compare;
 } htable_node_vtable;
 
 typedef struct htable_node {
-	const htable_node_vtable *method;
+	const htable_node_vtable const* method;
 	Object* key;
-	const Comparable_vtable *key_method;
+	const Comparable_vtable const* key_method;
 	void* data;
 	uint64_t hash;
 } htable_node;
