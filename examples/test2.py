@@ -10,7 +10,7 @@ for x in expected:
   proc = Popen(["./parser"], stdin=PIPE, stdout=PIPE)
   out = proc.communicate(x[0])[0].strip()
   if out != x[1]:
-    print "FAIL: '%s' not '%s'"%(out,x[1])
+    print "FAIL: '%s' but expected '%s'"%(out,x[1])
   else:
     print "PASS"
   
