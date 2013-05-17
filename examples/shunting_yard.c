@@ -157,7 +157,7 @@ typedef struct MethodOverloadRoot {
 void
 MethodOverloadRoot_destroy(MethodOverloadRoot* self){
 	free((char*)self->key);
-	bstree_clear(self->overloads, TRUE);
+	btree_clear(self->overloads, TRUE);
 	free(self);
 }
 
@@ -339,7 +339,7 @@ Token_setupPrecedence(Token *self){
 		case UMINUS:       self->precedence = 14; self->flags = TOKEN_FLAG_OP; break;
 		case UPLUS:        self->precedence = 14; self->flags = TOKEN_FLAG_OP; break;
 		case COMMA:
-		case BEGIN:
+		case MORE:
 		case END:
 		case UNRECOGNIZED: self->precedence =  0; self->flags = TOKEN_FLAG_LEFTASSOCIATIVE | TOKEN_FLAG_BINARY; break;
 	}
@@ -371,14 +371,32 @@ Token_new(Token* self, const char *pstok, const char* pftok, enum TOKEN_ID id, s
 	return self;
 }
 
+static FILE *fin;
+BOOLEAN
+buffer_reload(const char* buf, size_t buf_size){
+	char* rt = fgets((char*) buf, buf_size-1, fin);
+	if(strchr(&buf[0], '\n') == NULL){
+		printf("Either reached end of file, or buffer overfilled...\n");
+		char* end = strchr(&buf[0], '\0');
+		end[0] = '\n';
+		end[1] = '\0';
+	}
+	return rt != NULL;
+}
+
 int
-shunting_yard(const char* begin, slist **treestk, size_t line, size_t *col){
+shunting_yard(const char* begin, size_t begin_size, slist **treestk, size_t line, size_t *col){
 	enum TOKEN_ID id;
 	const char *end = NULL;
 	slist *opstk = NULL;
 	const char *rbegin = begin;
 	graph *prev = NULL;//we need lookbehind to determine if unary operators are actually unary operators.
 	while((id = parse_tokenize(begin, &begin, &end)) != END && *begin != '\0'){
+		if(id == MORE){
+			if(!buffer_reload(begin, begin_size)) break;
+			(*col)++;
+			continue;
+		}
 		graph *next = graph_insert(NULL, (Object*)Token_new(malloc(sizeof(Token)), begin, end, id, line, *col + (begin - rbegin)), FALSE);
 		if(id == FLOAT || id == INTEGER || id == HEX_INTEGER || id == OCT_INTEGER){
 			DPRINTFERR("(LITERAL)");
@@ -639,17 +657,17 @@ main(int argc, const char **argv){
 	(void)argv;
 	init_overloads();
 	//read from stdin
-	FILE *fin = stdin;
+	fin = stdin;
 	//TODO setup initial types
 	if(fin != NULL){
 		char line[128];
 		slist *gdata = NULL;
 		size_t lineno = 0;
 		//BOOLEAN begin = FALSE;//assumed
-		while( fgets( &line[0], sizeof(line), fin) != NULL ){//TODO handle tokens broken up by buffer underfill...
+		while( buffer_reload(&line[0], sizeof(line) ) != FALSE ){
 			//printf("%s\n", &line[0]);
 			size_t colno = 0;
-			int rcode = shunting_yard(&line[0], &gdata, lineno, &colno);
+			int rcode = shunting_yard(&line[0], sizeof(line), &gdata, lineno, &colno);
 			if(rcode != 0){
 				printf("Error (%d) occured at %lu\n", rcode, colno);
 			//if(rcode == 2){
@@ -668,7 +686,7 @@ main(int argc, const char **argv){
 					graph_clear(ACCESS(graph*, iter->data), TRUE);
 				);
 				slist_clear(gdata, FALSE);
-				bstree_clear(METHOD_OVERLOADS, TRUE);
+				btree_clear(METHOD_OVERLOADS, TRUE);
 				//TODO process tokens, ensure type congruency
 				return 0;//TODO may continue?
 			}

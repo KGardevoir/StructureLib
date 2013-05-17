@@ -36,9 +36,10 @@ parse_tokenize(const char *prim, const char **pbegin, const char **pend){
 		#		return INTEGER;
 		#	};
 		token := |*
-			 (" " | "\t" | "\n");
-			 "BEGIN"i >START %DONE => {return BEGIN; };
-			 "END"i  >START %DONE => {return END; };
+			 (" " | "\t" );
+			 "\n"  >START %DONE => { return END; };
+			 "END"i  >START %DONE => { return END; };
+			 "\\\n" >START %DONE => { return MORE; }; #suppress
 			 ([a-zA-Z_][a-zA-Z0-9_]*) >START %DONE => { return IDENTIFIER; };
 			 (([0-9]*'.'[0-9]*) - '.') >START %DONE => { return FLOAT; };
 			 (([1-9][0-9]*) | "0") >START %DONE => { return INTEGER; };
