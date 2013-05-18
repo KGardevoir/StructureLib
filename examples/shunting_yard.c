@@ -242,7 +242,7 @@ typedef struct Token_vtable {
 } Token_vtable;
 
 enum Token_flags {
-	TOKEN_FLAG_OP=1,TOKEN_FLAG_BINARY=2,TOKEN_FLAG_BINARY_MAYBE=4,TOKEN_FLAG_LEFTASSOCIATIVE=8,TOKEN_FLAG_CONSTANT=16
+	TOKEN_FLAG_OP=1,TOKEN_FLAG_BINARY=2,TOKEN_FLAG_BINARY_MAYBE=4,TOKEN_FLAG_LEFTASSOCIATIVE=8,TOKEN_FLAG_CONSTANT=16,TOKEN_FLAG_IGNORE=32
 };
 typedef struct Token {
 	Token_vtable *method;
@@ -252,12 +252,21 @@ typedef struct Token {
 	const size_t line, col;
 	uint8_t flags;
 	dlist *type_list; //using TYPE_ID
+	const MethodOverload* resolved;
+	dlist *pre_comp; //using char*
 } Token;
 
 void
 Token_destroy(const Token* self){
 	free((void*)self->token);
 	dlist_clear(self->type_list, FALSE);
+	if(self->pre_comp){
+		dlist *tmp;
+		DLIST_ITERATE(tmp, self->pre_comp, 
+			free(tmp->data);
+		);
+	}
+	dlist_clear(self->pre_comp, FALSE);
 	free((Token*)self);
 }
 
@@ -364,6 +373,7 @@ Token_new(Token* self, const char *pstok, const char* pftok, enum TOKEN_ID id, s
 		.col = col,
 		.type_list = NULL,
 		.flags = TOKEN_FLAG_BINARY_MAYBE | TOKEN_FLAG_BINARY,
+		.resolved = NULL
 	};
 	Token_setupPrecedence(&init);
 	memcpy(self, &init, sizeof(init));
@@ -554,25 +564,31 @@ shunting_yard(const char* begin, size_t begin_size, slist **treestk, size_t line
 	return 5;//return not done
 }
 
+#define COMPILE_TOKEN(TOK) printf("%s ", TOK)
+#define COMPILE_ERROR_STREAM(FMT ...) printf(FMT)
+#define COMPILE_ERROR(FMT ...) do { printf(FMT); printf("\n"); }while(0)
+
+//Sends token to system for interpretation
+#define INTERP_TOKEN(TOK) COMPILE_TOKEN(TOK)
+//this obtains a token from the system (probably some stack) cooresponding to the given type, as a string
+#define OBTAIN_TOKEN(TYPE) NULL
+
 static BOOLEAN
-process_tree(graph *gr){
+resolve_overloads(graph *gr){
 	//TODO process types, lookup types
 	switch(ACCESS(Token*, gr->data)->tokenid){
 		case IDENTIFIER:
 			//TODO make them be able to assume other types, also look up if the ID is a constant
 			ACCESS(Token*, gr->data)->type_list = dlist_push(ACCESS(Token*, gr->data)->type_list, (Object*)TYPE_INTEGER, FALSE);
-			printf("%s ", ACCESS(Token*, gr->data)->token);
 			break;
 		case INTEGER:
 		case HEX_INTEGER:
 		case OCT_INTEGER:
 			ACCESS(Token*, gr->data)->flags |= TOKEN_FLAG_CONSTANT;
 			ACCESS(Token*, gr->data)->type_list = dlist_push(ACCESS(Token*, gr->data)->type_list, (Object*)TYPE_INTEGER, FALSE);
-			printf("%s ", ACCESS(Token*, gr->data)->token);
 			break;
 		case FLOAT:
 			ACCESS(Token*, gr->data)->type_list = dlist_push(ACCESS(Token*, gr->data)->type_list, (Object*)TYPE_FLOAT, FALSE);
-			printf("%s ", ACCESS(Token*, gr->data)->token);
 			break;
 		default: {//all others need to be evaluated
 			dlist *args = NULL;
@@ -584,25 +600,84 @@ process_tree(graph *gr){
 			);
 			MethodOverload* method = METHOD_OVERLOADS_find(ACCESS(Token*, gr->data)->token, args);//TODO fill in "lookup function"
 			if(!method){//FIXME ERROR!!! no known overload
-				printf("!Unkown overload '%s'(", ACCESS(Token*, gr->data)->token);
+				COMPILE_ERROR_STREAM("!Unknown overload '%s'(", ACCESS(Token*, gr->data)->token);
 				DLIST_ITERATE(iter, args,
-					printf("%s,", getTypeIDName((enum TYPE_ID)iter->data));
+					if(iter == args){
+						COMPILE_ERROR_STREAM("%s", getTypeIDName((enum TYPE_ID)iter->data));
+					} else {
+						COMPILE_ERROR_STREAM(",%s", getTypeIDName((enum TYPE_ID)iter->data));
+					}
 				);
-				printf(")! ");
+				COMPILE_ERROR(")! ");
 			} else {
 				if(all_const && (method->flags & METHODOVERLOAD_FLAG_FUNCTIONAL)){
 					ACCESS(Token*,gr->data)->flags |= TOKEN_FLAG_CONSTANT;
-					//printf("(CONSTANT)");
-					//TODO evaluate subtree directly
 				}
 				ACCESS(Token*,gr->data)->type_list = array_toDlist((Object**)method->returntype, method->returntype_length, FALSE);
-				printf("%s ", method->final_method);
+				ACCESS(Token*,gr->data)->resolved = method;
 			}
 			dlist_clear(args, FALSE);
 		}
 	}
 	return TRUE;
 }
+
+static BOOLEAN
+sparse_eval(graph *gr, dlist** toks){
+	Token *tk = ACCESS(Token*,gr->data);
+	if(tk->flags & TOKEN_FLAG_CONSTANT){//our result was constant
+		if(tk->resolved == NULL){
+			*toks = dlist_append(*toks, (Object*)tk, FALSE);
+		} else {
+			if(tk->resolved->flags & METHODOVERLOAD_FLAG_FUNCTIONAL){
+				//flush tokens from tok to evalutor
+				dlist *run1;
+				DLIST_ITERATE(run1, *toks,
+					Token *mtk = ACCESS(Token*, run1->data);
+					mtk->flags |= TOKEN_FLAG_IGNORE;
+					if(mtk->pre_comp){
+						dlist *run2;
+						DLIST_ITERATE(run2, mtk->pre_comp,
+							INTERP_TOKEN((char*)run2->data);
+							free(run2->data);
+						);
+						dlist_clear(mtk->pre_comp, FALSE);
+						mtk->pre_comp = NULL;
+					}
+				);
+				INTERP_TOKEN(tk->resolved->final_method);
+				size_t i = 0;
+				for(; i < tk->resolved->returntype_length; i++){
+					tk->pre_comp = dlist_append(tk->pre_comp, OBTAIN_TOKEN(tk->resolved->returntype[i]), FALSE);
+				}
+				
+			}
+			dlist_clear(*toks, FALSE);
+			*toks = NULL;
+		}
+	}
+	return TRUE;
+}
+
+static BOOLEAN
+compile_tree(graph *gr){
+	Token *tk = ACCESS(Token*, gr->data);
+	if(!(tk->flags & TOKEN_FLAG_IGNORE)){
+		if(tk->pre_comp){
+			dlist* run;
+			DLIST_ITERATE(run, tk->pre_comp,
+				COMPILE_TOKEN((char*)run->data);
+			);
+		} else {
+			if(tk->resolved != NULL)
+				COMPILE_TOKEN(tk->resolved->final_method);
+			else
+				COMPILE_TOKEN(tk->token);
+		}
+	}
+	return TRUE;
+}
+
 
 #include "dlist_maker.h"
 void
@@ -679,8 +754,11 @@ main(int argc, const char **argv){
 			} else {
 				slist *iter;//TODO this leaks memory like crazy
 				SLIST_ITERATE(iter, gdata,
-					graph_map(ACCESS(graph*, iter->data), DEPTH_FIRST_POST, FALSE, FALSE, NULL, (lMapFunc)process_tree);
-					printf(", ");
+					if(iter != gdata) printf(", ");
+					graph_map(ACCESS(graph*, iter->data), DEPTH_FIRST_POST, FALSE, FALSE, NULL, (lMapFunc)resolve_overloads);
+					//dlist* toks = NULL;
+					//graph_map(ACCESS(graph*, iter->data), DEPTH_FIRST_POST, FALSE, FALSE, &toks, (lMapFunc)sparse_eval);
+					graph_map(ACCESS(graph*, iter->data), DEPTH_FIRST_POST, FALSE, FALSE, NULL, (lMapFunc)compile_tree);
 				);
 				SLIST_ITERATE(iter, gdata,
 					graph_clear(ACCESS(graph*, iter->data), TRUE);
