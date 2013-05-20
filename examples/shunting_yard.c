@@ -1,8 +1,7 @@
-#include "linked_structures.h"
+#include "shunting_yard.h"
 #include "stdio.h"
-#include "token_parser.h"
 //TODO Implement Identifiers (Requires deeper support, some sort of external system)
-//TODO Implement Strings, Booleans (Partial)
+//TODO Implement Strings, Booleans (Partial done, comparisons return BOOLEAN, but no strings)
 //TODO Implement Type Definition System
 //TODO Implement typecasting
 //TODO Implement ref-counting
@@ -42,12 +41,9 @@
 
 static splaytree *METHOD_OVERLOADS = NULL;
 
-enum TYPE_ID {//no derived types for now
-	TYPE_INTEGER = 0, TYPE_BOOLEAN = 1, TYPE_FLOAT = 2, TYPE_STRING = 3, TYPE_POINTER = 4, TYPE_END = 4/*Last builtin type, so derived types can be easily implemented*/
-};
-#define GEN_ENTRY(TYPE) case TYPE: return #TYPE
-const char const*
+const char*
 getTypeIDName(enum TYPE_ID id){
+#define GEN_ENTRY(TYPE) case TYPE: return #TYPE
 	switch(id){
 		GEN_ENTRY(TYPE_INTEGER);
 		GEN_ENTRY(TYPE_BOOLEAN);
@@ -55,29 +51,12 @@ getTypeIDName(enum TYPE_ID id){
 		GEN_ENTRY(TYPE_STRING);
 		GEN_ENTRY(TYPE_POINTER);
 	}
+#undef GEN_ENTRY
 	return "UNKNOWN/DERIVED";
 }
 
-typedef struct MethodOverload_vtable {
-	const Object_vtable parent;
-	const Comparable_vtable compare;//ordered, by sig length, then type
-	const Comparable_vtable inserter;
-} MethodOverload_vtable;
 
-enum MethodOverload_flags {
-	METHODOVERLOAD_FLAG_FUNCTIONAL=1
-};
-typedef struct MethodOverload {
-	const MethodOverload_vtable const* method;
-	const char *final_method;
-	intptr_t *signature;
-	size_t signature_length;
-	intptr_t *returntype;
-	size_t returntype_length;
-	uint8_t flags;
-} MethodOverload;
-
-void
+static void
 MethodOverload_destroy(MethodOverload* self){
 	free((char*)self->final_method);
 	free(self->signature);
@@ -85,7 +64,7 @@ MethodOverload_destroy(MethodOverload* self){
 	free(self);
 }
 
-long
+static long
 MethodOverload_compare(dlist* comp, MethodOverload* self){
 	dlist *iterCmp = comp;
 	size_t i = 0;
@@ -105,7 +84,8 @@ MethodOverload_compare(dlist* comp, MethodOverload* self){
 	);
 	return 0;
 }
-long
+
+static long
 MethodOverload_inserter(MethodOverload* self, MethodOverload* new){
 	size_t i = 0;
 	if(new->signature_length != self->signature_length) return MEMCMP(new->signature_length, self->signature_length);
@@ -122,19 +102,21 @@ MethodOverload_vtable MethodOverload_type = {
 		.equals = NULL,
 		.copy = NULL
 	},
-	.compare = {
-		.compare = (long(*)(const void*, const void*))MethodOverload_compare
-	},
-	.inserter = {
-		.compare = (long(*)(const void*, const void*))MethodOverload_inserter
+	.privates= {
+		.compare = {
+			.compare = (long(*)(const void*, const void*))MethodOverload_compare
+		},
+		.inserter = {
+			.compare = (long(*)(const void*, const void*))MethodOverload_inserter
+		}
 	}
 };
 
-MethodOverload*
+static MethodOverload*
 MethodOverload_new(const char* final_method, dlist* args, dlist *rets, uint8_t flags){
 	MethodOverload init = {
 		.method = &MethodOverload_type,
-		.final_method = strcpy(malloc((strlen(final_method)+1)*sizeof(char)),final_method),//TODO copy?
+		.final_method = strcpy(malloc((strlen(final_method)+1)*sizeof(char)),final_method),
 		.flags = flags,
 	};
 	init.signature = (intptr_t*)dlist_toArray(args, &init.signature_length, FALSE);
@@ -142,37 +124,25 @@ MethodOverload_new(const char* final_method, dlist* args, dlist *rets, uint8_t f
 	return memcpy(malloc(sizeof(MethodOverload)), &init, sizeof(init));
 }
 
-typedef struct MethodOverloadRoot_vtable{
-	const Object_vtable parent;
-	const Comparable_vtable compare;//how to compare nodes
-	const Comparable_vtable locate; //how to locate based on a key
-} MethodOverloadRoot_vtable;
-
-typedef struct MethodOverloadRoot {
-	const MethodOverloadRoot_vtable const *method;
-	const char *key;
-	splaytree *overloads;
-} MethodOverloadRoot;
-
-void
+static void
 MethodOverloadRoot_destroy(MethodOverloadRoot* self){
 	free((char*)self->key);
 	btree_clear(self->overloads, TRUE);
 	free(self);
 }
 
-BOOLEAN
+static BOOLEAN
 MethodOverloadRoot_add(MethodOverloadRoot* self, const char* rv, dlist *args, dlist *returntype, uint8_t flags){
-	self->overloads = splay_insert(self->overloads, (Object*)MethodOverload_new(rv, args, returntype, flags), &MethodOverload_type.inserter, FALSE);
+	self->overloads = splay_insert(self->overloads, (Object*)MethodOverload_new(rv, args, returntype, flags), &MethodOverload_type.privates.inserter, FALSE);
 	return TRUE;
 }
 
-long
+static long
 MethodOverloadRoot_compare(const MethodOverloadRoot* self, const MethodOverloadRoot* oth){
 	return strcmp(self->key, oth->key);
 }
 
-long
+static long
 MethodOverloadRoot_locate(const char* key, const MethodOverloadRoot *oth){
 	return strcmp(key, oth->key);
 }
@@ -184,15 +154,17 @@ MethodOverloadRoot_vtable MethodOverloadRoot_type = {
 		.equals = NULL,
 		.copy = NULL
 	},
-	.compare = {
-		.compare = (long(*)(const void*, const void*))MethodOverloadRoot_compare
-	},
-	.locate = {
-		.compare = (long(*)(const void*, const void*))MethodOverloadRoot_locate
+	.privates = {
+		.compare = {
+			.compare = (long(*)(const void*, const void*))MethodOverloadRoot_compare
+		},
+		.locate = {
+			.compare = (long(*)(const void*, const void*))MethodOverloadRoot_locate
+		}
 	}
 };
 
-MethodOverloadRoot*
+static MethodOverloadRoot*
 MethodOverloadRoot_new(const char *key){
 	MethodOverloadRoot init = {
 		.method = &MethodOverloadRoot_type,
@@ -204,19 +176,19 @@ MethodOverloadRoot_new(const char *key){
 
 BOOLEAN
 METHOD_OVERLOADS_add(const char *prim_key, const char* real_key, dlist *args, dlist *rets, uint8_t flags){
-	METHOD_OVERLOADS = splay_find(METHOD_OVERLOADS, (Object*)prim_key, &MethodOverloadRoot_type.locate);
+	METHOD_OVERLOADS = splay_find(METHOD_OVERLOADS, (Object*)prim_key, &MethodOverloadRoot_type.privates.locate);
 	MethodOverloadRoot *tree;
-	if(METHOD_OVERLOADS == NULL || MethodOverloadRoot_type.locate.compare(prim_key, METHOD_OVERLOADS->data) != 0) {
+	if(METHOD_OVERLOADS == NULL || MethodOverloadRoot_type.privates.locate.compare(prim_key, METHOD_OVERLOADS->data) != 0) {
 		tree = MethodOverloadRoot_new(prim_key);
-		METHOD_OVERLOADS = splay_insert(METHOD_OVERLOADS, (Object*)tree, &MethodOverloadRoot_type.compare, FALSE);
+		METHOD_OVERLOADS = splay_insert(METHOD_OVERLOADS, (Object*)tree, &MethodOverloadRoot_type.privates.compare, FALSE);
 	} else {
 		tree = (MethodOverloadRoot*)METHOD_OVERLOADS->data;
 	}
 	//printf("a tree: '%s'\n", tree->key);
 
 	if( tree->overloads == NULL ||
-			MethodOverload_type.compare.compare(args,
-				(MethodOverload*)(tree->overloads = splay_find(tree->overloads, (Object*)args, &MethodOverload_type.compare))->data) != 0){
+			MethodOverload_type.privates.compare.compare(args,
+				(MethodOverload*)(tree->overloads = splay_find(tree->overloads, (Object*)args, &MethodOverload_type.privates.compare))->data) != 0){
 		BOOLEAN b = MethodOverloadRoot_add(tree, real_key, args, rets, flags);
 		//printf("aa tree: '%s'\n", ((MethodOverload*)tree->overloads->data)->final_method);
 		return b;
@@ -224,45 +196,27 @@ METHOD_OVERLOADS_add(const char *prim_key, const char* real_key, dlist *args, dl
 		return FALSE;//won't insert, duplicate
 	}
 }
+
 MethodOverload*
 METHOD_OVERLOADS_find(const char *key, dlist *sig){
-	METHOD_OVERLOADS = splay_find(METHOD_OVERLOADS, (Object*)key, &MethodOverloadRoot_type.locate);
-	if(METHOD_OVERLOADS == NULL || MethodOverloadRoot_type.locate.compare(key, METHOD_OVERLOADS->data) != 0) return NULL;
+	METHOD_OVERLOADS = splay_find(METHOD_OVERLOADS, (Object*)key, &MethodOverloadRoot_type.privates.locate);
+	if(METHOD_OVERLOADS == NULL || MethodOverloadRoot_type.privates.locate.compare(key, METHOD_OVERLOADS->data) != 0) return NULL;
 	MethodOverloadRoot *tree = (MethodOverloadRoot*)METHOD_OVERLOADS->data;
 	//printf("f tree: '%s'\n", tree->key);
 	if(tree->overloads == NULL) return NULL;
-	tree->overloads = splay_find(tree->overloads, (Object*)sig, &MethodOverload_type.compare);
+	tree->overloads = splay_find(tree->overloads, (Object*)sig, &MethodOverload_type.privates.compare);
 	//printf("ff tree: '%s'\n", ((MethodOverload*)tree->overloads->data)->final_method);
-	if(MethodOverload_type.compare.compare(sig, tree->overloads->data) != 0) return NULL;
+	if(MethodOverload_type.privates.compare.compare(sig, tree->overloads->data) != 0) return NULL;
 	return (MethodOverload*)tree->overloads->data;
 }
 
-typedef struct Token_vtable {
-	Object_vtable parent;
-} Token_vtable;
-
-enum Token_flags {
-	TOKEN_FLAG_OP=1,TOKEN_FLAG_BINARY=2,TOKEN_FLAG_BINARY_MAYBE=4,TOKEN_FLAG_LEFTASSOCIATIVE=8,TOKEN_FLAG_CONSTANT=16,TOKEN_FLAG_IGNORE=32
-};
-typedef struct Token {
-	Token_vtable *method;
-	const char *token;
-	enum TOKEN_ID tokenid;
-	size_t precedence;
-	const size_t line, col;
-	uint8_t flags;
-	dlist *type_list; //using TYPE_ID
-	const MethodOverload* resolved;
-	dlist *pre_comp; //using char*
-} Token;
-
-void
+static void
 Token_destroy(const Token* self){
 	free((void*)self->token);
 	dlist_clear(self->type_list, FALSE);
 	if(self->pre_comp){
 		dlist *tmp;
-		DLIST_ITERATE(tmp, self->pre_comp, 
+		DLIST_ITERATE(tmp, self->pre_comp,
 			free(tmp->data);
 		);
 	}
@@ -293,7 +247,7 @@ Token_destroy(const Token* self){
  * '?:'              ==> 2  ternary '?:'
  * '='               ==> 1  binary '='
  */
-void
+static void
 Token_setupPrecedence(Token *self){
 	switch(self->tokenid){
 		case IDENTIFIER:   self->precedence = 15; self->flags = TOKEN_FLAG_LEFTASSOCIATIVE | TOKEN_FLAG_BINARY; break;
@@ -363,7 +317,7 @@ Token_vtable Token_type = {
 	}
 };
 
-Token*
+static Token*
 Token_new(Token* self, const char *pstok, const char* pftok, enum TOKEN_ID id, size_t line, size_t col){
 	Token init = {
 		.method = &Token_type,
@@ -382,7 +336,7 @@ Token_new(Token* self, const char *pstok, const char* pftok, enum TOKEN_ID id, s
 }
 
 static FILE *fin;
-BOOLEAN
+static BOOLEAN
 buffer_reload(const char* buf, size_t buf_size){
 	char* rt = fgets((char*) buf, buf_size-1, fin);
 	if(strchr(&buf[0], '\n') == NULL){
@@ -520,7 +474,7 @@ shunting_yard(const char* begin, size_t begin_size, slist **treestk, size_t line
 						token = graph_link(token, nxs);
 					}
 					if(!*treestk){
-						return 4; //FIXME something really bad happened, there should always be two of these
+						return 4; //FIXME Something really bad happened, as in we accepted an operator with fewer than an acceptable amount of tokens. (This shouldn't happen ATM, but if this algorithm changes sufficiently, it may not be the case)
 					}
 				} else {//is LPAREN
 					DESTROY_AND_FREE_GRAPH(token);
@@ -569,16 +523,15 @@ shunting_yard(const char* begin, size_t begin_size, slist **treestk, size_t line
 #define COMPILE_ERROR(FMT ...) do { printf(FMT); printf("\n"); }while(0)
 
 //Sends token to system for interpretation
-#define INTERP_TOKEN(TOK) COMPILE_TOKEN(TOK)
+#define INTERP_TOKEN(TOK)
 //this obtains a token from the system (probably some stack) cooresponding to the given type, as a string
 #define OBTAIN_TOKEN(TYPE) NULL
 
 static BOOLEAN
 resolve_overloads(graph *gr){
-	//TODO process types, lookup types
 	switch(ACCESS(Token*, gr->data)->tokenid){
 		case IDENTIFIER:
-			//TODO make them be able to assume other types, also look up if the ID is a constant
+			//TODO Add the ability of identifiers to assume other types. Also see if it is constant (which at this moment it won't be)
 			ACCESS(Token*, gr->data)->type_list = dlist_push(ACCESS(Token*, gr->data)->type_list, (Object*)TYPE_INTEGER, FALSE);
 			break;
 		case INTEGER:
@@ -598,8 +551,8 @@ resolve_overloads(graph *gr){
 				all_const = all_const && (ACCESS(Token*,ACCESS(graph*,iter->data)->data)->flags & TOKEN_FLAG_CONSTANT);
 				args = dlist_concat(args, dlist_copy(ACCESS(Token*,ACCESS(graph*,iter->data)->data)->type_list, FALSE));
 			);
-			MethodOverload* method = METHOD_OVERLOADS_find(ACCESS(Token*, gr->data)->token, args);//TODO fill in "lookup function"
-			if(!method){//FIXME ERROR!!! no known overload
+			MethodOverload* method = METHOD_OVERLOADS_find(ACCESS(Token*, gr->data)->token, args);
+			if(!method){//FIXME ERROR we incurred an unknown overload
 				COMPILE_ERROR_STREAM("!Unknown overload '%s'(", ACCESS(Token*, gr->data)->token);
 				DLIST_ITERATE(iter, args,
 					if(iter == args){
@@ -680,50 +633,50 @@ compile_tree(graph *gr){
 
 
 #include "dlist_maker.h"
-void
+static void
 init_overloads(){
 	dlist *l1, *l2;
-	METHOD_OVERLOADS_add("*",  "*",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("%",  "mod",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("/",  "/",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("+",  "+",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("-",  "-",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("-",  "neg",  l1 = DLIST_MAKE(TYPE_INTEGER),                   l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("|",  "or",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("&",  "and",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("^",  "xor",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("~",  "1com", l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("<",  "<",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("<=", "<=",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add(">=", ">=",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add(">",  ">",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("==", "=",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("!=", "<>",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("<<", "shlv", l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add(">>", "shrv", l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER),      l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("*",  "*",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("%",  "mod",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("/",  "/",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("+",  "+",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("-",  "-",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("-",  "neg",  l1 = DLIST_MAKE(TYPE_INTEGER),              l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("|",  "or",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("&",  "and",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("^",  "xor",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("~",  "1com", l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("<",  "<",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("<=", "<=",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add(">=", ">=",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add(">",  ">",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("==", "=",    l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("!=", "<>",   l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("<<", "shlv", l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add(">>", "shrv", l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
 
-	METHOD_OVERLOADS_add("!",  "not",  l1 = DLIST_MAKE(TYPE_BOOLEAN),                   l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("||", "or",   l1 = DLIST_MAKE(TYPE_BOOLEAN,TYPE_BOOLEAN),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("&&", "and",  l1 = DLIST_MAKE(TYPE_BOOLEAN,TYPE_BOOLEAN),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("^^", "xor",  l1 = DLIST_MAKE(TYPE_BOOLEAN,TYPE_BOOLEAN),      l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("!",  "not",  l1 = DLIST_MAKE(TYPE_BOOLEAN),              l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("||", "or",   l1 = DLIST_MAKE(TYPE_BOOLEAN,TYPE_BOOLEAN), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("&&", "and",  l1 = DLIST_MAKE(TYPE_BOOLEAN,TYPE_BOOLEAN), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("^^", "xor",  l1 = DLIST_MAKE(TYPE_BOOLEAN,TYPE_BOOLEAN), l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
 
-	METHOD_OVERLOADS_add("*",  "f*",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("%",  "fmod", l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("/",  "f/",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("+",  "f+",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("-",  "f-",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("-",  "fneg", l1 = DLIST_MAKE(TYPE_FLOAT),                     l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("<",  "f<",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("<=", "f<=",  l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add(">=", "f>=",  l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add(">",  "f>",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("==", "f=",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("!=", "f<>",  l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),          l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("*",  "f*",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("%",  "fmod", l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("/",  "f/",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("+",  "f+",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("-",  "f-",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("-",  "fneg", l1 = DLIST_MAKE(TYPE_FLOAT),                l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("<",  "f<",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("<=", "f<=",  l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add(">=", "f>=",  l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add(">",  "f>",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("==", "f=",   l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("!=", "f<>",  l1 = DLIST_MAKE(TYPE_FLOAT,TYPE_FLOAT),     l2 = DLIST_MAKE(TYPE_BOOLEAN), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
 
-	METHOD_OVERLOADS_add("float",   "itof",  l1 = DLIST_MAKE(TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_FLOAT), METHODOVERLOAD_FLAG_FUNCTIONAL);   dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
-	METHOD_OVERLOADS_add("integer", "ftoi",  l1 = DLIST_MAKE(TYPE_FLOAT),   l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("float",   "itof",  l1 = DLIST_MAKE(TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_FLOAT),   METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN);   dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("integer", "ftoi",  l1 = DLIST_MAKE(TYPE_FLOAT),   l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN); dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
 
-	METHOD_OVERLOADS_add("multdiv", "i*/",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL);   dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
+	METHOD_OVERLOADS_add("multdiv", "i*/",  l1 = DLIST_MAKE(TYPE_INTEGER,TYPE_INTEGER,TYPE_INTEGER), l2 = DLIST_MAKE(TYPE_INTEGER), METHODOVERLOAD_FLAG_FUNCTIONAL | METHODOVERLOAD_FLAG_BUILTIN);   dlist_clear(l1, FALSE); dlist_clear(l2, FALSE);
 }
 
 int
@@ -733,7 +686,6 @@ main(int argc, const char **argv){
 	init_overloads();
 	//read from stdin
 	fin = stdin;
-	//TODO setup initial types
 	if(fin != NULL){
 		char line[128];
 		slist *gdata = NULL;
@@ -752,7 +704,7 @@ main(int argc, const char **argv){
 			//	printf("Operator Mismatch at %lu:%lu\n", lineno, colno);
 			//	return 1;
 			} else {
-				slist *iter;//TODO this leaks memory like crazy
+				slist *iter;
 				SLIST_ITERATE(iter, gdata,
 					if(iter != gdata) printf(", ");
 					graph_map(ACCESS(graph*, iter->data), DEPTH_FIRST_POST, FALSE, FALSE, NULL, (lMapFunc)resolve_overloads);
@@ -765,8 +717,7 @@ main(int argc, const char **argv){
 				);
 				slist_clear(gdata, FALSE);
 				btree_clear(METHOD_OVERLOADS, TRUE);
-				//TODO process tokens, ensure type congruency
-				return 0;//TODO may continue?
+				return 0;
 			}
 		}
 	}
