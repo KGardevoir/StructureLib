@@ -228,69 +228,6 @@ slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc func){
 	return TRUE;
 }
 
-
-Object**
-slist_toArray(slist *head, size_t *size, BOOLEAN deep){
-size_t len = 0;
-slist* p = head;
-	if(!head) return NULL;
-	for(; p->next; p = p->next, len++);
-	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
-	len = 0;
-	SLIST_ITERATE(p, head, {
-		if(deep){
-			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
-		} else {
-			values[len] = p->data;
-		}
-		len++;
-	});
-	values[len] = NULL;
-	*size = len;
-	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
-	return values;
-}
-
-Object**
-slist_toArrayReverse(slist *head, size_t *size, BOOLEAN deep){
-size_t i = 0, len = 0;
-	Object **values = slist_toArray(head, &len, deep);
-	if(values == NULL) return NULL;
-	*size = len;
-	for(i = 0; i < len/2; i++){//flip them around
-		Object *k = values[len-i-1];
-		values[len-i-1] = values[i];
-		values[i] = k;
-	}
-	values[len] = NULL;
-	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
-	return values;
-}
-
-slist*
-array_toSlist(Object** arr, size_t size, BOOLEAN deep){
-	if(arr == NULL) return NULL;
-	if(size == 0) return NULL;
-	size_t i = size;
-	slist *head = NULL;
-	for(; --i; ){
-		head = slist_push(head, arr[i], deep);
-	}
-	return head;
-}
-
-dlist*
-slist_toDlist(slist *head, BOOLEAN deep){
-	slist* p = head;
-	dlist* d = NULL;
-	for(; p; p = p->next){
-		d = dlist_append(d, p->data, deep);
-	}
-	return d;
-}
-//End Single Linked Transforms
-
-
 slist*
 slist_find(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered){
 	if(!head) return NULL;

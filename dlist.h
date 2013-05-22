@@ -8,7 +8,6 @@ typedef struct dlist {
 	struct dlist *prev;
 } dlist;
 
-#include "slist.h"
 
 //Doubly linked list functions
 //Add
@@ -31,11 +30,6 @@ dlist* dlist_filter_i(dlist *head, void *aux, lMapFunc, BOOLEAN free_data) __att
 dlist* dlist_transform(dlist *head, void* aux, lTransFunc);
 BOOLEAN dlist_map(dlist *head, BOOLEAN more_info, void* aux, lMapFunc);
 size_t dlist_length(dlist *head);
-//Transform
-Object** dlist_toArray(dlist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
-Object** dlist_toArrayReverse(dlist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
-slist* dlist_toSlist(dlist *he, BOOLEAN deep) __attribute__((warn_unused_result));
-dlist* array_toDlist(Object **array, size_t size, BOOLEAN deep) __attribute__((warn_unused_result));
 
 //Merging
 dlist* dlist_sort(dlist* head, void* key, const Comparator_vtable* key_method) __attribute__((warn_unused_result));

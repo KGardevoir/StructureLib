@@ -6,5 +6,6 @@
 #include "splaytree.h"
 #include "slist.h"
 #include "dlist.h"
+#include "transform.h"
 
 #endif //_LINKED_STRUCTURES_H_

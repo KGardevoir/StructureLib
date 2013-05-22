@@ -27,11 +27,6 @@ slist* slist_remove(slist *head, void* key, const Comparable_vtable* key_method,
 //Other Operations
 BOOLEAN slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc) __attribute__((warn_unused_result));
 size_t slist_length(slist* head);
-//Transform
-Object** slist_toArray(slist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
-Object** slist_toArrayReverse(slist *head, size_t *size, BOOLEAN deep) __attribute__((warn_unused_result));
-dlist* slist_toDlist(slist *head, BOOLEAN deep) __attribute__((warn_unused_result));
-slist* array_toSlist(Object** head, size_t size, BOOLEAN deep) __attribute__((warn_unused_result));
 
 //Find
 slist* slist_find(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
