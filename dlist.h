@@ -40,6 +40,7 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 //Find
 dlist* dlist_find(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
 BOOLEAN dlist_has(dlist *head, dlist* node);
+dlist *dlist_at(dlist *head);
 #define DLIST_ITERATE(_ITER, _HEAD, _CODE) {\
 	_ITER = _HEAD;\
 	size_t _depth = 0;\

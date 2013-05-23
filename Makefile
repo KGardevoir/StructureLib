@@ -20,6 +20,5 @@ test: main.o all
 	$(CC) main.o -L. -llinked -lm $(CFLAGS) -g -o $@
 
 clean:
-	+cd tlsf && $(MAKE) clean
 	rm -rf $(OBJ) $(LIB) main.o
 	rm -f test

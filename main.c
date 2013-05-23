@@ -10,7 +10,7 @@
 typedef struct aLong_vtable {
 	Object_vtable parent;
 	Comparable_vtable compare;
-} aLong_vtable; 
+} aLong_vtable;
 typedef struct aLong {
 	const aLong_vtable *method;
 	long data;
@@ -31,7 +31,7 @@ static aLong_vtable aLong_type = {
 	}
 };
 
-static aLong* aLong_new(long a){ 
+static aLong* aLong_new(long a){
 	aLong init = {
 		.method = &aLong_type,
 		.data = a
@@ -59,7 +59,7 @@ static aLong_comparator_vtable aLong_comparator_type = {
 };
 
 
-BOOLEAN
+static BOOLEAN
 compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
 	size_t i = 0;
 	size_t minlen = MIN(length, got_length);
@@ -83,7 +83,7 @@ compare_arrs(const long *expect, const size_t length, const long *got, const siz
 	return TRUE;
 }
 
-dlist*
+static dlist*
 print_list(dlist* list){
 	dlist* run = list;
 	do {
@@ -95,7 +95,7 @@ print_list(dlist* list){
 
 //extern void print_btree_structure(btree*, list_tspec*);
 
-void
+static void
 test_splay(){
 	splaytree *t = NULL;
 	const size_t NUMS = 40000;
@@ -159,7 +159,7 @@ test_splay(){
 	printf("Finished Checking Splay Trees -------------------\n");
 }
 
-dlist*
+static dlist*
 make_dlist(const long a[], size_t s){
 	long i = 0;
 	dlist* newl = NULL;
@@ -176,7 +176,7 @@ typedef struct dlist_dump_map_d {
 	long test2[DLIST_TEST_SIZE];
 } dlist_dump_map_d;
 
-BOOLEAN
+static BOOLEAN
 dlist_dump_map_f(aLong *data, lMapFuncAux *more){
 	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
 	dlist_dump_map_d *aux = more->aux;
@@ -188,7 +188,7 @@ dlist_dump_map_f(aLong *data, lMapFuncAux *more){
 	return TRUE;
 }
 
-void
+static void
 test_dlist(){
 	printf("Checking dlists ---------------------------------\n");
 	{
@@ -299,7 +299,7 @@ typedef struct btree_dump_map_d {
 
 static BOOLEAN
 btree_dump_map_f(aLong* data, lMapFuncAux* more){
-	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
+	printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
 	btree_dump_map_d *aux = more->aux;
 	aux->test1[aux->pos] = data->data;
 	aux->test2[aux->pos] = (long)more->depth;
@@ -310,7 +310,7 @@ btree_dump_map_f(aLong* data, lMapFuncAux* more){
 }
 
 
-void
+static void
 test_btree(){
 	btree *t1 = NULL, *t2 = NULL, *t3 = NULL;
 	printf("Checking btree ---------------------------------\n");
@@ -386,8 +386,12 @@ test_btree(){
 		printf("Post Order (Level Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
 	}
-	size_t min, max, avg, nodes;
-	btree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
+	//size_t min, max, avg, nodes;
+	//btree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
+	//printf("Tree Statistics: min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
+	t1 = btree_balance(t1);
+	printf("Tree Rebalanced...\n");//TODO test this better
+	//btree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
 	//printf("Tree Statistics: min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
 	btree_clear(t1, TRUE);
 	btree_clear(t2, TRUE);
@@ -412,7 +416,7 @@ graph_dump_map_f(aLong* data, graph_dump_map_d* aux){
 	return TRUE;
 }
 
-void
+static void
 test_graph(){
 	printf("Checking graphs ---------------------------------\n");
 	long nums[] = {0,1,2,3,4,5,6};
@@ -475,7 +479,7 @@ test_graph(){
 	printf("Finished graphs ---------------------------------\n");
 }
 
-void
+static void
 test_htable(){
 	
 }

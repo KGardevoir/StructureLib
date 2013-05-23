@@ -4,9 +4,9 @@
 #include "dlist.h"
 
 typedef struct btree {
+	struct btree *right;
 	Object* data;
 	struct btree *left;
-	struct btree *right;
 } btree;
 
 //Binary Search Tree, a threaded tree would be nice, but determining leaf nodes is SIGNIFICANTLY more difficult
@@ -26,5 +26,6 @@ btree* btree_findmax(btree *root);
 void   btree_info(btree *root, size_t *min, size_t *max, size_t *avg, size_t *leaves, size_t *size, dlist **lleaves, dlist **lnodes);
 
 BOOLEAN btree_map(btree *root, const TRAVERSAL_STRATEGY, BOOLEAN more_info, void* aux, lMapFunc func);
+btree* btree_balance(btree *root);
 
 #endif
