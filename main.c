@@ -108,7 +108,7 @@ test_splay(){
 		for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
 			t = splay_insert(t, (Object*)aLong_new(i), &aLong_type.compare, FALSE);//typically it is more appropriate to access via &Object->method->interface. It is OK here, because there is no polymorphism
 		btree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
-		printf("Inserts: %s\n", (NUMS == nodes)?"PASS":"FAIL");
+		printf("Inserts: %s\n", (NUMS-1 == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 		for(i = 1; i < NUMS; i += 2){
@@ -117,7 +117,7 @@ test_splay(){
 			FREE(anew);
 		}
 		btree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
-		printf("Removes: %s\n", (NUMS/2 == nodes)?"PASS":"FAIL");
+		printf("Removes: %s\n", (NUMS/2-1 == nodes)?"PASS":"FAIL");
 		//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 		//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 	}
@@ -289,7 +289,7 @@ test_dlist(){
 	printf("Finished dlists ---------------------------------\n");
 }
 
-#define BSTREE_TEST_SIZE 8
+#define BSTREE_TEST_SIZE 32
 typedef struct btree_dump_map_d {
 	size_t pos;
 	size_t max;
@@ -299,7 +299,7 @@ typedef struct btree_dump_map_d {
 
 static BOOLEAN
 btree_dump_map_f(aLong* data, lMapFuncAux* more){
-	printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
+	//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
 	btree_dump_map_d *aux = more->aux;
 	aux->test1[aux->pos] = data->data;
 	aux->test2[aux->pos] = (long)more->depth;
@@ -309,18 +309,30 @@ btree_dump_map_f(aLong* data, lMapFuncAux* more){
 	return TRUE;
 }
 
+static BOOLEAN
+btree_print_map_f(aLong *data, lMapFuncAux*more){
+	printf("%*s%lu: %ld\n", (int)more->depth, "", more->depth, data->data);
+	return TRUE;
+}
+
 
 static void
 test_btree(){
 	btree *t1 = NULL, *t2 = NULL, *t3 = NULL;
 	printf("Checking btree ---------------------------------\n");
-	//long x1[] = { 1, 3, 5, 6, 9, 10, 13 };
-	//long x2[] = { 7, 6, 5, 4, 3, 2, 1, 8, 11, 14, 9, 10 };
-	long x2[] = {8, 3, 1, 6, 4, 7, 10, 14, 13};
+	long x1[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
+	//long x2[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+	long x2[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 };
+	//long x2[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
+	const size_t x1_size = sizeof(x1)/sizeof(x1[0]);
+	const size_t x2_size = sizeof(x2)/sizeof(x2[0]);
 	//long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
 	size_t i = 0;
-	for(; i < sizeof(x2)/sizeof(x2[0]); i++){
-		t1 = btree_insert(t1, (Object*)aLong_new(x2[i]), &aLong_type.compare, FALSE);
+	for(i = 0; i < sizeof(x1)/sizeof(x1[0]); i++){
+		t1 = btree_insert(t1, (Object*)aLong_new(x1[i]), &aLong_type.compare, FALSE);
+	}
+	for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
+		t2 = btree_insert(t2, (Object*)aLong_new(x2[i]), &aLong_type.compare, FALSE);
 	}
 	//for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
 	//	t2 = splay_insert(t2, (void*)x2[i], FALSE, &type);
@@ -330,22 +342,22 @@ test_btree(){
 	//}
 	aLong tmp = {
 		.method = &aLong_type,
-		.data = x2[5]
+		.data = x1[5]
 	};
 	btree *f = btree_find(t1, (Object*)&tmp, &aLong_type.compare);
 	aLong *mp;
-	if(((aLong*)f->data)->data != x2[5])
+	if(((aLong*)f->data)->data != x1[5])
 		printf("Error: Not able to find element\n");
 	t1 = btree_remove(t1, (Object*)&tmp, &aLong_type.compare, (Object**)&mp, FALSE);
-	if(mp->data != x2[5])
+	if(mp->data != x1[5])
 		printf("Error: Unable to remove element\n");
 	mp->method->parent.destroy((Object*)mp);
 	printf("Tree Structures:\n");
 	{
 		const long expect1[] = {8,3,1,6,4,10,14,13};
-		const long expect2[] = {1,2,3,3,4,2,3,4};
+		const long expect2[] = {0,1,2,2,3,1,2,3};
 		btree_dump_map_d buffer = {
-			.max = BSTREE_TEST_SIZE,
+			.max = x1_size-1,
 			.pos = 0,
 			.test1 = {0},
 			.test2 = {0}
@@ -358,9 +370,9 @@ test_btree(){
 	}
 	{
 		const long expect1[] = {1,3,4,6,8,10,13,14};
-		const long expect2[] = {3,2,4,3,1,2,4,3};
+		const long expect2[] = {2,1,3,2,0,1,3,2};
 		btree_dump_map_d buffer = {
-			.max = BSTREE_TEST_SIZE,
+			.max = x1_size-1,
 			.pos = 0,
 			.test1 = {0},
 			.test2 = {0}
@@ -375,7 +387,7 @@ test_btree(){
 		const long expect1[] = {1,4,6,3,13,14,10,8};
 		const long expect2[] = {2,3,2,1,3,2,1,0};
 		btree_dump_map_d buffer = {
-			.max = BSTREE_TEST_SIZE,
+			.max = x1_size-1,
 			.pos = 0,
 			.test1 = {0},
 			.test2 = {0}
@@ -386,13 +398,39 @@ test_btree(){
 		printf("Post Order (Level Order): ");
 		compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
 	}
-	//size_t min, max, avg, nodes;
-	//btree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
-	//printf("Tree Statistics: min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
-	t1 = btree_balance(t1);
-	printf("Tree Rebalanced...\n");//TODO test this better
-	//btree_info(t1, &min, &max, &avg, NULL, &nodes, NULL, NULL);
-	//printf("Tree Statistics: min:%lu, max:%lu, avg:%lu, size: %lu\n", min, max, avg, nodes);
+#if 1
+	{
+		size_t idepth, isize, fdepth, fsize;
+		btree_info(t1, NULL, &idepth, NULL, NULL, &isize, NULL, NULL);
+		//btree_map(t1, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)btree_print_map_f);
+		t1 = btree_balance(t1);
+		btree_info(t1, NULL, &fdepth, NULL, NULL, &fsize, NULL, NULL);
+		BOOLEAN pass = (fdepth<=idepth)&&fsize==isize&&fdepth+1==(size_t)ceil(log(fsize+1)/log(2));
+		printf("Tree 1 Rebalanced: ");
+		if(pass)
+			printf("PASS\n");
+		else
+			printf("FAIL (size,depth):i(%lu, %lu), f(%lu, %lu); opt:(%lu)\n", isize, idepth, fsize, fdepth, (size_t)ceil(log(fsize+1)/log(2)));
+		//btree_map(t1, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)btree_print_map_f);
+	}
+#endif
+#if 1
+	{
+		//a very linear tree
+		t2 = btree_balance(t2);
+		size_t idepth = 0, isize = 0, fdepth = 0, fsize = 0;
+		btree_info(t2, NULL, &idepth, NULL, NULL, &isize, NULL, NULL);
+		//printf("Tree 2 Balanced (%ld nodes, %ld depth)...\n", size, max);//TODO test this better
+		//btree_map(t2, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)btree_print_map_f);
+		btree_info(t2, NULL, &fdepth, NULL, NULL, &fsize, NULL, NULL);
+		BOOLEAN pass = (fdepth<=idepth)&&fsize==isize&&(fdepth+1==(size_t)ceil(log(fsize+1)/log(2)));
+		printf("Tree 2 Rebalanced: ");
+		if(pass)
+			printf("PASS\n");
+		else
+			printf("FAIL (size,depth):i(%lu, %lu), f(%lu, %lu); opt:(%lu)\n", isize, idepth, fsize, fdepth, (size_t)ceil(log(fsize+1)/log(2)));
+	}
+#endif
 	btree_clear(t1, TRUE);
 	btree_clear(t2, TRUE);
 	btree_clear(t3, TRUE);
