@@ -9,9 +9,7 @@ new_splaynode(Object* data, BOOLEAN deep_copy) {
 		.left = NULL,
 		.data = deep_copy?(data->method->copy(data, MALLOC(data->method->size))):data
 	};
-	splaytree *n = (splaytree*)MALLOC(sizeof(splaytree));//TODO check if we run out of memory
-	memcpy(n, &init, sizeof(*n));
-	return n;
+	return memcpy(MALLOC(sizeof(splaytree)), &init, sizeof(splaytree));
 }
 
 static splaytree*

@@ -3,16 +3,14 @@
 /* Algorithms adapted from Ch.12 of Introduction To Algorithms by Thomas H. Cormen, Charles E. Leiserson, Ronald L.
  * Rivest, Clifford Stein */
 
-static btree*
+static inline btree*
 new_bsnode(Object* data, BOOLEAN deep_copy){
 	btree init = {
 		.left = NULL,
 		.right = NULL,
 		.data = deep_copy?data->method->copy(data, MALLOC(data->method->size)):data
 	};
-	btree *n = (btree*)MALLOC(sizeof(btree));
-	memcpy(n, &init, sizeof(*n));
-	return n;
+	return memcpy(MALLOC(sizeof(btree)), &init, sizeof(init));
 }
 
 btree*

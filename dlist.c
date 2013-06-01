@@ -1,7 +1,7 @@
 #include "dlist.h"
 #include "assert.h"
 
-static dlist*
+static inline dlist*
 new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
 	dlist *lnew = (dlist*)MALLOC(sizeof(dlist));
 	dlist init = {

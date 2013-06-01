@@ -29,9 +29,7 @@ new_htable_node(Object* key, const Comparable_vtable *key_method, void* data, ui
 		.key_method = key_method,
 		.data = data
 	};
-	htable_node *dat = buf;
-	memcpy(dat, &init, sizeof(init));
-	return dat;
+	return memcpy(buf, &init, sizeof(init));
 }
 
 static void

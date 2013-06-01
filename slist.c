@@ -2,13 +2,11 @@
 
 static slist*
 new_slist(Object* data, BOOLEAN deep_copy, slist* next){
-	slist *lnew = (slist*)MALLOC(sizeof(slist));
 	slist init = {
 		.next = next,
 		.data = deep_copy?data->method->copy(data, MALLOC(data->method->size)):data
 	};
-	memcpy(lnew, &init, sizeof(*lnew));
-	return lnew;
+	return memcpy(MALLOC(sizeof(slist)), &init, sizeof(slist));
 }
 
 slist*

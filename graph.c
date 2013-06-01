@@ -22,7 +22,7 @@ static long graph_node_compare(graph* self, graph* oth){ return self>oth?1:(self
 //	return ((aComparable*)self->data)->method->compare(self->data, oth->data);
 //}
 
-static graph*
+static inline graph*
 graph_node_new(graph* self, Object* data, BOOLEAN copy){
 	graph init = {
 		.method = &_graph_vtable,
