@@ -1,5 +1,5 @@
 #include "graph.h"
-#include "slist.c"
+#include "slist.h"
 #include "splaytree.h"
 static void graph_node_destroy(graph* self){ dlist_clear(self->edges, FALSE); }
 static char* graph_node_hashable(const graph* self, size_t *size){ *size = self->method->parent.size; return (char*)self; }

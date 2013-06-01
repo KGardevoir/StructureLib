@@ -1,6 +1,6 @@
 #include "slist.h"
 
-static slist*
+static inline slist*
 new_slist(Object* data, BOOLEAN deep_copy, slist* next){
 	slist init = {
 		.next = next,

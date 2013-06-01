@@ -13,9 +13,6 @@ PMCCABE=pmccabe
 all: $(OBJ)
 	ar rvs $(LIB) $^
 
-tlsf/tlsf.o:
-	+cd tlsf && $(MAKE)
-
 test: main.o all
 	$(CC) main.o -L. -llinked -lm $(CFLAGS) -g -o $@
 
