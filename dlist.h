@@ -11,9 +11,21 @@ typedef struct dlist {
 
 //Doubly linked list functions
 //Add
+/**
+ * Insert Node before head and rotate the list so that the current head is the one just added.
+ */
 dlist* dlist_push(dlist*, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
+/**
+ * Insert Node behind head, at the end of the list
+ */
 dlist* dlist_append(dlist*, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
+/**
+ * Insert Node in order based on the method described by buf_method
+ */
 dlist* dlist_addOrdered(dlist*, void* buf, const Comparable_vtable* buf_method, BOOLEAN copy) __attribute__((warn_unused_result));
+/**
+ * Copy entire list
+ */
 dlist* dlist_copy(dlist* src, BOOLEAN deep_copy) __attribute__((warn_unused_result));
 
 //Remove
@@ -40,7 +52,14 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 //Find
 dlist* dlist_find(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
 BOOLEAN dlist_has(dlist *head, dlist* node);
-dlist *dlist_at(dlist *head);
+dlist *dlist_at(dlist *head, size_t idx, BOOLEAN back);
+size_t dlist_loc(dlist *head, dlist *node);
+/**
+ * Swap the positions inside the list (they don't have to belong to the same list). The nodes are swapped, not the data,
+ * so pointers to these nodes perserve the data association.
+ */
+void dlist_swap(dlist *a, dlist *b);
+
 #define DLIST_ITERATE(_ITER, _HEAD, _CODE) {\
 	_ITER = _HEAD;\
 	size_t _depth = 0;\

@@ -26,10 +26,10 @@ static inline graph*
 graph_node_new(graph* self, Object* data, BOOLEAN copy){
 	graph init = {
 		.method = &_graph_vtable,
-		.data = copy?data->method->copy(data, MALLOC(self->method->parent.size)):data,
+		.data = copy?data->method->copy(data, LINKED_MALLOC(self->method->parent.size)):data,
 		.edges = NULL
 	};
-	//graph *mem = (graph*)MALLOC(sizeof(graph));
+	//graph *mem = (graph*)LINKED_MALLOC(sizeof(graph));
 	memcpy(self, &init, sizeof(init));
 	return self;
 }
@@ -50,7 +50,7 @@ graph_node_copy(graph* self, void* mem){
 graph*
 graph_insert(graph* root, Object* data, BOOLEAN copy){
 	//add a new node the child of this node.
-	return graph_link(root, graph_node_new(MALLOC(_graph_vtable.parent.size), data, copy));
+	return graph_link(root, graph_node_new(LINKED_MALLOC(_graph_vtable.parent.size), data, copy));
 }
 
 graph*
@@ -231,7 +231,7 @@ graph_clear(graph *root, BOOLEAN destroy_data){
 	slist *iter;
 	SLIST_ITERATE(iter, aux.head,
 		iter->data->method->destroy((Object*)iter->data);
-		FREE(iter->data);
+		LINKED_FREE(iter->data);
 	);
 	slist_clear(aux.head, FALSE);
 }

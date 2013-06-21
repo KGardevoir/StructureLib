@@ -3,11 +3,11 @@
 
 static inline dlist*
 new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
-	dlist *lnew = (dlist*)MALLOC(sizeof(dlist));
+	dlist *lnew = (dlist*)LINKED_MALLOC(sizeof(dlist));
 	dlist init = {
 		.next = (next==NULL&&prev==NULL)?lnew:next,
 		.prev = (next==NULL&&prev==NULL)?lnew:prev,
-		.data = deep_copy?data->method->copy(data, MALLOC(data->method->size)):data
+		.data = deep_copy?data->method->copy(data, LINKED_MALLOC(data->method->size)):data
 	};
 	memcpy(lnew, &init, sizeof(*lnew));
 	return lnew;
@@ -81,7 +81,7 @@ dlist_clear(dlist *head, BOOLEAN destroy_data){
 	do{
 		if(destroy_data) run->data->method->destroy(run->data);
 		n = run->next;
-		FREE(run);
+		LINKED_FREE(run);
 		run = n;
 	} while(run != head);
 }
@@ -107,7 +107,7 @@ dlist_dequeue(dlist *head, Object** data, BOOLEAN destroy_data){
 	if(head->next == head){
 		if(data) *data = head->data;
 		if(destroy_data) head->data->method->destroy(head->data);
-		FREE(head);
+		LINKED_FREE(head);
 		head = NULL;
 	} else {
 		dlist* tmp = head;
@@ -116,7 +116,7 @@ dlist_dequeue(dlist *head, Object** data, BOOLEAN destroy_data){
 		tmp->prev->next = tmp->next;
 		if(data) *data = tmp->data;
 		if(destroy_data) tmp->data->method->destroy(tmp->data);
-		FREE(tmp);
+		LINKED_FREE(tmp);
 	}
 	return head;
 }
@@ -397,3 +397,43 @@ dlist_has(dlist *head, dlist *node){
 	} while(p != head);
 	return FALSE;
 }
+
+dlist *
+dlist_at(dlist *head, size_t idx, BOOLEAN back){
+	dlist *run;
+	if(back){
+		DLIST_ITERATE_REVERSE(run, head,
+			if(_depth == idx) return run;
+		);
+	} else {
+		DLIST_ITERATE(run, head,
+			if(_depth == idx) return run;
+		);
+	}
+	return NULL;
+}
+
+size_t
+dlist_loc(dlist *head, dlist *node){
+	dlist *run;
+	DLIST_ITERATE(run, head,
+		if(run == node) return _depth;
+	);
+	return -1;//return maximium size of size_t otherwise
+}
+
+void
+dlist_swap(dlist *a, dlist *b){
+dlist *tmp = a->next;
+	a->next = b->next;
+	b->next = tmp;
+	a->next->prev = a;
+	b->next->prev = b;
+
+	tmp = a->prev;
+	a->prev = b->prev;
+	b->prev = tmp;
+	a->prev->next = a;
+	b->prev->next = b;
+}
+

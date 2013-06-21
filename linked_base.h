@@ -1,17 +1,23 @@
 #ifndef _LINKED_STRUCTURES_BASE_H_
 #define _LINKED_STRUCTURES_BASE_H_
-#define MALLOC malloc
-#define FREE free
+#define LINKED_MALLOC malloc
+#define LINKED_FREE free
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <uc_stdio.h>
+#include <uc_stdlib.h>
+#include <uc_string.h>
+#include <dat.h>
+#include <def.h>
+#include <proto.h>
 #include <inttypes.h>
+#include <stdlib.h>
 
 
 typedef struct Object_vtable Object_vtable;
 typedef struct Comparable_vtable Comparable_vtable;
 typedef struct Comparator_vtable Comparator_vtable;
+#undef TRUE
+#undef FALSE
 typedef enum BOOLEAN { FALSE=0, TRUE=-1, MAYBE=-2 } BOOLEAN;
 
 typedef struct Object {

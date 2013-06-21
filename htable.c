@@ -80,7 +80,7 @@ htable_resize(htable* tbl, double scalar, size_t isize){
 		.filled = 0,
 		.collision = 0
 	};
-	htable *ntbl = (htable*)MALLOC(sizeof(htable)+sizeof(splaytree*)*init.size);
+	htable *ntbl = (htable*)LINKED_MALLOC(sizeof(htable)+sizeof(splaytree*)*init.size);
 	memcpy(ntbl, &init, sizeof(htable));
 	memset(ntbl->array, 0, ntbl->size*sizeof(void*));
 	htable_map(tbl, DEPTH_FIRST_PRE, FALSE, ntbl, (lMapFunc)htable_recompute_f);
@@ -93,7 +93,7 @@ htable_insert(htable* table, Object* key, const Comparable_vtable* key_method, v
 	htable_node* lnew;
 	size_t len;
 	const char* hashes = key->method->hashable(key, &len);
-	size_t at = (lnew = new_htable_node(key, key_method, data, CityHash64(hashes, len), MALLOC(sizeof(htable_node))))->hash % isize;
+	size_t at = (lnew = new_htable_node(key, key_method, data, CityHash64(hashes, len), LINKED_MALLOC(sizeof(htable_node))))->hash % isize;
 	if(!table || table->filled > isize/2){//make table bigger
 		htable *tbl = htable_resize(table, 2.0, isize);
 		htable_clear(table);
@@ -124,7 +124,7 @@ htable_remove(htable* table, Object* key, const Comparable_vtable *key_method, O
 			table = tbl;
 			//rehash table
 		}
-		FREE(*rtn2);
+		LINKED_FREE(*rtn2);
 	}
 	return table;
 }

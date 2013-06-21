@@ -6,11 +6,11 @@ size_t len = 0;
 dlist* p = head;
 	if(!head) return NULL;
 	do{ p = p->next; len++; } while(p != head);
-	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
+	Object **values = (Object**)LINKED_MALLOC((len+1)*sizeof(Object*));
 	len = 0; p = head;
 	DLIST_ITERATE(p, head, {
 		if(deep_copy){
-			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
+			values[len] = p->data->method->copy(p->data, LINKED_MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
@@ -28,11 +28,11 @@ size_t i = 0, len = 0;
 dlist* p = head;
 	if(!head) return NULL;
 	do{ p = p->next; i++; } while(p != head);
-	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
+	Object **values = (Object**)LINKED_MALLOC((len+1)*sizeof(Object*));
 	len = 0;
 	DLIST_ITERATE_REVERSE(p, head, {
 		if(deep_copy){
-			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
+			values[len] = p->data->method->copy(p->data, LINKED_MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
@@ -71,11 +71,11 @@ size_t len = 0;
 slist* p = head;
 	if(!head) return NULL;
 	for(; p->next; p = p->next, len++);
-	Object **values = (Object**)MALLOC((len+1)*sizeof(Object*));
+	Object **values = (Object**)LINKED_MALLOC((len+1)*sizeof(Object*));
 	len = 0;
 	SLIST_ITERATE(p, head, {
 		if(deep){
-			values[len] = p->data->method->copy(p->data, MALLOC(p->data->method->size));
+			values[len] = p->data->method->copy(p->data, LINKED_MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}

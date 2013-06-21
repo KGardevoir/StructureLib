@@ -18,7 +18,7 @@
 #define DESTROY_AND_FREE_GRAPH(DAT) do {\
 			DAT->data->method->destroy(DAT->data);\
 			DAT->method->parent.destroy((Object*)DAT);\
-			free(DAT); } while(0)
+			LINKED_FREE(DAT); } while(0)
 
 #define SLIST_POP(ROOT, TOK, ELSE_CODE) do{\
 				if(ROOT){\
@@ -58,10 +58,10 @@ getTypeIDName(enum TYPE_ID id){
 
 static void
 MethodOverload_destroy(MethodOverload* self){
-	free((char*)self->final_method);
-	free(self->signature);
-	free(self->returntype);
-	free(self);
+	LINKED_FREE((char*)self->final_method);
+	LINKED_FREE(self->signature);
+	LINKED_FREE(self->returntype);
+	LINKED_FREE(self);
 }
 
 static long
@@ -116,19 +116,19 @@ static MethodOverload*
 MethodOverload_new(const char* final_method, dlist* args, dlist *rets, uint8_t flags){
 	MethodOverload init = {
 		.method = &MethodOverload_type,
-		.final_method = strcpy(malloc((strlen(final_method)+1)*sizeof(char)),final_method),
+		.final_method = strcpy(LINKED_MALLOC((strlen(final_method)+1)*sizeof(char)),final_method),
 		.flags = flags,
 	};
 	init.signature = (intptr_t*)dlist_toArray(args, &init.signature_length, FALSE);
 	init.returntype = (intptr_t*)dlist_toArray(rets, &init.returntype_length, FALSE);
-	return memcpy(malloc(sizeof(MethodOverload)), &init, sizeof(init));
+	return memcpy(LINKED_MALLOC(sizeof(MethodOverload)), &init, sizeof(init));
 }
 
 static void
 MethodOverloadRoot_destroy(MethodOverloadRoot* self){
-	free((char*)self->key);
+	LINKED_FREE((char*)self->key);
 	btree_clear(self->overloads, TRUE);
-	free(self);
+	LINKED_FREE(self);
 }
 
 static BOOLEAN
@@ -168,10 +168,10 @@ static MethodOverloadRoot*
 MethodOverloadRoot_new(const char *key){
 	MethodOverloadRoot init = {
 		.method = &MethodOverloadRoot_type,
-		.key = strcpy(malloc((strlen(key)+1)*sizeof(char)),key),
+		.key = strcpy(LINKED_MALLOC((strlen(key)+1)*sizeof(char)),key),
 		.overloads = NULL
 	};
-	return memcpy(malloc(sizeof(MethodOverloadRoot)), &init, sizeof(init));
+	return memcpy(LINKED_MALLOC(sizeof(MethodOverloadRoot)), &init, sizeof(init));
 }
 
 BOOLEAN
@@ -212,16 +212,16 @@ METHOD_OVERLOADS_find(const char *key, dlist *sig){
 
 static void
 Token_destroy(const Token* self){
-	free((void*)self->token);
+	LINKED_FREE((void*)self->token);
 	dlist_clear(self->type_list, FALSE);
 	if(self->pre_comp){
 		dlist *tmp;
 		DLIST_ITERATE(tmp, self->pre_comp,
-			free(tmp->data);
+			LINKED_FREE(tmp->data);
 		);
 	}
 	dlist_clear(self->pre_comp, FALSE);
-	free((Token*)self);
+	LINKED_FREE((Token*)self);
 }
 
 /**
@@ -321,7 +321,7 @@ static Token*
 Token_new(Token* self, const char *pstok, const char* pftok, enum TOKEN_ID id, size_t line, size_t col){
 	Token init = {
 		.method = &Token_type,
-		.token = memcpy(memset(malloc(pftok-pstok+1), 0, pftok-pstok+1), pstok, pftok-pstok), //this feels all sorts of unsafe...
+		.token = memcpy(memset(LINKED_MALLOC(pftok-pstok+1), 0, pftok-pstok+1), pstok, pftok-pstok), //this feels all sorts of unsafe...
 		.tokenid = id,
 		.line = line,
 		.col = col,
@@ -361,7 +361,7 @@ shunting_yard(const char* begin, size_t begin_size, slist **treestk, size_t line
 			(*col)++;
 			continue;
 		}
-		graph *next = graph_insert(NULL, (Object*)Token_new(malloc(sizeof(Token)), begin, end, id, line, *col + (begin - rbegin)), FALSE);
+		graph *next = graph_insert(NULL, (Object*)Token_new(LINKED_MALLOC(sizeof(Token)), begin, end, id, line, *col + (begin - rbegin)), FALSE);
 		if(id == FLOAT || id == INTEGER || id == HEX_INTEGER || id == OCT_INTEGER){
 			DPRINTFERR("(LITERAL)");
 			*treestk = slist_push(*treestk, (Object*)next, FALSE);
@@ -592,7 +592,7 @@ sparse_eval(graph *gr, dlist** toks){
 						dlist *run2;
 						DLIST_ITERATE(run2, mtk->pre_comp,
 							INTERP_TOKEN((char*)run2->data);
-							free(run2->data);
+							LINKED_FREE(run2->data);
 						);
 						dlist_clear(mtk->pre_comp, FALSE);
 						mtk->pre_comp = NULL;

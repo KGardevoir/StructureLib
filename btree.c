@@ -8,9 +8,9 @@ new_bsnode(Object* data, BOOLEAN deep_copy){
 	btree init = {
 		.left = NULL,
 		.right = NULL,
-		.data = deep_copy?data->method->copy(data, MALLOC(data->method->size)):data
+		.data = deep_copy?data->method->copy(data, LINKED_MALLOC(data->method->size)):data
 	};
-	return memcpy(MALLOC(sizeof(btree)), &init, sizeof(init));
+	return memcpy(LINKED_MALLOC(sizeof(btree)), &init, sizeof(init));
 }
 
 btree*
@@ -24,7 +24,7 @@ btree_insert(btree *root, Object* data, const Comparable_vtable* data_method, BO
 	} else if(data_method->compare(data, p->data) > 0) {
 		p->right = lnew;
 	} else {//are equal, ignore for now (no duplicates)
-		FREE(lnew);
+		LINKED_FREE(lnew);
 	}
 	return root;
 }
@@ -61,7 +61,7 @@ btree_remove(btree *root, Object* data, const Comparable_vtable* data_method, Ob
 		min->left = node->left;
 	}
 	data = node->data;
-	FREE(node);
+	LINKED_FREE(node);
 	if(destroy_data){
 		data->method->destroy(data);
 		data = NULL;
@@ -173,7 +173,7 @@ btree_map_internal_d_new(size_t depth, btree *node){
 		.node = node,
 		.depth = depth
 	};
-	struct btree_map_internal_d *new = MALLOC(sizeof(init));
+	struct btree_map_internal_d *new = LINKED_MALLOC(sizeof(init));
 	memcpy(new, &init, sizeof(init));
 	return new;
 }
@@ -194,7 +194,7 @@ btree_map_in_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void *a
 			stk = dlist_pop(stk, (Object**)&node, FALSE);
 			cur = node->node;
 			depth = node->depth;
-			FREE(node);
+			LINKED_FREE(node);
 			//by changing this from a stack to a queue, this can be transformed to a pre-order
 			//traversal
 			if(more_info){
@@ -244,7 +244,7 @@ btree_map_pre_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* 
 			stk = dlist_pop(stk, (Object**)&node, FALSE);
 			cur = node->node;
 			depth = node->depth;
-			FREE(node);
+			LINKED_FREE(node);
 			//by changing this from a stack to a queue, this can be transformed to a pre-order
 			//traversal
 			cur = cur->right;
@@ -287,7 +287,7 @@ btree_map_post_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void*
 				if(!func(pass_data?cur->data:(Object*)cur, aux)) goto false_cleanup;
 			}
 			stk = dlist_dequeue(stk, (Object**)&node, FALSE);
-			FREE(node);
+			LINKED_FREE(node);
 		}
 		prev = cur;
 	}
@@ -295,7 +295,7 @@ btree_map_post_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void*
 false_cleanup:
 	{
 		dlist* run;
-		DLIST_ITERATE(run, stk, FREE(run->data););
+		DLIST_ITERATE(run, stk, LINKED_FREE(run->data););
 		return FALSE;
 	}
 }
@@ -336,7 +336,7 @@ btree_map_breadth_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, vo
 false_cleanup:
 	{
 		dlist* run;
-		DLIST_ITERATE(run, q, FREE(run->data););
+		DLIST_ITERATE(run, q, LINKED_FREE(run->data););
 		return FALSE;
 	}
 }
@@ -385,7 +385,7 @@ btree_clear_f1(btree* root, dlist **freer){
 static BOOLEAN
 btree_clear_f2(btree* root, struct btree_clear_d *aux){
 	if(aux->destroy_data) root->data->method->destroy(root->data);
-	FREE(root);
+	LINKED_FREE(root);
 	return TRUE;
 }
 
@@ -423,7 +423,7 @@ btree_info(btree *root, size_t *min, size_t *max, size_t *avg, size_t *num_leave
 			stk = dlist_dequeue(stk, (Object**)&data, FALSE);
 			depth = data->depth;
 			cur = data->node;
-			FREE(data);
+			LINKED_FREE(data);
 			if(cur->left == NULL && cur->right == NULL){
 				tleaves++;
 				if(rleaves)

@@ -4,9 +4,9 @@ static inline slist*
 new_slist(Object* data, BOOLEAN deep_copy, slist* next){
 	slist init = {
 		.next = next,
-		.data = deep_copy?data->method->copy(data, MALLOC(data->method->size)):data
+		.data = deep_copy?data->method->copy(data, LINKED_MALLOC(data->method->size)):data
 	};
-	return memcpy(MALLOC(sizeof(slist)), &init, sizeof(slist));
+	return memcpy(LINKED_MALLOC(sizeof(slist)), &init, sizeof(slist));
 }
 
 slist*
@@ -48,7 +48,7 @@ slist_addOrdered(slist* he, Object* buf, const Comparable_vtable* buf_method, BO
 		if(overwrite && run && buf_method->compare(buf, run->data) == 0){
 			run->data->method->destroy(run->data);
 			run->data = lm->data;
-			FREE(lm);
+			LINKED_FREE(lm);
 		} else {
 			if(runp){
 				runp->next = lm;
@@ -92,7 +92,7 @@ slist_clear(slist *head, BOOLEAN destroy_data){
 	for(; run; run = p){
 		if(destroy_data) run->data->method->destroy(run->data);
 		p = run->next;
-		FREE(run);
+		LINKED_FREE(run);
 	}
 }
 
@@ -112,13 +112,13 @@ slist_dequeue(slist *head, Object** data, BOOLEAN destroy_data){
 	if(!run->next){
 		if(data) *data = run->next->data;
 		if(destroy_data) run->data->method->destroy(run->data);
-		FREE(run);
+		LINKED_FREE(run);
 		return NULL;
 	}
 	for(; run->next && run->next->next; run = run->next);
 	if(data) *data = run->next->data;
 	if(destroy_data) run->next->data->method->destroy(run->next->data);
-	FREE(run->next);
+	LINKED_FREE(run->next);
 	run->next = NULL;
 	return head;
 }
@@ -130,7 +130,7 @@ slist_pop(slist *head, Object** data, BOOLEAN destroy_data){
 	head = head->next;
 	if(data) *data = run->data;
 	if(destroy_data) run->data->method->destroy(run->data);
-	FREE(run);
+	LINKED_FREE(run);
 	return head;
 }
 
@@ -145,11 +145,11 @@ slist_remove(slist *head, void* key, const Comparable_vtable* key_method, BOOLEA
 		if(runp){
 			runp->next = run->next;
 			if(destroy_data) run->data->method->destroy(run->data);
-			FREE(run);
+			LINKED_FREE(run);
 		} else {
 			head = run->next;
 			if(destroy_data) run->data->method->destroy(run->data);
-			FREE(run);
+			LINKED_FREE(run);
 		}
 	}
 	return head;
@@ -166,11 +166,11 @@ slist_removeAll(slist *head, void* key, const Comparable_vtable* key_method, BOO
 			if(runp){
 				runp->next = run->next;
 				if(destroy_data) run->data->method->destroy(run->data);
-				FREE(run);
+				LINKED_FREE(run);
 			} else {
 				head = run->next;
 				if(destroy_data) run->data->method->destroy(run->data);
-				FREE(run);
+				LINKED_FREE(run);
 			}
 		}
 		runp = run;
@@ -188,11 +188,11 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data){
 		if(runp){
 			runp->next = run->next;
 			if(destroy_data) run->data->method->destroy(run->data);
-			FREE(run);
+			LINKED_FREE(run);
 		} else {
 			head = run->next;
 			if(destroy_data) run->data->method->destroy(run->data);
-			FREE(run);
+			LINKED_FREE(run);
 		}
 	}
 	return head;

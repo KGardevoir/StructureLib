@@ -16,7 +16,7 @@ typedef struct aLong {
 	long data;
 } aLong;
 static long aLong_compare(const aLong *self, const aLong *b){ return self->data - b->data; }
-static void aLong_destroy(aLong *self) { FREE(self); /*This is bad practice*/}
+static void aLong_destroy(aLong *self) { LINKED_FREE(self); /*This is bad practice*/}
 
 static aLong_vtable aLong_type = {
 	.parent = {
@@ -36,7 +36,7 @@ static aLong* aLong_new(long a){
 		.method = &aLong_type,
 		.data = a
 	};
-	aLong *lnew = (aLong*)MALLOC(sizeof(init));
+	aLong *lnew = (aLong*)LINKED_MALLOC(sizeof(init));
 	memcpy(lnew, &init, sizeof(init));
 	return lnew;
 }
@@ -114,7 +114,7 @@ test_splay(){
 		for(i = 1; i < NUMS; i += 2){
 			aLong *anew = aLong_new(i);
 			t = splay_remove(t, (Object*)anew, &aLong_type.compare, NULL, TRUE);
-			FREE(anew);
+			LINKED_FREE(anew);
 		}
 		btree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 		printf("Removes: %s\n", (NUMS/2-1 == nodes)?"PASS":"FAIL");
