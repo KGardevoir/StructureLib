@@ -233,10 +233,10 @@ btree_map_pre_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* 
 					.size = size,
 					.aux = aux
 				};
-				if(!func(pass_data?cur->data:(Object*)cur, &ax)) return FALSE;
+				if(!func(pass_data?cur->data:(Object*)cur, &ax)) goto false_cleanup;
 				position++;
 			} else {
-				if(!func(pass_data?cur->data:(Object*)cur, aux)) return FALSE;
+				if(!func(pass_data?cur->data:(Object*)cur, aux)) goto false_cleanup;
 			}
 			cur = cur->left;
 		} else {
@@ -251,6 +251,13 @@ btree_map_pre_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* 
 		}
 	}
 	return TRUE;
+false_cleanup:
+	{
+		dlist* run;
+		DLIST_ITERATE(run, stk, LINKED_FREE(run->data););
+		dlist_clear(stk, FALSE);
+		return FALSE;
+	}
 }
 static inline BOOLEAN
 btree_map_post_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
@@ -296,6 +303,7 @@ false_cleanup:
 	{
 		dlist* run;
 		DLIST_ITERATE(run, stk, LINKED_FREE(run->data););
+		dlist_clear(stk, FALSE);
 		return FALSE;
 	}
 }
@@ -337,6 +345,7 @@ false_cleanup:
 	{
 		dlist* run;
 		DLIST_ITERATE(run, q, LINKED_FREE(run->data););
+		dlist_clear(q, FALSE);
 		return FALSE;
 	}
 }

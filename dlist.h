@@ -60,27 +60,31 @@ size_t dlist_loc(dlist *head, dlist *node);
  */
 void dlist_swap(dlist *a, dlist *b);
 
-#define DLIST_ITERATE(_ITER, _HEAD, _CODE) {\
-	_ITER = _HEAD;\
-	size_t _depth = 0;\
-	do{\
-		{\
-			_CODE\
-		}\
-		_ITER = _ITER->next;\
-		_depth++;\
-	} while(_ITER != _HEAD);\
-}
+#define DLIST_ITERATE(_ITER, _HEAD, _CODE) do {\
+	if(_HEAD != NULL){\
+		_ITER = _HEAD;\
+		size_t _depth = 0;\
+		do{\
+			{\
+				_CODE\
+			}\
+			_ITER = _ITER->next;\
+			_depth++;\
+		} while(_ITER != _HEAD);\
+	}\
+} while(0)
 
-#define DLIST_ITERATE_REVERSE(_ITER, _HEAD, _CODE) {\
-	_ITER = _HEAD;\
-	size_t _depth = 0;\
-	do{\
-		{\
-			_CODE\
-		}\
-		_ITER = _ITER->prev;\
-		_depth++;\
-	} while(_ITER != _HEAD);\
-}
+#define DLIST_ITERATE_REVERSE(_ITER, _HEAD, _CODE) do {\
+	if(_HEAD != NULL){ \
+		_ITER = _HEAD;\
+		size_t _depth = 0;\
+		do{\
+			{\
+				_CODE\
+			}\
+			_ITER = _ITER->prev;\
+			_depth++;\
+		} while(_ITER != _HEAD);\
+	}\
+} while(0)
 #endif

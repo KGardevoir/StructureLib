@@ -3,12 +3,8 @@
 #define LINKED_MALLOC malloc
 #define LINKED_FREE free
 
-#include <uc_stdio.h>
-#include <uc_stdlib.h>
-#include <uc_string.h>
-#include <dat.h>
-#include <def.h>
-#include <proto.h>
+#include <stdio.h>
+#include <string.h>
 #include <inttypes.h>
 #include <stdlib.h>
 

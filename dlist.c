@@ -68,7 +68,7 @@ dlist_copy(dlist* src, BOOLEAN deep_copy){
 	dlist* mnew = NULL, *runner = src;
 	do{
 		Object* new_data = runner->data;
-		mnew = dlist_push(mnew, new_data, deep_copy);
+		mnew = dlist_append(mnew, new_data, deep_copy);
 		runner = runner->next;
 	} while(runner != src);
 	return mnew;

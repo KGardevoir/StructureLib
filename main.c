@@ -15,8 +15,8 @@ typedef struct aLong {
 	const aLong_vtable *method;
 	long data;
 } aLong;
-static long aLong_compare(const aLong *self, const aLong *b){ return self->data - b->data; }
-static void aLong_destroy(aLong *self) { LINKED_FREE(self); /*This is bad practice*/}
+static long aLong_compare(const aLong *self, const aLong *b){ return b->data - self->data; }
+static void aLong_destroy(aLong *self) { LINKED_FREE(self); }
 
 static aLong_vtable aLong_type = {
 	.parent = {
@@ -446,7 +446,10 @@ typedef struct graph_dump_map_d {
 } graph_dump_map_d;
 
 static BOOLEAN
-graph_dump_map_f(aLong* data, graph_dump_map_d* aux){
+graph_dump_map_f(aLong* data, lMapFuncAux* more){
+	graph_dump_map_d *aux = more->aux;
+	if(more->position == 0) printf("\n");
+	//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
 	aux->test[aux->pos] = data->data;
 	aux->pos++;
 	if(aux->pos >= aux->max)
@@ -482,7 +485,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST, TRUE, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], DEPTH_FIRST, TRUE, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -493,7 +496,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST_POST, TRUE, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], DEPTH_FIRST_POST, TRUE, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -504,7 +507,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], BREADTH_FIRST, TRUE, FALSE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], BREADTH_FIRST, TRUE, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
