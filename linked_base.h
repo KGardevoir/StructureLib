@@ -40,6 +40,9 @@ struct Comparator_vtable {
 	long  (*compare)(const void* self, const void* oth1, const void* oth2);
 };
 
+#define CALL_POSSIBLE(OBJ, METHOD) (OBJ && OBJ->method && OBJ->method->METHOD)
+#define CALL(OBJ, METHOD, PARMS , ELSE) (CALL_POSSIBLE(OBJ, METHOD)?(OBJ->method->METHOD PARMS):(ELSE))
+#define CALL_VOID(OBJ,METHOD,PARMS) do{ if(CALL_POSSIBLE(OBJ, METHOD)) OBJ->method->METHOD PARMS; } while(0)
 
 
 typedef struct lMapFuncAux {
@@ -47,10 +50,10 @@ typedef struct lMapFuncAux {
 	size_t depth;
 	size_t position;
 	size_t size;
-	void* aux;//user data
+	const void* aux;//user data
 } lMapFuncAux;//TODO finish implementing all fields for graphs and htable
-typedef BOOLEAN (*lMapFunc)(Object *data, void *aux/*auxilarly data (constant between calls)*/); //a mapping function
-typedef BOOLEAN (*lTransFunc)(Object **data, void* aux);/*in-place data transformation, should always return TRUE as FALSE means stop*/
+typedef BOOLEAN (*lMapFunc)(Object *data, const void *aux/*auxilarly data (constant between calls)*/, void* node); //a mapping function
+typedef BOOLEAN (*lTransFunc)(Object **data, const void* aux, const void* node);/*in-place data transformation, should always return TRUE as FALSE means stop*/
 
 typedef enum TRAVERSAL_STRATEGY {
 	BREADTH_FIRST=0,

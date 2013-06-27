@@ -40,7 +40,7 @@ dlist* dlist_remove(dlist*, void *key, const Comparable_vtable* key_method, BOOL
 dlist* dlist_filter(dlist *head, void* aux, lMapFunc, BOOLEAN deep) __attribute__((warn_unused_result));
 dlist* dlist_filter_i(dlist *head, void *aux, lMapFunc, BOOLEAN free_data) __attribute__((warn_unused_result));
 dlist* dlist_transform(dlist *head, void* aux, lTransFunc);
-BOOLEAN dlist_map(dlist *head, BOOLEAN more_info, void* aux, lMapFunc);
+BOOLEAN dlist_map(dlist *head, const BOOLEAN more_info, const void* aux, const lMapFunc);
 size_t dlist_length(dlist *head);
 
 //Merging

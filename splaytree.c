@@ -7,7 +7,7 @@ new_splaynode(Object* data, BOOLEAN deep_copy) {
 	splaytree init = {
 		.right = NULL,
 		.left = NULL,
-		.data = deep_copy?(data->method->copy(data, LINKED_MALLOC(data->method->size))):data
+		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)), data):data
 	};
 	return memcpy(LINKED_MALLOC(sizeof(splaytree)), &init, sizeof(splaytree));
 }
@@ -92,7 +92,7 @@ splay_remove(splaytree* root, Object *data, const Comparable_vtable *data_method
 	if(data_method->compare(data, (Object*)root->data) == 0){// match found
 		if(rtn) *rtn = root->data;
 		if(destroy_data){
-			root->data->method->destroy(root->data);
+			CALL_VOID(root->data,destroy,(root->data));
 			root->data = NULL;
 		}
 		if(root->left == NULL){

@@ -1,5 +1,6 @@
 #include "dlist.h"
 #include "assert.h"
+#define CALL_POSSIBLE(OBJ, METHOD) (OBJ && OBJ->method && OBJ->method->METHOD)
 
 static inline dlist*
 new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
@@ -7,7 +8,7 @@ new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
 	dlist init = {
 		.next = (next==NULL&&prev==NULL)?lnew:next,
 		.prev = (next==NULL&&prev==NULL)?lnew:prev,
-		.data = deep_copy?data->method->copy(data, LINKED_MALLOC(data->method->size)):data
+		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)), data):data
 	};
 	memcpy(lnew, &init, sizeof(*lnew));
 	return lnew;
@@ -79,7 +80,7 @@ dlist_clear(dlist *head, BOOLEAN destroy_data){
 	dlist *run = head, *n = head;
 	if(head == NULL) return;
 	do{
-		if(destroy_data) run->data->method->destroy(run->data);
+		if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 		n = run->next;
 		LINKED_FREE(run);
 		run = n;
@@ -106,7 +107,7 @@ dlist_dequeue(dlist *head, Object** data, BOOLEAN destroy_data){
 	if(!head) return NULL;
 	if(head->next == head){
 		if(data) *data = head->data;
-		if(destroy_data) head->data->method->destroy(head->data);
+		if(destroy_data) CALL_VOID(head->data,destroy,(head->data));
 		LINKED_FREE(head);
 		head = NULL;
 	} else {
@@ -115,7 +116,7 @@ dlist_dequeue(dlist *head, Object** data, BOOLEAN destroy_data){
 		tmp->next->prev = tmp->prev;
 		tmp->prev->next = tmp->next;
 		if(data) *data = tmp->data;
-		if(destroy_data) tmp->data->method->destroy(tmp->data);
+		if(destroy_data) CALL_VOID(tmp->data,destroy,(tmp->data));
 		LINKED_FREE(tmp);
 	}
 	return head;
@@ -163,8 +164,9 @@ dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data){
 	return head;
 }
 
-static inline BOOLEAN
-dlist_map_internal(dlist *head, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+//Other Functions
+BOOLEAN
+dlist_map(dlist *head, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	dlist *run = head;
 	size_t depth = 0, length = 0;
 	if(more_info) length = dlist_length(head);
@@ -179,20 +181,14 @@ dlist_map_internal(dlist *head, BOOLEAN pass_data, BOOLEAN more_info, void* aux,
 				.size = length,
 				.aux = aux
 			};
-			if(!func(pass_data?run->data:(Object*)run, (void*)&ax)) return FALSE;
+			if(!func(run->data, (void*)&ax, run)) return FALSE;
 		} else {
-			if(!func(pass_data?run->data:(Object*)run, aux)) return FALSE;
+			if(!func(run->data, aux, run)) return FALSE;
 		}
 		run = run->next;
 		depth++;
 	} while(run != head);
 	return TRUE;
-}
-
-//Other Functions
-BOOLEAN
-dlist_map(dlist *head, BOOLEAN more_info, void* aux, lMapFunc func){
-	return dlist_map_internal(head, TRUE, more_info, aux, func);
 }
 
 struct dlist_filter_d {
@@ -203,8 +199,8 @@ struct dlist_filter_d {
 };
 
 static BOOLEAN
-dlist_filter_f(Object *data, struct dlist_filter_d *aux){
-	if(aux->func(data, aux->aux)){
+dlist_filter_f(Object *data, struct dlist_filter_d *aux, void *node){
+	if(aux->func(data, aux->aux, node)){
 		aux->list = dlist_append(aux->list, data, aux->deep);
 	}
 	return TRUE;
@@ -227,10 +223,10 @@ dlist_filter_i(dlist *head, void* aux, lMapFunc func, BOOLEAN free_data){
 	if(!func || !head) return head;
 	dlist *run = head;
 	do{
-		if(!func(run->data, aux)){
+		if(!func(run->data, aux, run)){
 			if(run == head){
 				BOOLEAN first = TRUE;
-				while(head && run == head && (first || !func(run->data, aux))){
+				while(head && run == head && (first || !func(run->data, aux, run))){
 					head = run = dlist_dequeue(run, NULL, free_data);
 					first = FALSE;
 				}
@@ -252,8 +248,8 @@ struct dlist_transform_d {
 };
 
 static BOOLEAN
-dlist_transform_f(dlist* node, struct dlist_transform_d* aux){
-	return aux->func(&node->data, aux->aux);
+dlist_transform_f(Object* dat, struct dlist_transform_d* aux, dlist *node){
+	return aux->func(&node->data, aux->aux, node);
 }
 
 /**
@@ -265,7 +261,7 @@ dlist_transform(dlist *head, void* aux, lTransFunc func){
 		.aux = aux,
 		.func = func
 	};
-	dlist_map_internal(head, FALSE, FALSE, &dd, (lMapFunc)dlist_transform_f);
+	dlist_map(head, FALSE, &dd, (lMapFunc)dlist_transform_f);
 	return head;
 }
 

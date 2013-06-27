@@ -15,7 +15,7 @@ typedef struct aLong {
 	const aLong_vtable *method;
 	long data;
 } aLong;
-static long aLong_compare(const aLong *self, const aLong *b){ return b->data - self->data; }
+static long aLong_compare(const aLong *self, const aLong *b){ return self->data - b->data; }
 static void aLong_destroy(aLong *self) { LINKED_FREE(self); }
 
 static aLong_vtable aLong_type = {
@@ -310,8 +310,8 @@ btree_dump_map_f(aLong* data, lMapFuncAux* more){
 }
 
 static BOOLEAN
-btree_print_map_f(aLong *data, lMapFuncAux*more){
-	printf("%*s%lu: %ld\n", (int)more->depth, "", more->depth, data->data);
+btree_print_map_f(aLong *data, lMapFuncAux*more, btree *node){
+	printf("%*s%lu: %ld (%p,%p)\n", (int)more->depth, "", more->depth, data->data, node->left?node->left->data:NULL, node->right?node->right->data:NULL);
 	return TRUE;
 }
 
@@ -328,10 +328,10 @@ test_btree(){
 	const size_t x2_size = sizeof(x2)/sizeof(x2[0]);
 	//long x3[] = { 3, 4, 7, 8, 11, 12, 14, 15, 16, 17, 18 };
 	size_t i = 0;
-	for(i = 0; i < sizeof(x1)/sizeof(x1[0]); i++){
+	for(i = 0; i < x1_size; i++){
 		t1 = btree_insert(t1, (Object*)aLong_new(x1[i]), &aLong_type.compare, FALSE);
 	}
-	for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
+	for(i = 0; i < x2_size; i++){
 		t2 = btree_insert(t2, (Object*)aLong_new(x2[i]), &aLong_type.compare, FALSE);
 	}
 	//for(i = 0; i < sizeof(x2)/sizeof(x2[0]); i++){
@@ -351,7 +351,7 @@ test_btree(){
 	t1 = btree_remove(t1, (Object*)&tmp, &aLong_type.compare, (Object**)&mp, FALSE);
 	if(mp->data != x1[5])
 		printf("Error: Unable to remove element\n");
-	mp->method->parent.destroy((Object*)mp);
+	CALL_VOID(mp,parent.destroy,((Object*)mp));
 	printf("Tree Structures:\n");
 	{
 		const long expect1[] = {8,3,1,6,4,10,14,13};
@@ -402,8 +402,8 @@ test_btree(){
 	{
 		size_t idepth, isize, fdepth, fsize;
 		btree_info(t1, NULL, &idepth, NULL, NULL, &isize, NULL, NULL);
-		//btree_map(t1, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)btree_print_map_f);
 		t1 = btree_balance(t1);
+		//btree_map(t1, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)btree_print_map_f);
 		btree_info(t1, NULL, &fdepth, NULL, NULL, &fsize, NULL, NULL);
 		BOOLEAN pass = (fdepth<=idepth)&&fsize==isize&&fdepth+1==(size_t)ceil(log(fsize+1)/log(2));
 		printf("Tree 1 Rebalanced: ");
@@ -446,9 +446,9 @@ typedef struct graph_dump_map_d {
 } graph_dump_map_d;
 
 static BOOLEAN
-graph_dump_map_f(aLong* data, lMapFuncAux* more){
+graph_dump_map_f(aLong* data, lMapFuncAux* more, graph* node){
 	graph_dump_map_d *aux = more->aux;
-	if(more->position == 0) printf("\n");
+	//if(more->position == 0) printf("\n");
 	//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
 	aux->test[aux->pos] = data->data;
 	aux->pos++;
@@ -485,7 +485,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST, TRUE, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], DEPTH_FIRST, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -496,7 +496,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST_POST, TRUE, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], DEPTH_FIRST_POST, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -507,7 +507,7 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], BREADTH_FIRST, TRUE, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_map(g[0], BREADTH_FIRST, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{

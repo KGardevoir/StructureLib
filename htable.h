@@ -27,7 +27,7 @@ typedef struct htable_node {
 //Hash Tables
 htable* htable_insert(htable *table, Object* key, const Comparable_vtable *key_method, void *data, BOOLEAN copy, size_t isize) __attribute__((warn_unused_result));
 htable* htable_remove(htable *table, Object* key, const Comparable_vtable *key_method, Object **key_rtn, void **rtn) __attribute__((warn_unused_result));
-BOOLEAN htable_map(htable *table, TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void* aux, lMapFunc);
+BOOLEAN htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, const void* aux, const lMapFunc);
 void htable_clear(htable* tbl);//Destroy all nodes in htable
 void* htable_element(htable *table, Object* key, const Comparable_vtable *key_method);
 

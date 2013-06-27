@@ -34,5 +34,5 @@ graph* graph_find(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_v
 dlist* graph_path(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_vtable* key_method) __attribute__((warn_unused_result));
 graph* graph_path_key_match(graph *root, dlist *key_path);
 
-BOOLEAN graph_map(graph* root, TRAVERSAL_STRATEGY, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func);
+BOOLEAN graph_map(graph* root, const TRAVERSAL_STRATEGY, const BOOLEAN more_info, const void* aux, const lMapFunc func);
 #endif

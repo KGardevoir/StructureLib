@@ -8,7 +8,7 @@ new_bsnode(Object* data, BOOLEAN deep_copy){
 	btree init = {
 		.left = NULL,
 		.right = NULL,
-		.data = deep_copy?data->method->copy(data, LINKED_MALLOC(data->method->size)):data
+		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)),data):data
 	};
 	return memcpy(LINKED_MALLOC(sizeof(btree)), &init, sizeof(init));
 }
@@ -63,7 +63,7 @@ btree_remove(btree *root, Object* data, const Comparable_vtable* data_method, Ob
 	data = node->data;
 	LINKED_FREE(node);
 	if(destroy_data){
-		data->method->destroy(data);
+		CALL_VOID(data, destroy,(data));
 		data = NULL;
 	}
 	if(rtn) *rtn = data;
@@ -179,7 +179,7 @@ btree_map_internal_d_new(size_t depth, btree *node){
 }
 
 static inline BOOLEAN
-btree_map_in_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void *aux, lMapFunc func){
+btree_map_in_internal(btree *root, const BOOLEAN more_info, const void *aux, const lMapFunc func){
 	dlist *stk = NULL;
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
@@ -205,10 +205,10 @@ btree_map_in_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void *a
 					.size = size,
 					.aux = aux
 				};
-				if(!func(pass_data?cur->data:(Object*)cur, &ax)) return FALSE;
+				if(!func(cur->data, &ax, cur)) return FALSE;
 				position++;
 			} else {
-				if(!func(pass_data?cur->data:(Object*)cur, aux)) return FALSE;
+				if(!func(cur->data, aux, cur)) return FALSE;
 			}
 			cur = cur->right;
 		}
@@ -216,7 +216,7 @@ btree_map_in_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void *a
 	return TRUE;
 }
 static inline BOOLEAN
-btree_map_pre_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+btree_map_pre_internal(btree *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	dlist *stk = NULL;
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
@@ -233,10 +233,10 @@ btree_map_pre_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* 
 					.size = size,
 					.aux = aux
 				};
-				if(!func(pass_data?cur->data:(Object*)cur, &ax)) goto false_cleanup;
+				if(!func(cur->data, &ax, cur)) goto false_cleanup;
 				position++;
 			} else {
-				if(!func(pass_data?cur->data:(Object*)cur, aux)) goto false_cleanup;
+				if(!func(cur->data, aux, cur)) goto false_cleanup;
 			}
 			cur = cur->left;
 		} else {
@@ -260,7 +260,7 @@ false_cleanup:
 	}
 }
 static inline BOOLEAN
-btree_map_post_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+btree_map_post_internal(btree *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	if(!root) return TRUE;
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info){
@@ -288,10 +288,10 @@ btree_map_post_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void*
 					.size = size,
 					.aux = aux
 				};
-				if(!func(pass_data?cur->data:(Object*)cur, &ax)) goto false_cleanup;
+				if(!func(cur->data, &ax, cur)) goto false_cleanup;
 				position++;
 			} else {
-				if(!func(pass_data?cur->data:(Object*)cur, aux)) goto false_cleanup;
+				if(!func(cur->data, aux, cur)) goto false_cleanup;
 			}
 			stk = dlist_dequeue(stk, (Object**)&node, FALSE);
 			LINKED_FREE(node);
@@ -308,7 +308,7 @@ false_cleanup:
 	}
 }
 static inline BOOLEAN
-btree_map_breadth_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+btree_map_breadth_internal(btree *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	dlist* q = dlist_append(NULL, (Object*)btree_map_internal_d_new(0, root), FALSE);
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
@@ -324,10 +324,10 @@ btree_map_breadth_internal(btree *root, BOOLEAN pass_data, BOOLEAN more_info, vo
 				.size = size,
 				.aux = aux
 			};
-			if(!func(pass_data?node->data:(Object*)node, &ax)) goto false_cleanup;
+			if(!func(node->data, &ax, node)) goto false_cleanup;
 			position++;
 		} else {
-			if(!func(pass_data?node->data:(Object*)node, aux)) goto false_cleanup;
+			if(!func(node->data, aux, node)) goto false_cleanup;
 		}
 		if(prev && (prev->left == node || prev->right == node)){//new level
 			depth++;
@@ -351,18 +351,18 @@ false_cleanup:
 }
 
 static inline BOOLEAN
-btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, BOOLEAN pass_data, BOOLEAN more_info, void* aux, lMapFunc func){
+btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	if(!func) return FALSE;
 	if(!root) return TRUE;
 	switch(strat){
 		case DEPTH_FIRST_PRE:
-			return btree_map_pre_internal(root, pass_data, more_info, aux, func);
+			return btree_map_pre_internal(root, more_info, aux, func);
 		case DEPTH_FIRST_IN:
-			return btree_map_in_internal(root, pass_data, more_info, aux, func);
+			return btree_map_in_internal(root, more_info, aux, func);
 		case DEPTH_FIRST_POST:
-			return btree_map_post_internal(root, pass_data, more_info, aux, func);
+			return btree_map_post_internal(root, more_info, aux, func);
 		case BREADTH_FIRST:
-			return btree_map_breadth_internal(root, pass_data, more_info, aux, func);
+			return btree_map_breadth_internal(root, more_info, aux, func);
 	}
 	return FALSE;
 }
@@ -378,8 +378,8 @@ btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, void* aux, TMapF
 #endif
 
 BOOLEAN
-btree_map(btree* root, const TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void* aux, lMapFunc func){
-	return btree_map_internal(root, strat, TRUE, more_info, aux, func);
+btree_map(btree* root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+	return btree_map_internal(root, strat, more_info, aux, func);
 }
 
 struct btree_clear_d {
@@ -387,13 +387,13 @@ struct btree_clear_d {
 };
 
 static BOOLEAN
-btree_clear_f1(btree* root, dlist **freer){
+btree_clear_f1(Object *data, dlist **freer, btree* root){
 	*freer = dlist_append(*freer, (Object*)root, FALSE);
 	return TRUE;
 }
 static BOOLEAN
-btree_clear_f2(btree* root, struct btree_clear_d *aux){
-	if(aux->destroy_data) root->data->method->destroy(root->data);
+btree_clear_f2(btree* root, struct btree_clear_d *aux, dlist *node){
+	if(aux->destroy_data) CALL_VOID(root->data, destroy, (root->data));
 	LINKED_FREE(root);
 	return TRUE;
 }
@@ -401,7 +401,7 @@ btree_clear_f2(btree* root, struct btree_clear_d *aux){
 void
 btree_clear(btree* root, BOOLEAN destroy_data){//iterate in postfix order
 	dlist *freer = NULL;
-	btree_map_post_internal(root, FALSE, FALSE, &freer, (lMapFunc)btree_clear_f1);
+	btree_map_post_internal(root, FALSE, &freer, (lMapFunc)btree_clear_f1);
 	struct btree_clear_d aux = {.destroy_data = destroy_data};
 	dlist_map(freer, FALSE, &aux, (lMapFunc)btree_clear_f2);
 	dlist_clear(freer, FALSE);
@@ -459,7 +459,8 @@ struct btree_balance_d {
 };
 
 static BOOLEAN
-btree_balance_f(btree *node, struct btree_balance_d *dat){
+btree_balance_f(Object *data, struct btree_balance_d *dat, btree *node){
+	(void)data;
 	node->left = dat->prev;
 	if(dat->prev) dat->prev->right = node;
 	else dat->head = node;
@@ -502,7 +503,7 @@ btree_balance(btree *root){
 		.head = NULL
 	};
 	//turn tree into list
-	btree_map_in_internal(root, FALSE, FALSE, &nodes, (lMapFunc)btree_balance_f);
+	btree_map_in_internal(root, FALSE, &nodes, (lMapFunc)btree_balance_f);
 	nodes.prev->right = NULL;
 	btree* node = nodes.head;
 	size_t len = 1;

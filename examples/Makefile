@@ -23,14 +23,14 @@ all: $(OBJ)
 	$(CC) $^ -g $(LDFLAGS) -o parser
 
 .PHONY: clean
-
 clean:
 	rm -f *.o
 	rm -f token_parser parser
 	rm -f .depend
 	rm -f dlist_maker.h
 
-depend:
+.PHONY: depend
+depend: $(SRC)
 	@rm -f $(DEPENDS)
 	@echo "# MAKEDEPENDS" > $(DEPENDS)
 	@for file in $(SRC) ; do \

@@ -4,7 +4,7 @@ static inline slist*
 new_slist(Object* data, BOOLEAN deep_copy, slist* next){
 	slist init = {
 		.next = next,
-		.data = deep_copy?data->method->copy(data, LINKED_MALLOC(data->method->size)):data
+		.data = deep_copy?CALL(data, copy,(data, LINKED_MALLOC(data->method->size)), data):data
 	};
 	return memcpy(LINKED_MALLOC(sizeof(slist)), &init, sizeof(slist));
 }
@@ -46,7 +46,7 @@ slist_addOrdered(slist* he, Object* buf, const Comparable_vtable* buf_method, BO
 			runp = run;
 		}
 		if(overwrite && run && buf_method->compare(buf, run->data) == 0){
-			run->data->method->destroy(run->data);
+			CALL_VOID(run->data, destroy, (run->data));
 			run->data = lm->data;
 			LINKED_FREE(lm);
 		} else {
@@ -90,7 +90,7 @@ void
 slist_clear(slist *head, BOOLEAN destroy_data){
 	slist *run = head, *p = head;
 	for(; run; run = p){
-		if(destroy_data) run->data->method->destroy(run->data);
+		if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 		p = run->next;
 		LINKED_FREE(run);
 	}
@@ -111,13 +111,13 @@ slist_dequeue(slist *head, Object** data, BOOLEAN destroy_data){
 	slist *run = head;
 	if(!run->next){
 		if(data) *data = run->next->data;
-		if(destroy_data) run->data->method->destroy(run->data);
+		if(destroy_data) CALL_VOID(run->data, destroy,(run->data));
 		LINKED_FREE(run);
 		return NULL;
 	}
 	for(; run->next && run->next->next; run = run->next);
 	if(data) *data = run->next->data;
-	if(destroy_data) run->next->data->method->destroy(run->next->data);
+	if(destroy_data) CALL_VOID(run->next->data,destroy,(run->next->data));
 	LINKED_FREE(run->next);
 	run->next = NULL;
 	return head;
@@ -129,7 +129,7 @@ slist_pop(slist *head, Object** data, BOOLEAN destroy_data){
 	run = head;
 	head = head->next;
 	if(data) *data = run->data;
-	if(destroy_data) run->data->method->destroy(run->data);
+	if(destroy_data) CALL_VOID(run->data, destroy,(run->data));
 	LINKED_FREE(run);
 	return head;
 }
@@ -144,11 +144,11 @@ slist_remove(slist *head, void* key, const Comparable_vtable* key_method, BOOLEA
 	if(run && key_method->compare(key, run->data) == 0){
 		if(runp){
 			runp->next = run->next;
-			if(destroy_data) run->data->method->destroy(run->data);
+			if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 			LINKED_FREE(run);
 		} else {
 			head = run->next;
-			if(destroy_data) run->data->method->destroy(run->data);
+			if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 			LINKED_FREE(run);
 		}
 	}
@@ -165,11 +165,11 @@ slist_removeAll(slist *head, void* key, const Comparable_vtable* key_method, BOO
 		if(key_method->compare(key, run->data) == 0){
 			if(runp){
 				runp->next = run->next;
-				if(destroy_data) run->data->method->destroy(run->data);
+				if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 				LINKED_FREE(run);
 			} else {
 				head = run->next;
-				if(destroy_data) run->data->method->destroy(run->data);
+				if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 				LINKED_FREE(run);
 			}
 		}
@@ -187,11 +187,11 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data){
 	if(run && rem == run){
 		if(runp){
 			runp->next = run->next;
-			if(destroy_data) run->data->method->destroy(run->data);
+			if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 			LINKED_FREE(run);
 		} else {
 			head = run->next;
-			if(destroy_data) run->data->method->destroy(run->data);
+			if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
 			LINKED_FREE(run);
 		}
 	}
@@ -201,7 +201,7 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data){
 
 //Other Functions
 BOOLEAN
-slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc func){
+slist_map(slist *head, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	if(!func) return FALSE;
 	if(!head) return TRUE;
 	slist *p = head;
@@ -217,9 +217,9 @@ slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc func){
 				.size = length,
 				.aux = aux
 			};
-			if(!func(p->data, &ax)) return FALSE;
+			if(!func(p->data, &ax, p)) return FALSE;
 		} else {
-			if(!func(p->data, aux)) return FALSE;
+			if(!func(p->data, aux, p)) return FALSE;
 		}
 		depth++;
 	}

@@ -25,7 +25,7 @@ slist* slist_removeAll(slist *head, void* key, const Comparable_vtable* key_meth
 slist* slist_remove(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 
 //Other Operations
-BOOLEAN slist_map(slist *head, BOOLEAN more_info, void* aux, lMapFunc) __attribute__((warn_unused_result));
+BOOLEAN slist_map(slist *head, const BOOLEAN more_info, const void* aux, const lMapFunc) __attribute__((warn_unused_result));
 size_t slist_length(slist* head);
 
 //Find

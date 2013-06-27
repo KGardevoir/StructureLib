@@ -140,7 +140,7 @@ htable_element(htable* table, Object* key, const Comparable_vtable *key_method){
 }
 
 BOOLEAN
-htable_map(htable *table, const TRAVERSAL_STRATEGY strat, BOOLEAN more_info, void* aux, lMapFunc func){
+htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	if(!func) return FALSE;
 	if(!table) return TRUE;
 	size_t i = 0;
