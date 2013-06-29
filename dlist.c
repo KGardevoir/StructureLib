@@ -1,6 +1,5 @@
 #include "dlist.h"
 #include "assert.h"
-#define CALL_POSSIBLE(OBJ, METHOD) (OBJ && OBJ->method && OBJ->method->METHOD)
 
 static inline dlist*
 new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
@@ -265,6 +264,17 @@ dlist_transform(dlist *head, void* aux, lTransFunc func){
 	return head;
 }
 
+dlist*
+dlist_reverse(dlist *head){//reverse the order of the nodes
+	dlist *run = head;
+	do{
+		dlist *tmp = run->prev;
+		run->prev = run->next;
+		run->next = tmp;
+		run = run->prev;//we swapped next and prev, so we are actually moving forwards
+	} while(run != head);
+	return head->next;//return the node after this one the new head
+}
 
 #if 0 //debug
 void

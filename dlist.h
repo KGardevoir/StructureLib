@@ -42,6 +42,7 @@ dlist* dlist_filter_i(dlist *head, void *aux, lMapFunc, BOOLEAN free_data) __att
 dlist* dlist_transform(dlist *head, void* aux, lTransFunc);
 BOOLEAN dlist_map(dlist *head, const BOOLEAN more_info, const void* aux, const lMapFunc);
 size_t dlist_length(dlist *head);
+dlist *dlist_reverse(dlist *head) __attribute__((warn_unused_result));
 
 //Merging
 dlist* dlist_sort(dlist* head, void* key, const Comparator_vtable* key_method) __attribute__((warn_unused_result));

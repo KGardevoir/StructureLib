@@ -286,6 +286,30 @@ test_dlist(){
 		dlist_clear(l1, TRUE);
 		l1 = NULL;
 	}
+	{
+		const long expect1[] = { 1, 2, 3, 4, 5 };
+		const long expect2[] = { 2, 1 };
+		const long init1[] = { 5, 4, 3, 2, 1};
+		const long init2[] = { 1, 2 } ;
+		dlist_dump_map_d buffer = {
+			.max = ARRLENGTH(expect1),
+			.pos = 0,
+			.test1 = {0},
+			.test2 = {0}
+		};
+		dlist *l1 = make_dlist(init1, ARRLENGTH(init1));
+		l1 = dlist_reverse(l1);
+		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		printf("List 1 Reverse: "); compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
+		dlist_clear(l1, TRUE);
+		l1 = NULL;
+		memset(&buffer, 0, sizeof(buffer));
+		buffer.max = ARRLENGTH(init2);
+		l1 = make_dlist(init2, buffer.max);
+		l1 = dlist_reverse(l1);
+		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		printf("List 2 Reverse: "); compare_arrs(&expect2[0], buffer.max, &buffer.test1[0], buffer.pos);
+	}
 	printf("Finished dlists ---------------------------------\n");
 }
 

@@ -234,3 +234,15 @@ slist* p = head;
 	if(p && key_method->compare(key, p->data) == 0) return p;
 	return NULL;
 }
+
+slist*
+slist_reverse(slist* head){
+	slist *next = NULL, *prev = NULL, *run;
+	for(run = head; run != NULL; ){
+		next = run->next;
+		run->next = prev;
+		prev = run;
+		run = next;
+	}
+	return prev;
+}
