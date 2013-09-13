@@ -49,7 +49,7 @@ dlist_toSlist(dlist *head, BOOLEAN deep_copy){
 	slist* p = NULL;
 	dlist* d = head;
 	if(!d) return NULL;
-	do{ p = slist_push(p, d->data, deep_copy); d = d->prev; } while(d != head);
+	do{ p = slist_pushfront(p, d->data, deep_copy); d = d->prev; } while(d != head);
 	return p;
 }
 
@@ -60,7 +60,7 @@ array_toDlist(Object** array, size_t size, BOOLEAN deep_copy){
 	if(size == 0) return NULL;
 	size_t i = 0;
 	for(; i < size; i++){
-		p = dlist_append(p, array[i], deep_copy);
+		p = dlist_pushback(p, array[i], deep_copy);
 	}
 	return p;
 }
@@ -110,7 +110,7 @@ array_toSlist(Object** arr, size_t size, BOOLEAN deep){
 	size_t i = size;
 	slist *head = NULL;
 	for(; --i; ){
-		head = slist_push(head, arr[i], deep);
+		head = slist_pushfront(head, arr[i], deep);
 	}
 	return head;
 }
@@ -120,7 +120,7 @@ slist_toDlist(slist *head, BOOLEAN deep){
 	slist* p = head;
 	dlist* d = NULL;
 	for(; p; p = p->next){
-		d = dlist_append(d, p->data, deep);
+		d = dlist_pushback(d, p->data, deep);
 	}
 	return d;
 }
