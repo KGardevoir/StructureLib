@@ -10,16 +10,16 @@ typedef struct slist {
 #include "dlist.h"
 
 //Add
-slist* slist_push(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
-slist* slist_append(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
+slist* slist_pushfront(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
+slist* slist_pushback(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
 slist* slist_addOrdered(slist* he, Object* buf, const Comparable_vtable* buf_method, BOOLEAN copy, BOOLEAN overwrite) __attribute__((warn_unused_result));
 slist* slist_copy(slist* src, BOOLEAN deep_copy) __attribute__((warn_unused_result));
 slist* slist_concat(slist *head, slist *tail) __attribute__((warn_unused_result));
 
 //Remove
 void slist_clear(slist *he, BOOLEAN destroy_data);
-slist* slist_dequeue(slist *head, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
-slist* slist_pop(slist *head, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
+slist* slist_popback(slist *head, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
+slist* slist_popfront(slist *head, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 slist* slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 slist* slist_removeAll(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 slist* slist_remove(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data) __attribute__((warn_unused_result));

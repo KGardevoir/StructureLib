@@ -14,12 +14,12 @@ new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
 }
 
 dlist*
-dlist_push(dlist* he, Object* buf, BOOLEAN deep_copy){
-	return dlist_append(he, buf, deep_copy)->prev;
+dlist_pushfront(dlist* he, Object* buf, BOOLEAN deep_copy){
+	return dlist_pushback(he, buf, deep_copy)->prev;
 }
 
 dlist*
-dlist_append(dlist* he, Object* buf, BOOLEAN deep_copy){
+dlist_pushback(dlist* he, Object* buf, BOOLEAN deep_copy){
 	dlist *lm;
 	lm = new_dlist(buf, deep_copy, NULL, NULL);
 	if(he == NULL){
@@ -68,7 +68,7 @@ dlist_copy(dlist* src, BOOLEAN deep_copy){
 	dlist* mnew = NULL, *runner = src;
 	do{
 		Object* new_data = runner->data;
-		mnew = dlist_append(mnew, new_data, deep_copy);
+		mnew = dlist_pushback(mnew, new_data, deep_copy);
 		runner = runner->next;
 	} while(runner != src);
 	return mnew;
@@ -102,7 +102,7 @@ dlist_length(dlist *head){
  * Remove head node and return new head
  */
 dlist*
-dlist_dequeue(dlist *head, Object** data, BOOLEAN destroy_data){
+dlist_popfront(dlist *head, Object** data, BOOLEAN destroy_data){
 	if(!head) return NULL;
 	if(head->next == head){
 		if(data) *data = head->data;
@@ -125,8 +125,8 @@ dlist_dequeue(dlist *head, Object** data, BOOLEAN destroy_data){
  * Remove node at end of list and return new head
  */
 dlist*
-dlist_pop(dlist *head, Object** dat, BOOLEAN destroy_data){
-	return dlist_dequeue(head->prev, dat, destroy_data);
+dlist_popback(dlist *head, Object** dat, BOOLEAN destroy_data){
+	return dlist_popfront(head->prev, dat, destroy_data);
 }
 
 dlist*
@@ -158,8 +158,8 @@ dlist_removeAll(dlist *head, void* key, const Comparable_vtable* key_method, BOO
 
 dlist*
 dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data){
-	if(head == rem) head = dlist_dequeue(head, NULL, destroy_data);
-	else head = dlist_dequeue(rem, NULL, destroy_data);
+	if(head == rem) head = dlist_popfront(head, NULL, destroy_data);
+	else head = dlist_popfront(rem, NULL, destroy_data);
 	return head;
 }
 
@@ -200,7 +200,7 @@ struct dlist_filter_d {
 static BOOLEAN
 dlist_filter_f(Object *data, struct dlist_filter_d *aux, void *node){
 	if(aux->func(data, aux->aux, node)){
-		aux->list = dlist_append(aux->list, data, aux->deep);
+		aux->list = dlist_pushback(aux->list, data, aux->deep);
 	}
 	return TRUE;
 }
@@ -226,13 +226,13 @@ dlist_filter_i(dlist *head, void* aux, lMapFunc func, BOOLEAN free_data){
 			if(run == head){
 				BOOLEAN first = TRUE;
 				while(head && run == head && (first || !func(run->data, aux, run))){
-					head = run = dlist_dequeue(run, NULL, free_data);
+					head = run = dlist_popfront(run, NULL, free_data);
 					first = FALSE;
 				}
 				if(!head) break;
 				run = run->next;
 			} else {
-				run = dlist_dequeue(run, NULL, free_data);
+				run = dlist_popfront(run, NULL, free_data);
 			}
 		} else {
 			run = run->next;

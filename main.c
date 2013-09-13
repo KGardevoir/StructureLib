@@ -164,7 +164,7 @@ make_dlist(const long a[], size_t s){
 	long i = 0;
 	dlist* newl = NULL;
 	for(; i < s; i++){
-		newl = dlist_append(newl, (Object*)aLong_new(a[i]), FALSE);
+		newl = dlist_pushback(newl, (Object*)aLong_new(a[i]), FALSE);
 	}
 	return newl;
 }
@@ -277,7 +277,7 @@ test_dlist(){
 			.test2 = {0}
 		};
 		dlist *l1 = make_dlist(init, ARRLENGTH(init));
-		l1 = dlist_dequeue(l1, NULL, TRUE);
+		l1 = dlist_popfront(l1, NULL, TRUE);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
 		printf("List 2 Dequeue (Element Order): ");
 		compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
@@ -308,6 +308,7 @@ test_dlist(){
 		l1 = make_dlist(init2, buffer.max);
 		l1 = dlist_reverse(l1);
 		dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+		dlist_clear(l1, TRUE);
 		printf("List 2 Reverse: "); compare_arrs(&expect2[0], buffer.max, &buffer.test1[0], buffer.pos);
 	}
 	printf("Finished dlists ---------------------------------\n");
@@ -540,7 +541,7 @@ test_graph(){
 		printf("Graph Size: %s\n", (nodes == GRAPH_TEST_SIZE && edges == 13)?"PASS":"FAIL");
 	}
 
-	graph_clear(g[0], TRUE); //FIXME since this is apparently unimplented, we leak tons of memory
+	graph_clear(g[0], TRUE);
 	printf("Finished graphs ---------------------------------\n");
 }
 

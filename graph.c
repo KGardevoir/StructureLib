@@ -58,7 +58,7 @@ graph_link(graph* root, graph* child){
 	if(child == NULL) return root;
 	if(root == NULL) return child;
 	//printf("%p %p %p\n", child, child->data, child->edges);
-	root->edges = dlist_append(root->edges, (Object*)child, FALSE);
+	root->edges = dlist_pushback(root->edges, (Object*)child, FALSE);
 	//Rather than adding ordered, order based on arrival time
 	return root;
 }
@@ -115,14 +115,14 @@ static inline BOOLEAN
 graph_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){//Post fix
 	splaytree *visited = NULL; //splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
 	splaytree *processed = NULL;
-	dlist *stk = dlist_append(NULL, (Object*)node_info_new(root, 0), FALSE);
+	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
 	size_t position = 0, size = 0;
 	if(more_info) graph_size(root, &size, NULL);
 	while(stk){
 		while(TRUE){//expand nodes to maximium (left-most)
 			node_info *g;
 			size_t prev_size = dlist_length(stk);
-			stk = dlist_dequeue(stk, (Object**)&g, FALSE);
+			stk = dlist_popfront(stk, (Object**)&g, FALSE);
 			visited = splay_insert(visited, (Object*)g->node, &g->node->method->comparable, FALSE);
 			//stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
 			dlist *new_list = dlist_copy(g->node->edges, FALSE);
@@ -131,12 +131,12 @@ graph_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void* aux,
 				run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
 			);
 			new_list = dlist_filter_i(new_list, &visited, (lMapFunc)graph_map_filter_f, TRUE);
-			stk = dlist_concat(dlist_append(new_list, (Object*)g, FALSE), stk);
+			stk = dlist_concat(dlist_pushback(new_list, (Object*)g, FALSE), stk);
 			size_t new_size = dlist_length(stk);
 			if(new_size <= prev_size) break;
 		}//expand till we can't expand any more.
 		node_info *g;
-		stk = dlist_dequeue(stk, (Object**)&g, FALSE);
+		stk = dlist_popfront(stk, (Object**)&g, FALSE);
 		processed = splay_insert(processed, (Object*)g->node, &g->node->method->comparable, FALSE);
 		stk = dlist_filter_i(stk, &processed, (lMapFunc)graph_map_filter_f, TRUE);//clear entries we have now processed
 		/*
@@ -194,12 +194,12 @@ BOOLEAN
 graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	if(method == DEPTH_FIRST_POST) return graph_map_internal_dfs_po(root, more_info, aux, func);
 	splaytree *visited = splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
-	dlist *stk = dlist_append(NULL, (Object*)node_info_new(root, 0), FALSE);
+	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
 	size_t position = 0, size = 0;
 	if(more_info) graph_size(root, &size, NULL);
 	while(stk){
 		node_info *g;
-		stk = dlist_dequeue(stk, (Object**)&g, FALSE);
+		stk = dlist_popfront(stk, (Object**)&g, FALSE);
 		visited = splay_insert(visited, (Object*)g->node, &g->node->method->comparable, FALSE);
 		stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, TRUE);
 
@@ -261,7 +261,7 @@ graph_clear_d {
 static BOOLEAN
 graph_clear_f(Object* dat, graph_clear_d* aux, graph *node){
 	if(aux->destroy_data) dat->method->destroy(dat);
-	aux->head = slist_push(aux->head, (Object*)node, FALSE);
+	aux->head = slist_pushfront(aux->head, (Object*)node, FALSE);
 	return TRUE;
 }
 

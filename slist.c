@@ -10,7 +10,7 @@ new_slist(Object* data, BOOLEAN deep_copy, slist* next){
 }
 
 slist*
-slist_push(slist* he, Object* buf, BOOLEAN copy){
+slist_pushfront(slist* he, Object* buf, BOOLEAN copy){
 	slist *lm;
 	lm = new_slist(buf, copy, NULL);
 	if(he == NULL){
@@ -23,7 +23,7 @@ slist_push(slist* he, Object* buf, BOOLEAN copy){
 }
 
 slist*
-slist_append(slist* he, Object* buf, BOOLEAN copy){
+slist_pushback(slist* he, Object* buf, BOOLEAN copy){
 	slist *lm, *he2;
 	lm = new_slist(buf, copy, NULL);
 	if(he == NULL){
@@ -66,11 +66,11 @@ slist*
 slist_copy(slist* src, BOOLEAN deep_copy){
 	slist *the_list = NULL, *list_start = NULL, *runner = src;
 	Object* new_data = runner->data;
-	the_list = list_start = slist_push(NULL, new_data, deep_copy);
+	the_list = list_start = slist_pushfront(NULL, new_data, deep_copy);
 	runner = runner->next;
 	for(; runner != NULL; runner = runner->next){
 		Object* new_data = runner->data;
-		the_list = slist_append(the_list, new_data, deep_copy)->next;
+		the_list = slist_pushback(the_list, new_data, deep_copy)->next;
 	}
 	return list_start;
 }
@@ -106,7 +106,7 @@ slist_length(slist *head){
 }
 
 slist*
-slist_dequeue(slist *head, Object** data, BOOLEAN destroy_data){
+slist_popback(slist *head, Object** data, BOOLEAN destroy_data){
 	if(!head) return NULL;
 	slist *run = head;
 	if(!run->next){
@@ -123,7 +123,7 @@ slist_dequeue(slist *head, Object** data, BOOLEAN destroy_data){
 	return head;
 }
 slist*
-slist_pop(slist *head, Object** data, BOOLEAN destroy_data){
+slist_popfront(slist *head, Object** data, BOOLEAN destroy_data){
 	slist *run = head;
 	if(!head) return head;
 	run = head;

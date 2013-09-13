@@ -14,11 +14,11 @@ typedef struct dlist {
 /**
  * Insert Node before head and rotate the list so that the current head is the one just added.
  */
-dlist* dlist_push(dlist*, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
+dlist* dlist_pushfront(dlist*, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
 /**
  * Insert Node behind head, at the end of the list
  */
-dlist* dlist_append(dlist*, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
+dlist* dlist_pushback(dlist*, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
 /**
  * Insert Node in order based on the method described by buf_method
  */
@@ -30,8 +30,8 @@ dlist* dlist_copy(dlist* src, BOOLEAN deep_copy) __attribute__((warn_unused_resu
 
 //Remove
 void dlist_clear(dlist *he, BOOLEAN destroy_data);
-dlist* dlist_dequeue(dlist* head, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
-dlist* dlist_pop(dlist* he, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
+dlist* dlist_popfront(dlist* head, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
+dlist* dlist_popback(dlist* he, Object** data, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 dlist* dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 dlist* dlist_removeAll(dlist*, void *key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 dlist* dlist_remove(dlist*, void *key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data) __attribute__((warn_unused_result));
