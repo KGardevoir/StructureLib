@@ -53,6 +53,8 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 //Find
 dlist* dlist_find(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
 BOOLEAN dlist_has(dlist *head, dlist* node);
+dlist *dlist_head(dlist *head);
+dlist *dlist_tail(dlist *head);
 dlist *dlist_at(dlist *head, size_t idx, BOOLEAN back);
 size_t dlist_loc(dlist *head, dlist *node);
 /**
@@ -69,7 +71,7 @@ void dlist_swap(dlist *a, dlist *b);
 			{\
 				_CODE\
 			}\
-			_ITER = _ITER->next;\
+			_ITER = (_ITER)->next;\
 			_depth++;\
 		} while(_ITER != _HEAD);\
 	}\
@@ -83,7 +85,7 @@ void dlist_swap(dlist *a, dlist *b);
 			{\
 				_CODE\
 			}\
-			_ITER = _ITER->prev;\
+			_ITER = (_ITER)->prev;\
 			_depth++;\
 		} while(_ITER != _HEAD);\
 	}\

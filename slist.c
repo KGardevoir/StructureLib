@@ -235,6 +235,51 @@ slist* p = head;
 	return NULL;
 }
 
+BOOLEAN
+slist_has(slist *head, slist* node){
+	slist *run;
+	SLIST_ITERATE(run, head,
+		if(run == node) return TRUE;
+	);
+	return FALSE;
+}
+
+slist *
+slist_head(slist *head){
+	return head;
+}
+
+slist *
+slist_tail(slist *head){
+	slist *run;
+	SLIST_ITERATE(run, head,
+		if(run->next == NULL) return run;
+	);
+	return head;
+}
+
+slist *
+slist_at(slist *head, size_t idx, BOOLEAN back){
+	slist *run;
+	size_t len = slist_length(head);
+	if(back) idx = len-idx;
+	if(idx < len){
+		SLIST_ITERATE(run, head,
+			if(_depth == idx) return run;
+		);
+	}
+	return head;
+}
+
+size_t
+slist_loc(slist *head, slist *node){
+	slist *run;
+	SLIST_ITERATE(run, head,
+		if(run == node) return _depth;
+	);
+	return -1;
+}
+
 slist*
 slist_reverse(slist* head){
 	slist *next = NULL, *prev = NULL, *run;

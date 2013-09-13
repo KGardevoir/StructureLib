@@ -428,6 +428,17 @@ dlist_loc(dlist *head, dlist *node){
 	return -1;//return maximium size of size_t otherwise
 }
 
+dlist*
+dlist_head(dlist *head){
+	return head;
+}
+
+dlist*
+dlist_tail(dlist *head){
+	if(head) return head->prev;
+	return NULL;
+}
+
 void
 dlist_swap(dlist *a, dlist *b){
 dlist *tmp = a->next;

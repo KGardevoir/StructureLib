@@ -7,8 +7,6 @@ typedef struct slist {
 	Object* data;
 } slist;
 
-#include "dlist.h"
-
 //Add
 slist* slist_pushfront(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
 slist* slist_pushback(slist* he, Object* buf, BOOLEAN copy) __attribute__((warn_unused_result));
@@ -31,10 +29,18 @@ slist* slist_reverse(slist* head) __attribute__((warn_unused_result));
 
 //Find
 slist* slist_find(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
+BOOLEAN slist_has(slist *head, slist* node);
+slist *slist_head(slist *head);
+slist *slist_tail(slist *head);
+slist *slist_at(slist *head, size_t idx, BOOLEAN back);
+size_t slist_loc(slist *head, slist *node);
+
+//Other
+
 #define SLIST_ITERATE(_ITER, _HEAD, _CODE) {\
 	_ITER = _HEAD;\
 	size_t _depth = 0;\
-	for(;_ITER;_ITER=_ITER->next, _depth++) {\
+	for(;_ITER;_ITER=(_ITER)->next, _depth++) {\
 		_CODE\
 	}\
 }
