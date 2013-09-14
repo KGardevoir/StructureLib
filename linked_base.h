@@ -50,7 +50,7 @@ typedef struct lMapFuncAux {
 	size_t depth;
 	size_t position;
 	size_t size;
-	const void* aux;//user data
+	void* aux;//user data
 } lMapFuncAux;//TODO finish implementing all fields for graphs and htable
 typedef BOOLEAN (*lMapFunc)(Object *data, const void *aux/*auxilarly data (constant between calls)*/, void* node); //a mapping function
 typedef BOOLEAN (*lTransFunc)(Object **data, const void* aux, const void* node);/*in-place data transformation, should always return TRUE as FALSE means stop*/

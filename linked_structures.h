@@ -1,6 +1,7 @@
 #ifndef _LINKED_STRUCTURES_H_
 #define _LINKED_STRUCTURES_H_
 
+#include "graph_tree.h"
 #include "graph.h"
 #include "btree.h"
 #include "splaytree.h"
