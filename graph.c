@@ -101,6 +101,22 @@ graph_map_filter_f(node_info *child, splaytree** tree){
 	return TRUE;
 }
 
+#if 0
+	typedef struct aLong {
+		const Object_vtable *method;
+		long data;
+	} aLong;
+
+#define DUMPLIST(BSTR, ESTR, LST, FMT, ACC) do { printf(BSTR); dlist *_run; DLIST_ITERATE(_run, LST, printf(FMT, ACC); ); printf(ESTR); } while(0)
+static BOOLEAN
+graph_print_children(aLong *data){
+	printf("%ld ", data->data);
+	return TRUE;
+}
+#else
+#define DUMPLIST(BSTR, ESTR, LST, FMT, ACC)
+#endif
+
 /**
  * Iterate through the graph in postfix order, normally this is performed prefix. The space complexity is O(3*E+N) worst
  * case, time complexity is O(N) (approximately).
@@ -179,17 +195,6 @@ cleanup:
 	return FALSE;
 }
 
-#if 0
-	typedef struct aLong {
-		const Object_vtable *method;
-		long data;
-	} aLong;
-
-#define DUMPLIST(BSTR, ESTR, LST, FMT, ACC) do { printf(BSTR); dlist *_run; DLIST_ITERATE(_run, LST, printf(FMT, ACC); ); printf(ESTR); } while(0)
-#else
-#define DUMPLIST(BSTR, ESTR, LST, FMT, ACC)
-#endif
-
 BOOLEAN
 graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	if(method == DEPTH_FIRST_POST) return graph_map_internal_dfs_po(root, more_info, aux, func);
@@ -201,20 +206,19 @@ graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info,
 		node_info *g;
 		stk = dlist_popfront(stk, (Object**)&g, FALSE);
 		visited = splay_insert(visited, (Object*)g->node, &g->node->method->comparable, FALSE);
-		stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, TRUE);
 
 		dlist *new_list = dlist_copy(g->node->edges, FALSE);
 		dlist *run;
 		DLIST_ITERATE(run, new_list,
 			run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
 		);
-		new_list = dlist_filter_i(new_list, &visited, (lMapFunc)graph_map_filter_f, TRUE);
 		if(method == DEPTH_FIRST || method == DEPTH_FIRST_PRE){
 			stk = dlist_concat(new_list, stk);
 		} else {
 			stk = dlist_concat(stk, new_list);
 		}
-		/*
+		stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, TRUE);
+	#if 0
 		printf("<");
 		dlist_map(g->edges, FALSE, NULL, (lMapFunc)graph_print_children);
 		printf(">");
@@ -222,7 +226,7 @@ graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info,
 		dlist_map(stk, FALSE, NULL, (lMapFunc)graph_print_children);
 		printf("]");
 		printf("(%ld);", g->data);
-		*/
+	#endif
 		if(more_info){
 			lMapFuncAux ax = {
 				.isAux = TRUE,

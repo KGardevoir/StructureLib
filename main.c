@@ -79,7 +79,7 @@ compare_arrs(const long *expect, const size_t length, const long *got, const siz
 	if(length != got_length){
 		printf("FAILURE, inconsitent number of nodes (Got: %ld, Expected: %ld)\n", got_length, length);
 	}
-	printf("PASS\n");
+	if(!failure) printf("PASS\n");
 	return !failure;
 }
 
@@ -541,7 +541,7 @@ test_graph(){
 	{
 		size_t nodes, edges;
 		graph_size(g[0], &nodes, &edges);
-		printf("Graph Size: %s\n", (nodes == GRAPH_TEST_SIZE && edges == 13)?"PASS":"FAIL");
+		printf("Graph Size: %s\n", (nodes == ARRLENGTH(nums) && edges == 13)?"PASS":"FAIL");
 	}
 
 	graph_clear(g[0], TRUE);
@@ -570,7 +570,7 @@ test_tree_graph(){
 	graph_tree_link(g[6], g[5]);
 	{
 		printf("Depth First Search (PRE): ");
-		const long expect[] = {0,1,2,3,4,5,6};
+		const long expect[] = {0,1,2,3,4,4,5,4,6,5,4,4,6,5,4};
 		graph_dump_map_d buffer = {
 			.max = ARRLENGTH(expect),
 			.pos = 0,
@@ -581,7 +581,7 @@ test_tree_graph(){
 	}
 	{
 		printf("Depth First Search (POST): ");
-		const long expect[] = {4,3,2,5,6,1,0};
+		const long expect[] = {4,3,4,2,4,5,4,5,6,1,4,4,5,6,0};
 		graph_dump_map_d buffer = {
 			.max = ARRLENGTH(expect),
 			.pos = 0,
@@ -592,7 +592,7 @@ test_tree_graph(){
 	}
 	{
 		printf("Breadth First Search: ");
-		const long expect[] = {0,1,4,6,2,5,3};
+		const long expect[] = {0,1,4,6,2,5,6,5,3,4,4,5,4,4,4};
 		graph_dump_map_d buffer = {
 			.max = ARRLENGTH(expect),
 			.pos = 0,
@@ -604,10 +604,9 @@ test_tree_graph(){
 	{
 		size_t nodes, edges;
 		graph_tree_size(g[0], &nodes, &edges);
-		printf("Graph Size: %s\n", (nodes == GRAPH_TEST_SIZE && edges == 12)?"PASS":"FAIL");
+		printf("Graph Size: %s\n", (nodes == 15 && edges == 14)?"PASS":"FAIL");
 	}
-
-	graph_tree_clear(g[0], TRUE);
+	graph_clear(g[0], TRUE);
 	printf("Finished tree graphs-----------------------------\n");
 }
 

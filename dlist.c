@@ -178,7 +178,7 @@ dlist_map(dlist *head, const BOOLEAN more_info, const void* aux, const lMapFunc 
 				.position = depth,
 				.depth = depth,
 				.size = length,
-				.aux = aux
+				.aux = (void*)aux
 			};
 			if(!func(run->data, (void*)&ax, run)) return FALSE;
 		} else {
@@ -266,6 +266,7 @@ dlist_transform(dlist *head, void* aux, lTransFunc func){
 
 dlist*
 dlist_reverse(dlist *head){//reverse the order of the nodes
+	if(head == NULL) return head;
 	dlist *run = head;
 	do{
 		dlist *tmp = run->prev;
@@ -436,7 +437,7 @@ dlist_head(dlist *head){
 dlist*
 dlist_tail(dlist *head){
 	if(head) return head->prev;
-	return NULL;
+	return head;
 }
 
 void

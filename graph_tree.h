@@ -12,7 +12,6 @@ graph* graph_tree_link(graph* root, graph* child);
 
 graph* graph_tree_remove(graph* root, Object* key, Object** data, BOOLEAN copy) __attribute__((warn_unused_result));
 graph_adjmat* graph_tree_matrix(graph* root, Object* key, Object** data, BOOLEAN copy) __attribute__((warn_unused_result));
-void graph_tree_clear(graph *root, BOOLEAN destroy_data);
 
 void graph_tree_size(graph* root, size_t* nodes, size_t* edges);//count of all the nodes in the graph
 graph* graph_tree_find(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_vtable* key_method);
