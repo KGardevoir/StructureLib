@@ -22,7 +22,7 @@ dlist* dlist_pushback(dlist*, Object* buf, BOOLEAN copy) __attribute__((warn_unu
 /**
  * Insert Node in order based on the method described by buf_method
  */
-dlist* dlist_addOrdered(dlist*, void* buf, const Comparable_vtable* buf_method, BOOLEAN copy) __attribute__((warn_unused_result));
+dlist* dlist_addOrdered(dlist*, Object* buf, const Comparable_vtable* buf_method, BOOLEAN copy) __attribute__((warn_unused_result));
 /**
  * Copy entire list
  */

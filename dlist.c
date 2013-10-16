@@ -34,7 +34,7 @@ dlist_pushback(dlist* he, Object* buf, BOOLEAN deep_copy){
 }
 
 dlist*
-dlist_addOrdered(dlist* he, void* buf, const Comparable_vtable* buf_method, BOOLEAN deep_copy){
+dlist_addOrdered(dlist* he, Object* buf, const Comparable_vtable* buf_method, BOOLEAN deep_copy){
 	dlist *lm, *run;
 	lm = new_dlist((Object*)buf, deep_copy, NULL, NULL);
 	if(he == NULL){

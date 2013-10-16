@@ -1,5 +1,18 @@
 #include "btree.h"
 
+#include "aLong.h"
+#include <limits.h>
+#define NODE_PRINT(P) do {\
+	printf("(%s=%p)", #P, P);\
+	if(P) printf("->data->data=%ld", ((aLong*)(P)->data)->data);\
+	printf(", (%s->left=%p)", #P, (P)->left);\
+	if((P)->left) printf("->data->data=%ld", ((aLong*)((P)->left->data))->data);\
+	printf(", (%s->right=%p)", #P, (P)->right);\
+	if((P)->right) printf("->data->data=%ld", ((aLong*)(P)->right->data)->data);\
+	printf("\n");\
+} while(0)
+
+
 /* Algorithms adapted from Ch.12 of Introduction To Algorithms by Thomas H. Cormen, Charles E. Leiserson, Ronald L.
  * Rivest, Clifford Stein */
 
@@ -17,6 +30,24 @@ btree*
 btree_insert(btree *root, Object* data, const Comparable_vtable* data_method, BOOLEAN copy){
 	btree *p = btree_parent(root, data, data_method);
 	btree *lnew = new_bsnode(data, copy);
+	if(!p){//tree was NULL
+		p = root = lnew;
+	} else if(data_method->compare(data, p->data) < 0) {
+		p->left = lnew;
+	} else if(data_method->compare(data, p->data) > 0) {
+		p->right = lnew;
+	} else {//are equal, ignore for now (no duplicates)
+		LINKED_FREE(lnew);
+	}
+	//NODE_PRINT(p);
+	return root;
+}
+
+btree*
+btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data_method, size_t *r_depth, BOOLEAN copy){
+	size_t depth = 0;
+	btree *p = btree_parent_with_depth(root, data, data_method, &depth);
+	btree *lnew = new_bsnode(data, copy);
 	if(p == NULL){//tree was NULL
 		root = lnew;
 	} else if(data_method->compare(data, p->data) < 0) {
@@ -26,8 +57,10 @@ btree_insert(btree *root, Object* data, const Comparable_vtable* data_method, BO
 	} else {//are equal, ignore for now (no duplicates)
 		LINKED_FREE(lnew);
 	}
+	if(r_depth) *r_depth = depth+1;
 	return root;
 }
+
 
 static btree*
 btree_transplant(btree *root, btree *u, btree *v, btree *up, btree *vp){
@@ -43,9 +76,9 @@ btree_transplant(btree *root, btree *u, btree *v, btree *up, btree *vp){
 
 btree*
 btree_remove(btree *root, Object* data, const Comparable_vtable* data_method, Object** rtn, BOOLEAN destroy_data){
-	btree *node = btree_find(root, data, data_method);
+	btree *nodep = btree_parent(root, data, data_method);//look for the parent first (or the would-be parent)
+	btree *node = btree_find(nodep, data, data_method);//use the parent to locate the next node
 	if(node == NULL) return NULL;//nothing to return, no such element
-	btree *nodep = btree_parent(root, data, data_method);
 	if(node->left == NULL){
 		root = btree_transplant(root, node, node->right, nodep, node);
 	} else if(node->right == NULL){
@@ -64,31 +97,38 @@ btree_remove(btree *root, Object* data, const Comparable_vtable* data_method, Ob
 	LINKED_FREE(node);
 	if(destroy_data){
 		CALL_VOID(data, destroy,(data));
-		data = NULL;
 	}
 	if(rtn) *rtn = data;
 	return root;
 }
 
 btree*
-btree_find(btree *root, Object *data, const Comparable_vtable *data_method){
-	long c;
+btree_find_with_depth(btree *root, Object *data, const Comparable_vtable *data_method, size_t *r_depth){
+	root = btree_parent_with_depth(root, data, data_method, r_depth);
 	if(root == NULL) return root;
-	while(root != NULL && (c = data_method->compare(data, root->data)) != 0){
-		if(c < 0){
-			root = root->left;
-		} else {
-			root = root->right;
-		}
+	//NODE_PRINT(root);
+	if(data_method->compare(data, root->data) < 0){
+		root = root->left;
+	} else {
+		root = root->right;
 	}
+	//NODE_PRINT(root);
+	if(r_depth) *r_depth = *r_depth+1;
+	if(root && data_method->compare(data, root->data) != 0) return NULL;
 	return root;
 }
 
 btree*
-btree_parent(btree *root, Object* data, const Comparable_vtable *data_method){
+btree_find(btree *root, Object *data, const Comparable_vtable *data_method){
+	return btree_find_with_depth(root, data, data_method, NULL);
+}
+
+btree*
+btree_parent_with_depth(btree *root, Object* data, const Comparable_vtable *data_method, size_t *r_depth){
 	long c;
+	size_t depth = 0;
+	if(!root) return root;
 	btree *parent = root;
-	if(root == NULL) return root;
 	while(root != NULL && (c = data_method->compare(data, root->data)) != 0){
 		parent = root;
 		if(c < 0){
@@ -96,8 +136,15 @@ btree_parent(btree *root, Object* data, const Comparable_vtable *data_method){
 		} else {
 			root = root->right;
 		}
+		depth++;
 	}
+	if(parent && r_depth) *r_depth = depth-1;
 	return parent;
+}
+
+btree*
+btree_parent(btree *root, Object* data, const Comparable_vtable *data_method){
+	return btree_parent_with_depth(root, data, data_method, NULL);
 }
 
 dlist* /* with type btree*/
@@ -179,7 +226,7 @@ btree_map_internal_d_new(size_t depth, btree *node){
 }
 
 static inline BOOLEAN
-btree_map_in_internal(btree *root, const BOOLEAN more_info, const void *aux, const lMapFunc func){
+btree_map_in_internal(btree *root, const BOOLEAN more_info, void *aux, const lMapFunc func){
 	dlist *stk = NULL;
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
@@ -216,7 +263,7 @@ btree_map_in_internal(btree *root, const BOOLEAN more_info, const void *aux, con
 	return TRUE;
 }
 static inline BOOLEAN
-btree_map_pre_internal(btree *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+btree_map_pre_internal(btree *root, const BOOLEAN more_info, void* aux, const lMapFunc func){
 	dlist *stk = NULL;
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
@@ -260,7 +307,7 @@ false_cleanup:
 	}
 }
 static inline BOOLEAN
-btree_map_post_internal(btree *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+btree_map_post_internal(btree *root, const BOOLEAN more_info, void* aux, const lMapFunc func){
 	if(!root) return TRUE;
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info){
@@ -308,7 +355,7 @@ false_cleanup:
 	}
 }
 static inline BOOLEAN
-btree_map_breadth_internal(btree *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+btree_map_breadth_internal(btree *root, const BOOLEAN more_info, void* aux, const lMapFunc func){
 	dlist* q = dlist_pushback(NULL, (Object*)btree_map_internal_d_new(0, root), FALSE);
 	size_t depth = 0, position = 0, size = 0;
 	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
@@ -351,7 +398,7 @@ false_cleanup:
 }
 
 static inline BOOLEAN
-btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, void* aux, const lMapFunc func){
 	if(!func) return FALSE;
 	if(!root) return TRUE;
 	switch(strat){
@@ -378,7 +425,7 @@ btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, void* aux, TMapF
 #endif
 
 BOOLEAN
-btree_map(btree* root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+btree_map(btree* root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, void* aux, const lMapFunc func){
 	return btree_map_internal(root, strat, more_info, aux, func);
 }
 
@@ -467,11 +514,6 @@ btree_balance_f(Object *data, struct btree_balance_d *dat, btree *node){
 	dat->prev = node;
 	return TRUE;
 }
-
-struct aLong {
-	void *method;
-	long val;
-};
 
 static btree *
 btree_balance_i(btree *mid, size_t len){

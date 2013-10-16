@@ -128,7 +128,7 @@ graph_print_children(aLong *data){
  * @param func - function to do
  */
 static inline BOOLEAN
-graph_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){//Post fix
+graph_map_internal_dfs_po(graph *root, const BOOLEAN more_info, void* aux, const lMapFunc func){//Post fix
 	splaytree *visited = NULL; //splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
 	splaytree *processed = NULL;
 	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
@@ -196,7 +196,7 @@ cleanup:
 }
 
 BOOLEAN
-graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info, void* aux, const lMapFunc func){
 	if(method == DEPTH_FIRST_POST) return graph_map_internal_dfs_po(root, more_info, aux, func);
 	splaytree *visited = splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
 	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);

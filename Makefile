@@ -1,6 +1,8 @@
-SRC=dlist.c slist.c splaytree.c btree.c graph.c graph_tree.c htable.c transform.c
+SRC=dlist.c udlist.c slist.c btree.c splaytree.c scapegoat.c graph.c graph_tree.c htable.c transform.c
 CFLAGS:=-g -Wall -Wno-pointer-sign -O2 $(CFLAGS) -Wmissing-prototypes -Wmissing-declarations
 OBJ=$(addsuffix .o, $(basename $(SRC)))
+SRC_TESTS:=$(wildcard main_*.c) aLong.c main.c
+OBJ_TESTS=$(addsuffix .o, $(basename $(SRC_TESTS)))
 LIB=liblinked.a
 CC=gcc
 PMCCABE=pmccabe
@@ -19,11 +21,11 @@ DEPENDS=.depend
 all: $(OBJ)
 	ar rvs $(LIB) $^
 
-test: main.o all
-	$(CC) main.o -L. -llinked -lm $(CFLAGS) -g -o $@
+test: $(OBJ_TESTS) all
+	$(CC) $(OBJ_TESTS) -L. -llinked -lm $(CFLAGS) -g -o $@
 
 clean:
-	rm -rf $(OBJ) $(LIB) main.o
+	rm -rf $(OBJ) $(LIB) $(OBJ_TESTS)
 	rm -f test
 	rm -f .depend
 
@@ -31,7 +33,7 @@ clean:
 depend:
 	@rm -f $(DEPENDS)
 	@echo "# MAKEDEPENDS" > $(DEPENDS)
-	@for file in $(SRC) ; do \
+	@for file in $(SRC) $(SRC_TESTS); do \
 		$(CC) -MM -MG $(CFLAGS) $$file >> $(DEPENDS) ; \
 	done
 

@@ -67,7 +67,7 @@ next_prime(size_t num){
 		size_t max_test = floor(sqrt(num));
 		size_t x = 3;
 		for(; x < max_test && num % x != 0; x+=2);
-		if(x == max_test && num % x != 0) return num;
+		if(x > max_test && num % x != 0) return num;
 		num+=2;
 	}
 }
@@ -92,7 +92,7 @@ htable_insert(htable* table, Object* key, const Comparable_vtable* key_method, v
 	isize = (table?table->size:(isize==0?(isize = DEFAULT_HTABLE_SIZE):isize));
 	htable_node* lnew;
 	size_t len;
-	const char* hashes = key->method->hashable(key, &len);
+	const char* hashes = CALL(key, hashable, (key, &len), ({ len = sizeof(key); ((const char*)&key); }) );
 	size_t at = (lnew = new_htable_node(key, key_method, data, CityHash64(hashes, len), LINKED_MALLOC(sizeof(htable_node))))->hash % isize;
 	if(!table || table->filled > isize/2){//make table bigger
 		htable *tbl = htable_resize(table, 2.0, isize);
@@ -110,7 +110,7 @@ htable_remove(htable* table, Object* key, const Comparable_vtable *key_method, O
 	if(!table) return table;
 	htable_node **rtn2 = NULL;
 	size_t len;
-	const char* hashes = key->method->hashable(key, &len);
+	const char* hashes = CALL(key, hashable, (key, &len), ({ len = sizeof(key); ((const char*)&key); }) );
 	size_t at = CityHash64(hashes, len) % table->size;
 	table->array[at] = splay_remove(table->array[at], key, key_method, (Object**)rtn2, FALSE);
 	if(rtn && *rtn2) *rtn = (*rtn2)->data;
@@ -133,14 +133,14 @@ void*
 htable_element(htable* table, Object* key, const Comparable_vtable *key_method){
 	if(!table) return NULL;
 	size_t len;
-	const char* hashes = key->method->hashable(key, &len);
+	const char* hashes = CALL(key, hashable, (key, &len), ({ len = sizeof(key); ((const char*)&key); }) );
 	size_t at = CityHash64(hashes, len) % table->size;
 	table->array[at] = splay_find(table->array[at], key, key_method);
 	return ((htable_node*)table->array[at]->data)->data;
 }
 
 BOOLEAN
-htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, const void* aux, const lMapFunc func){
+htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, void* aux, const lMapFunc func){
 	if(!func) return FALSE;
 	if(!table) return TRUE;
 	size_t i = 0;
