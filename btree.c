@@ -1,4 +1,5 @@
 #include "btree.h"
+#include <math.h>
 
 #include "aLong.h"
 #include <limits.h>
@@ -500,13 +501,13 @@ btree_info(btree *root, size_t *min, size_t *max, size_t *avg, size_t *num_leave
 	if(rnodes)  *rnodes = nodes;
 }
 
-struct btree_balance_d {
+struct btree_balance_inplace_d {
 	btree *prev;
 	btree *head;
 };
 
 static BOOLEAN
-btree_balance_f(Object *data, struct btree_balance_d *dat, btree *node){
+btree_balance_inplace_f(Object *data, struct btree_balance_inplace_d *dat, btree *node){
 	(void)data;
 	node->left = dat->prev;
 	if(dat->prev) dat->prev->right = node;
@@ -516,7 +517,7 @@ btree_balance_f(Object *data, struct btree_balance_d *dat, btree *node){
 }
 
 static btree *
-btree_balance_i(btree *mid, size_t len){
+btree_balance_inplace_i(btree *mid, size_t len){
 	if(mid == NULL){
 end:
 		if(mid){
@@ -533,26 +534,27 @@ end:
 	//printf("left:(%p <- %p -> %p) mid:(%p <- %p -> %p), %d - %d\n", left->left, left, left->right, mid->left, mid, mid->right, i, len-i-1);
 	mid->left->right = NULL;
 	//mid->left = NULL;
-	mid->left = btree_balance_i(left, i);
-	mid->right = btree_balance_i(mid->right, len-i-1);
+	mid->left = btree_balance_inplace_i(left, i);
+	mid->right = btree_balance_inplace_i(mid->right, len-i-1);
 	return mid;
 }
 
 btree*
 btree_balance(btree *root){
-	struct btree_balance_d nodes = {
+	if(!root) return root;
+	struct btree_balance_inplace_d nodes = {
 		.prev = NULL,
 		.head = NULL
 	};
 	//turn tree into list
-	btree_map_in_internal(root, FALSE, &nodes, (lMapFunc)btree_balance_f);
+	btree_map_in_internal(root, FALSE, &nodes, (lMapFunc)btree_balance_inplace_f);
 	nodes.prev->right = NULL;
 	btree* node = nodes.head;
 	size_t len = 1;
 	//left=prev
 	//right=next
 	for(; node->right != NULL; node = node->right, len++);
-	return btree_balance_i(nodes.head, len);
+	return btree_balance_inplace_i(nodes.head, len);
 }
 
 #if 0

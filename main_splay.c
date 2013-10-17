@@ -1,8 +1,11 @@
 #include "splaytree.h"
 #include "main.h"
+#include <time.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 static void
-test_insert(){
+test_insert_many(){
 	splaytree *t = NULL;
 	const size_t NUMS = 40000;
 	const size_t GAP = 307;
@@ -11,7 +14,7 @@ test_insert(){
 	for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
 		t = splay_insert(t, (Object*)aLong_new(i), &aLong_type.compare, FALSE);//typically it is more appropriate to access via &Object->method->interface. It is OK here, because there is no polymorphism
 	btree_info(t, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
-	printf("Insert: %s\n", (NUMS-1 == nodes)?"PASS":"FAIL");
+	printf("Insert (many): %s\n", (NUMS-1 == nodes)?"PASS":"FAIL");
 	//printf("%lu Nodes, %lu leaves\n", nodes, leaves);
 	//printf("Tree Statistics: min: %lu, max: %lu, avg: %lu, optimal: %lu\n", min, max, avg, (size_t)(log(nodes+1)/log(2)+.5));
 	btree_clear(t, TRUE);
@@ -94,7 +97,15 @@ test_find(){
 
 void
 test_splay(){
-	test_insert();
+	{
+		struct rusage start, end;
+		getrusage(RUSAGE_SELF, &start);
+		test_insert_many();
+		getrusage(RUSAGE_SELF, &end);
+		struct timeval diff;
+		timersub(&end.ru_utime, &start.ru_utime, &diff);
+		printf("Insert time: %lf\n", diff.tv_sec+diff.tv_usec/1e9);
+	}
 	test_remove();
 	test_find_min_max();
 	test_find();

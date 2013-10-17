@@ -153,6 +153,7 @@ test_remove(){
 	if(f && mp->data == tmp.data){
 		printf("PASS\n");
 		t = f;
+		mp->method->parent.destroy((Object*)mp);
 	} else {
 		printf("FAIL: %p %ld %ld\n", f, mp?mp->data:LONG_MIN, tmp.data);
 	}
@@ -210,7 +211,7 @@ static void
 test_map_post(){
 	btree *t1 = NULL;
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
-	size_t i=  0;
+	size_t i =  0;
 	for(i = 0; i < ARRLENGTH(x); i++){
 		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
 	}
@@ -286,5 +287,7 @@ test_btree(){
 	test_map_pre();
 	test_map_post();
 	test_map_infix();
+	test_balance();
+	test_info();
 }
 
