@@ -101,17 +101,18 @@ graph_map_filter_f(node_info *child, splaytree** tree){
 	return TRUE;
 }
 
-#if 0
-	typedef struct aLong {
-		const Object_vtable *method;
-		long data;
-	} aLong;
-
-#define DUMPLIST(BSTR, ESTR, LST, FMT, ACC) do { printf(BSTR); dlist *_run; DLIST_ITERATE(_run, LST, printf(FMT, ACC); ); printf(ESTR); } while(0)
+#if 1
+#include "aLong.h"
+#define DUMPLIST(BSTR, ESTR, LST, FMT, ACC) do { printf(BSTR); dlist *_run; DLIST_ITERATE(_run, LST) printf(FMT, ACC); printf(ESTR); } while(0)
 static BOOLEAN
-graph_print_children(aLong *data){
+graph_print_children_f(aLong *data){
 	printf("%ld ", data->data);
 	return TRUE;
+}
+
+static void
+graph_print_children(dlist *head){
+	dlist *run;
 }
 #else
 #define DUMPLIST(BSTR, ESTR, LST, FMT, ACC)
@@ -143,9 +144,9 @@ graph_map_internal_dfs_po(graph *root, const BOOLEAN more_info, void* aux, const
 			//stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
 			dlist *new_list = dlist_copy(g->node->edges, FALSE);
 			dlist *run;
-			DLIST_ITERATE(run, new_list,
+			DLIST_ITERATE(run, new_list)
 				run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
-			);
+
 			new_list = dlist_filter_i(new_list, &visited, (lMapFunc)graph_map_filter_f, TRUE);
 			stk = dlist_concat(dlist_pushback(new_list, (Object*)g, FALSE), stk);
 			size_t new_size = dlist_length(stk);
@@ -208,10 +209,10 @@ graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info,
 		visited = splay_insert(visited, (Object*)g->node, &g->node->method->comparable, FALSE);
 
 		dlist *new_list = dlist_copy(g->node->edges, FALSE);
-		dlist *run;
-		DLIST_ITERATE(run, new_list,
+		dlist *run = NULL;
+		DLIST_ITERATE(run, new_list){
 			run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
-		);
+		}
 		if(method == DEPTH_FIRST || method == DEPTH_FIRST_PRE){
 			stk = dlist_concat(new_list, stk);
 		} else {
@@ -277,10 +278,10 @@ graph_clear(graph *root, BOOLEAN destroy_data){
 	};
 	graph_map(root, DEPTH_FIRST, FALSE, &aux, (lMapFunc)graph_clear_f);
 	slist *iter;
-	SLIST_ITERATE(iter, aux.head,
+	SLIST_ITERATE(iter, aux.head){
 		CALL_VOID(iter->data, destroy,(iter->data));
 		LINKED_FREE(iter->data);
-	);
+	}
 	slist_clear(aux.head, FALSE);
 }
 

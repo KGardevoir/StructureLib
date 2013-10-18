@@ -1,8 +1,5 @@
 #include "splaytree.h"
 #include "main.h"
-#include <time.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 
 static void
 test_insert_many(){

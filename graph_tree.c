@@ -100,9 +100,8 @@ graph_tree_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void*
 		stk = dlist_popfront(stk, (Object**)&g, FALSE);
 		dlist *new_list = dlist_reverse(dlist_copy(g->node->edges, FALSE));
 		dlist *run;
-		DLIST_ITERATE(run, new_list,
+		DLIST_ITERATE(run, new_list)
 			run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
-		);
 		stk = dlist_concat(new_list, stk);
 	#if 0
 		printf("<");
@@ -116,7 +115,7 @@ graph_tree_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void*
 	}
 	dlist *run;
 	exec = dlist_tail(exec);//execute from tail->head, so make the tail first
-	DLIST_ITERATE_REVERSE(run, exec,
+	DLIST_ITERATE_REVERSE(run, exec){
 		node_info *g = (node_info*)(run->data);
 		if(more_info){
 			lMapFuncAux ax;
@@ -134,7 +133,7 @@ graph_tree_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void*
 				goto cleanup;
 			}
 		}
-	);
+	}
 	dlist_clear(exec, TRUE);
 	return TRUE;
 cleanup:
@@ -155,9 +154,9 @@ graph_tree_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_
 		stk = dlist_popfront(stk, (Object**)&g, FALSE);
 		dlist *new_list = dlist_copy(g->node->edges, FALSE);
 		dlist *run;
-		DLIST_ITERATE(run, new_list,
+		DLIST_ITERATE(run, new_list){
 			run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
-		);
+		}
 		if(method == DEPTH_FIRST || method == DEPTH_FIRST_PRE){
 			stk = dlist_concat(new_list, stk);
 		} else {

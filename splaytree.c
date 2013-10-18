@@ -4,12 +4,11 @@
 splaytree header = {.left = NULL, .right = NULL, .data = NULL};
 static splaytree*
 new_splaynode(Object* data, BOOLEAN deep_copy) {
-	splaytree init = {
+	return memcpy(LINKED_MALLOC(sizeof(splaytree)), &(splaytree){
 		.right = NULL,
 		.left = NULL,
 		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)), data):data
-	};
-	return memcpy(LINKED_MALLOC(sizeof(splaytree)), &init, sizeof(splaytree));
+	}, sizeof(splaytree));
 }
 
 static splaytree*

@@ -4,7 +4,7 @@
 #include <limits.h>
 
 #define MIN(a,b) ({ __typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
-#define ARRLENGTH(A) ( sizeof(A)/sizeof(typeof(A[0])) )
+#define ARRLENGTH(A) ( sizeof(A)/sizeof(A[0]) )
 
 static BOOLEAN
 compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){

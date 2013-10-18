@@ -204,18 +204,18 @@ BOOLEAN
 slist_map(slist *head, const BOOLEAN more_info, const void* aux, const lMapFunc func){
 	if(!func) return FALSE;
 	if(!head) return TRUE;
-	slist *p = head;
 	size_t depth = 0;
 	size_t length = 0;
 	if(more_info) length = slist_length(head);
-	for(; p->next; p = p->next){
+	slist *p;
+	SLIST_ITERATE(p, head){
 		if(more_info){
 			lMapFuncAux ax = {
 				.isAux = TRUE,
 				.position = depth,
 				.depth = depth,
 				.size = length,
-				.aux = aux
+				.aux = (void*)aux
 			};
 			if(!func(p->data, &ax, p)) return FALSE;
 		} else {
@@ -238,9 +238,8 @@ slist* p = head;
 BOOLEAN
 slist_has(slist *head, slist* node){
 	slist *run;
-	SLIST_ITERATE(run, head,
+	SLIST_ITERATE(run, head)
 		if(run == node) return TRUE;
-	);
 	return FALSE;
 }
 
@@ -252,9 +251,8 @@ slist_head(slist *head){
 slist *
 slist_tail(slist *head){
 	slist *run;
-	SLIST_ITERATE(run, head,
+	SLIST_ITERATE(run, head)
 		if(run->next == NULL) return run;
-	);
 	return head;
 }
 
@@ -264,9 +262,11 @@ slist_at(slist *head, size_t idx, BOOLEAN back){
 	size_t len = slist_length(head);
 	if(back) idx = len-idx;
 	if(idx < len){
-		SLIST_ITERATE(run, head,
-			if(_depth == idx) return run;
-		);
+		size_t i = 0;
+		SLIST_ITERATE(run, head){
+			if(i == idx) return run;
+			i++;
+		}
 	}
 	return head;
 }
@@ -274,9 +274,11 @@ slist_at(slist *head, size_t idx, BOOLEAN back){
 size_t
 slist_loc(slist *head, slist *node){
 	slist *run;
-	SLIST_ITERATE(run, head,
-		if(run == node) return _depth;
-	);
+	size_t i = 0;
+	SLIST_ITERATE(run, head){
+		if(run == node) return i;
+		i++;
+	}
 	return -1;
 }
 

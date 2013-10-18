@@ -409,13 +409,17 @@ dlist *
 dlist_at(dlist *head, size_t idx, BOOLEAN back){
 	dlist *run;
 	if(back){
-		DLIST_ITERATE_REVERSE(run, head,
-			if(_depth == idx) return run;
-		);
+		size_t i = 0;
+		DLIST_ITERATE_REVERSE(run, head){
+			if(i == idx) return run;
+			i++;
+		}
 	} else {
-		DLIST_ITERATE(run, head,
-			if(_depth == idx) return run;
-		);
+		size_t i = 0;
+		DLIST_ITERATE(run, head){
+			if(i == idx) return run;
+			i++;
+		}
 	}
 	return NULL;
 }
@@ -423,21 +427,12 @@ dlist_at(dlist *head, size_t idx, BOOLEAN back){
 size_t
 dlist_loc(dlist *head, dlist *node){
 	dlist *run;
-	DLIST_ITERATE(run, head,
-		if(run == node) return _depth;
-	);
+	size_t i = 0;
+	DLIST_ITERATE(run, head){
+		if(run == node) return i;
+		i++;
+	}
 	return -1;//return maximium size of size_t otherwise
-}
-
-dlist*
-dlist_head(dlist *head){
-	return head;
-}
-
-dlist*
-dlist_tail(dlist *head){
-	if(head) return head->prev;
-	return head;
 }
 
 void

@@ -21,7 +21,7 @@ scapegoat_new(double a){
 		.size = 0,
 		.max_size = 0,
 		.a = a,
-		.inv_log_a_inv = 1./log(1./a),
+		.inv_log_a_inv = 1./(-log(a)),//== 1./log(1/a)
 		.root = NULL
 	};
 	return (scapegoat*)memcpy(LINKED_MALLOC(sizeof(goat)), &goat, sizeof(goat));
@@ -59,15 +59,14 @@ scapegoat_insert(scapegoat* goat, Object* data, const Comparable_vtable *data_me
 		dlist *run = path;
 		size_t psize = 0;
 		path = dlist_tail(path);
-		DLIST_ITERATE_REVERSE(run, path, if(!isABalanced(goat, (btree*)run->data, (btree*)run->prev->data, &psize)) goto loop_end; );
-	loop_end: {
-			btree *parent = (btree*)run->prev->data;
-			btree **side = &parent->right;
-			if((btree*)run->data != *side)
-				side = &parent->left;
-			*side = btree_balance(*side);//update the side correctly
-			dlist_clear(path, FALSE);
-		}
+		DLIST_ITERATE_REVERSE(run, path){ if(!isABalanced(goat, (btree*)run->data, (btree*)run->prev->data, &psize)) break; }
+		if(run == NULL) run = path;
+		btree *parent = (btree*)run->prev->data;
+		btree **side = &parent->right;
+		if((btree*)run->data != *side)
+			side = &parent->left;
+		*side = btree_balance(*side);//update the side correctly
+		dlist_clear(path, FALSE);
 	}
 }
 

@@ -2,7 +2,7 @@
 #include "main.h"
 
 #define MIN(a,b) ({ __typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
-#define ARRLENGTH(A) ( sizeof(A)/sizeof(__typeof__(A[0])) )
+#define ARRLENGTH(A) ( sizeof(A)/sizeof(A[0]) )
 
 static BOOLEAN
 compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
@@ -23,6 +23,7 @@ compare_arrs(const long *expect, const size_t length, const long *got, const siz
 	}
 	if(length != got_length){
 		printf("FAILURE, inconsitent number of nodes (Got: %ld, Expected: %ld)\n", got_length, length);
+		failure = TRUE;
 	}
 	if(!failure) printf("PASS\n");
 	return !failure;
@@ -125,6 +126,27 @@ test_order3(){
 }
 
 static void
+test_macros(){
+	const long expect[] = { 1, 2, 3, 4, 5, 6, 7,  8,  9, 10, 11 };
+	const long expect2[] = { 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+	dlist *l = make_dlist(expect, ARRLENGTH(expect)), *run;
+	long test_array[ARRLENGTH(expect)];
+	size_t i = 0;
+	DLIST_ITERATE(run, l){
+		test_array[i] = ((aLong*)(run->data))->data;
+		i++;
+	}
+	printf("Macro, Iterate Forward: "); compare_arrs(&expect[0], ARRLENGTH(expect), &test_array[0], i);
+	i = 0;
+	DLIST_ITERATE_REVERSE(run, dlist_tail(l)){
+		test_array[i] = ((aLong*)(run->data))->data;
+		i++;
+	}
+	printf("Macro, Iterate Backward: "); compare_arrs(&expect2[0], ARRLENGTH(expect2), &test_array[0], i);
+	dlist_clear(l, TRUE);
+}
+
+static void
 test_sort(){
 	const long expect1[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14 };
 	const long expect2[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11 };
@@ -202,6 +224,7 @@ test_dlist(){
 	test_order2();
 	test_order3();
 	test_sort();
+	test_macros();
 	test_popback();
 	test_reverse();
 }

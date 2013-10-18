@@ -302,7 +302,7 @@ btree_map_pre_internal(btree *root, const BOOLEAN more_info, void* aux, const lM
 false_cleanup:
 	{
 		dlist* run;
-		DLIST_ITERATE(run, stk, LINKED_FREE(run->data););
+		DLIST_ITERATE(run, stk) LINKED_FREE(run->data);
 		dlist_clear(stk, FALSE);
 		return FALSE;
 	}
@@ -350,7 +350,7 @@ btree_map_post_internal(btree *root, const BOOLEAN more_info, void* aux, const l
 false_cleanup:
 	{
 		dlist* run;
-		DLIST_ITERATE(run, stk, LINKED_FREE(run->data););
+		DLIST_ITERATE(run, stk) LINKED_FREE(run->data);
 		dlist_clear(stk, FALSE);
 		return FALSE;
 	}
@@ -392,7 +392,7 @@ btree_map_breadth_internal(btree *root, const BOOLEAN more_info, void* aux, cons
 false_cleanup:
 	{
 		dlist* run;
-		DLIST_ITERATE(run, q, LINKED_FREE(run->data););
+		DLIST_ITERATE(run, q) LINKED_FREE(run->data);
 		dlist_clear(q, FALSE);
 		return FALSE;
 	}
@@ -455,8 +455,8 @@ btree_clear(btree* root, BOOLEAN destroy_data){//iterate in postfix order
 	dlist_clear(freer, FALSE);
 }
 
-#define MAX(a,b) ({ typeof(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
-#define MIN(a,b) ({ typeof(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
+#define MAX(a,b) ({ __typeof__(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
+#define MIN(a,b) ({ __typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 
 void
 btree_info(btree *root, size_t *min, size_t *max, size_t *avg, size_t *num_leaves, size_t *size, dlist** rleaves, dlist** rnodes){

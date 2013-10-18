@@ -1,5 +1,5 @@
 SRC=dlist.c udlist.c slist.c btree.c splaytree.c scapegoat.c graph.c graph_tree.c htable.c transform.c
-CFLAGS:=-g -Wall -Wno-pointer-sign -O2 $(CFLAGS) -Wmissing-prototypes -Wmissing-declarations
+CFLAGS:=-g -Wall -Wno-pointer-sign -std=c99 -O2 $(CFLAGS) -Wmissing-prototypes -Wmissing-declarations
 OBJ=$(addsuffix .o, $(basename $(SRC)))
 SRC_TESTS:=$(wildcard main_*.c) aLong.c main.c
 OBJ_TESTS=$(addsuffix .o, $(basename $(SRC_TESTS)))

@@ -2,8 +2,6 @@
 #include "main.h"
 #include <limits.h>
 #include <math.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 
 #define MIN(a,b) ({ __typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 #define ARRLENGTH(A) ( sizeof(A)/sizeof(A[0]) )

@@ -8,14 +8,14 @@ dlist* p = head;
 	do{ p = p->next; len++; } while(p != head);
 	Object **values = (Object**)LINKED_MALLOC((len+1)*sizeof(Object*));
 	len = 0; p = head;
-	DLIST_ITERATE(p, head, {
+	DLIST_ITERATE(p, head) {
 		if(deep_copy){
 			values[len] = CALL(p->data,copy,(p->data, LINKED_MALLOC(p->data->method->size)), p->data);
 		} else {
 			values[len] = p->data;
 		}
 		len++;
-	});
+	}
 	values[len] = NULL;
 	*size = len;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
@@ -30,14 +30,14 @@ dlist* p = head;
 	do{ p = p->next; i++; } while(p != head);
 	Object **values = (Object**)LINKED_MALLOC((len+1)*sizeof(Object*));
 	len = 0;
-	DLIST_ITERATE_REVERSE(p, head, {
+	DLIST_ITERATE_REVERSE(p, head){
 		if(deep_copy){
 			values[len] = CALL(p->data,copy,(p->data, LINKED_MALLOC(p->data->method->size)),p->data);
 		} else {
 			values[len] = p->data;
 		}
 		len++;
-	});
+	}
 	values[len] = NULL;
 	*size = len;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry
@@ -73,14 +73,14 @@ slist* p = head;
 	for(; p->next; p = p->next, len++);
 	Object **values = (Object**)LINKED_MALLOC((len+1)*sizeof(Object*));
 	len = 0;
-	SLIST_ITERATE(p, head, {
+	SLIST_ITERATE(p, head) {
 		if(deep){
 			values[len] = CALL(p->data,copy,(p->data, LINKED_MALLOC(p->data->method->size)), p->data);
 		} else {
 			values[len] = p->data;
 		}
 		len++;
-	});
+	}
 	values[len] = NULL;
 	*size = len;
 	//terminate the array, NOTE: This means none of the data can be null, it will only return up to the first non-null data entry

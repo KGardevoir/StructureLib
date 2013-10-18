@@ -53,8 +53,6 @@ dlist* dlist_split(dlist* h1, dlist* h2) __attribute__((warn_unused_result));
 //Find
 dlist* dlist_find(dlist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered) __attribute__((warn_unused_result));
 BOOLEAN dlist_has(dlist *head, dlist* node);
-dlist *dlist_head(dlist *head);
-dlist *dlist_tail(dlist *head);
 dlist *dlist_at(dlist *head, size_t idx, BOOLEAN back);
 size_t dlist_loc(dlist *head, dlist *node);
 /**
@@ -63,31 +61,16 @@ size_t dlist_loc(dlist *head, dlist *node);
  */
 void dlist_swap(dlist *a, dlist *b);
 
-#define DLIST_ITERATE(_ITER, _HEAD, _CODE) do {\
-	if(_HEAD != NULL){\
-		_ITER = _HEAD;\
-		size_t _depth = 0;\
-		do{\
-			{\
-				_CODE\
-			}\
-			_ITER = (_ITER)->next;\
-			_depth++;\
-		} while(_ITER != _HEAD);\
-	}\
-} while(0)
+static inline dlist* dlist_next(dlist *head, dlist *run){ if(!run || run->next == head) return NULL; return run->next; }
+static inline dlist* dlist_prev(dlist *head, dlist *run){ if(!run || run->prev == head) return NULL; return run->prev; }
+static inline dlist* dlist_head(dlist *head) { return head; }
+static inline dlist* dlist_tail(dlist *head){ if(head) return head->prev; return head; }
 
-#define DLIST_ITERATE_REVERSE(_ITER, _HEAD, _CODE) do {\
-	if(_HEAD != NULL){ \
-		_ITER = _HEAD;\
-		size_t _depth = 0;\
-		do{\
-			{\
-				_CODE\
-			}\
-			_ITER = (_ITER)->prev;\
-			_depth++;\
-		} while(_ITER != _HEAD);\
-	}\
-} while(0)
+
+#define DLIST_ITERATE(ITER, HEAD) \
+	for((ITER) = (HEAD); (ITER) != NULL; (ITER) = dlist_next(HEAD, ITER))
+
+#define DLIST_ITERATE_REVERSE(ITER, HEAD) \
+	for((ITER) = (HEAD); (ITER) != NULL; (ITER) = dlist_prev(HEAD, ITER))
+
 #endif

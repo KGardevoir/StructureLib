@@ -23,7 +23,7 @@ slist* slist_removeAll(slist *head, void* key, const Comparable_vtable* key_meth
 slist* slist_remove(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 
 //Other Operations
-BOOLEAN slist_map(slist *head, const BOOLEAN more_info, const void* aux, const lMapFunc) __attribute__((warn_unused_result));
+BOOLEAN slist_map(slist *head, const BOOLEAN more_info, const void* aux, const lMapFunc);
 size_t slist_length(slist* head);
 slist* slist_reverse(slist* head) __attribute__((warn_unused_result));
 
@@ -37,12 +37,7 @@ size_t slist_loc(slist *head, slist *node);
 
 //Other
 
-#define SLIST_ITERATE(_ITER, _HEAD, _CODE) {\
-	_ITER = _HEAD;\
-	size_t _depth = 0;\
-	for(;_ITER;_ITER=(_ITER)->next, _depth++) {\
-		_CODE\
-	}\
-}
+#define SLIST_ITERATE(ITER, HEAD) \
+	for((ITER) = (HEAD); ITER; (ITER)=(ITER)->next)
 
 #endif
