@@ -61,11 +61,11 @@ btree_print_map_f(aLong *data, lMapFuncAux*more, btree *node){
 
 static void
 test_insert(){
-	scapegoat *t = scapegoat_new(alpha_weight);//an average scapegoat (0.5 would be a very rigorously balanced tree)
+	scapegoat *t = scapegoat_new(alpha_weight, &aLong_type.compare);//an average scapegoat (0.5 would be a very rigorously balanced tree)
 	long x[] = {1,0,-1};
 	size_t i = 0;
 	for(; i < ARRLENGTH(x); i++){
-		scapegoat_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		scapegoat_insert(t, (Object*)aLong_new(x[i]), FALSE);
 	}
 	long expect[] = {-1, 0, 1};
 	btree_dump_map_d buffer = {
@@ -85,14 +85,14 @@ test_insert(){
 
 static void
 test_insert_many(){
-	scapegoat *t = scapegoat_new(alpha_weight);//an average scapegoat (0.5 would be a very rigorously balanced tree)
+	scapegoat *t = scapegoat_new(alpha_weight, &aLong_type.compare);//an average scapegoat (0.5 would be a very rigorously balanced tree)
 	//long x[] = {1,2,3,4,5,6,7,8,9,10};
 	const size_t NUMS = 40000;
 	const size_t GAP = 307;
 	size_t i = 0;
 	size_t min, max, avg, nodes, leaves;
 	for(i = GAP % NUMS; i != 0; i = (i + GAP) % NUMS)
-		scapegoat_insert(t, (Object*)aLong_new(i), &aLong_type.compare, FALSE);//typically it is more appropriate to access via &Object->method->interface. It is OK here, because there is no polymorphism
+		scapegoat_insert(t, (Object*)aLong_new(i), FALSE);//typically it is more appropriate to access via &Object->method->interface. It is OK here, because there is no polymorphism
 	//btree_map(t->root, DEPTH_FIRST_PRE, TRUE, NULL, (lMapFunc)btree_print_map_f);//I'm not sure what it's actually supposed to look like...
 	btree_info(t->root, &min, &max, &avg, &leaves, &nodes, NULL, NULL);
 	printf("Insert (many): %s\n", (NUMS-1 == nodes)?"PASS":"FAIL");
@@ -102,12 +102,12 @@ test_insert_many(){
 
 static void
 test_remove(){
-	scapegoat *t = scapegoat_new(alpha_weight);//an average scapegoat (0.5 would be a very rigorously balanced tree)
+	scapegoat *t = scapegoat_new(alpha_weight, &aLong_type.compare);//an average scapegoat (0.5 would be a very rigorously balanced tree)
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	//long x[] = {1,2,3,4,5,6,7,8,9,10};
 	size_t i = 0;
 	for(; i < ARRLENGTH(x); i++){
-		scapegoat_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		scapegoat_insert(t, (Object*)aLong_new(x[i]), FALSE);
 	}
 
 	aLong tmp = {
@@ -131,12 +131,12 @@ test_remove(){
 
 static void
 test_find(){
-	scapegoat *t = scapegoat_new(alpha_weight);//an average scapegoat (0.5 would be a very rigorously balanced tree)
+	scapegoat *t = scapegoat_new(alpha_weight, &aLong_type.compare);//an average scapegoat (0.5 would be a very rigorously balanced tree)
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	//long x[] = {1,2,3,4,5,6,7,8,9,10};
 	size_t i = 0;
 	for(; i < ARRLENGTH(x); i++){
-		scapegoat_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		scapegoat_insert(t, (Object*)aLong_new(x[i]), FALSE);
 	}
 
 	aLong tmp = {

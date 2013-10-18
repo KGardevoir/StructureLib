@@ -14,7 +14,7 @@
 } while(0)
 
 scapegoat*
-scapegoat_new(double a){
+scapegoat_new(double a, const Comparable_vtable *data_method){
 	if(a < 0.5) a = 0.5;
 	if(a > 1.) a = 1.;
 	scapegoat goat = {
@@ -22,6 +22,7 @@ scapegoat_new(double a){
 		.max_size = 0,
 		.a = a,
 		.inv_log_a_inv = 1./(-log(a)),//== 1./log(1/a)
+		.data_method = data_method,
 		.root = NULL
 	};
 	return (scapegoat*)memcpy(LINKED_MALLOC(sizeof(goat)), &goat, sizeof(goat));
@@ -49,13 +50,13 @@ isABalanced(scapegoat *goat, btree* run, btree* parent, size_t *size){
 }
 
 void
-scapegoat_insert(scapegoat* goat, Object* data, const Comparable_vtable *data_method, BOOLEAN copy){
+scapegoat_insert(scapegoat* goat, Object* data, BOOLEAN copy){
 	size_t depth = 0;
-	goat->root = btree_insert_with_depth(goat->root, data, data_method, &depth, copy);
+	goat->root = btree_insert_with_depth(goat->root, data, goat->data_method, &depth, copy);
 	goat->size++;
 	goat->max_size = max(goat->max_size, goat->size);
 	if(depth > log(goat->max_size)*goat->inv_log_a_inv){
-		dlist *path = btree_path(goat->root, data, data_method);
+		dlist *path = btree_path(goat->root, data, goat->data_method);
 		dlist *run = path;
 		size_t psize = 0;
 		path = dlist_tail(path);

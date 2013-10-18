@@ -20,7 +20,10 @@ typedef struct Object {
 	const Object_vtable *method;//also can be used as a key for the function type
 } Object;
 
+typedef uint64_t hash_t;
+
 struct Object_vtable {//the most basic form of an object
+	hash_t     (*hash)(const Object *self);
 	char*  (*hashable)(const Object *self, size_t *size); //part of object that is hashable
 	void    (*destroy)(const Object *self); //how to destroy our data, NOT deallocate!
 	Object*    (*copy)(const Object *self, void* buffer); //return a copy of the information

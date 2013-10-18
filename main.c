@@ -11,5 +11,7 @@ main(int argc, char** argv){
 	TEST("Scapegoat Trees", test_scapegoat);
 	TEST("Tree-like graphs", test_graph_tree);
 	TEST("Unrolled dlists (Array Lists)", test_udlist);
+
+	TEST("Hash Tables", test_htable);
 	return 0;
 }

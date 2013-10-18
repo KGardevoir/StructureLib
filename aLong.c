@@ -5,6 +5,7 @@ static void aLong_destroy(aLong *self) { LINKED_FREE(self); }
 
 aLong_vtable aLong_type = {
 	.parent = {
+		.hash = NULL,
 		.hashable = NULL,
 		.destroy = aLong_destroy,
 		.copy = NULL,

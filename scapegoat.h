@@ -7,12 +7,13 @@ typedef struct scapegoat {
 	size_t max_size;
 	const double a;
 	const double inv_log_a_inv;
+	const Comparable_vtable *data_method;
 	btree *root;
 } scapegoat;
 
-scapegoat* scapegoat_new(double a) __attribute__((warn_unused_result));
+scapegoat* scapegoat_new(double a, const Comparable_vtable *data_method) __attribute__((warn_unused_result));
 void scapegoat_destroy(scapegoat*);
-void scapegoat_insert(scapegoat*, Object* data, const Comparable_vtable *data_method, BOOLEAN copy);
+void scapegoat_insert(scapegoat*, Object* data, BOOLEAN copy);
 Object *scapegoat_remove(scapegoat*, Object* key, const Comparable_vtable *key_method, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 void scapegoat_clear(scapegoat*, BOOLEAN clear);
 
