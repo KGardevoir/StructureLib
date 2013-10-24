@@ -263,15 +263,21 @@ btree_map_in_internal(btree *root, const BOOLEAN more_info, void *aux, const lMa
 					.size = size,
 					.aux = aux
 				};
-				if(!func(cur->data, &ax, cur)) return FALSE;
+				if(!func(cur->data, &ax, cur)) goto cleanup;
 				position++;
 			} else {
-				if(!func(cur->data, aux, cur)) return FALSE;
+				if(!func(cur->data, aux, cur)) goto cleanup;
 			}
 			cur = cur->right;
 		}
 	}
 	return TRUE;
+cleanup:{
+		dlist *run;
+		DLIST_ITERATE(run, stk) LINKED_FREE(run->data);
+		dlist_clear(stk, FALSE);
+		return FALSE;
+	}
 }
 static inline BOOLEAN
 btree_map_pre_internal(btree *root, const BOOLEAN more_info, void* aux, const lMapFunc func){

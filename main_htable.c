@@ -49,6 +49,7 @@ test_find(){
 		printf("PASS");
 	printf("\n");
 	htable_clear(t, TRUE);
+	htable_destroy(t);
 }
 
 

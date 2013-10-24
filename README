@@ -5,13 +5,18 @@ A library for linked structures, implemented in C, for C, with plans for C++ bin
 
 This project aims to do nothing more than provide some structures to be used in C. They range from Hash Tables to Linked
 Lists. Generally a structure is written in a manner to have its implementation decoupled from its usage, as such a
-system of inheritence is used for structures which are markedly similar.
+system of inheritance is used for structures which are markedly similar.
 
-Current issues are:
+The library now implements the following features (most of which have been tested in at least a preliminary manner:
 
-	* Hash Tables have not been tested, so bugs have not been fixed.
+	* Linked Lists (single linear and doubly circular)
+	* Binary Trees with some self balancing ones (scapegoat and splay)
+	* Graphs (just the fundamentals currently, they are represented by adjacency lists)
+	* DAG Graphs (same as graphs currently)
+	* Hash Tables (using city-hash and linked processing using either scapegoat or splay trees)
+	* Unrolled linked lists, basically a generalization of doubly circular lists which pack more data into each node
 
 Future Work:
 
-	* Red-black, AVL, and Scapegoat Trees
+	* Red-black, AVL
 	* Bloom filter for Hash Tables.
