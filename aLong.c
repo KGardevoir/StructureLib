@@ -2,11 +2,16 @@
 
 static long aLong_compare(const aLong *self, const aLong *b){ return self->data - b->data; }
 static void aLong_destroy(aLong *self) { LINKED_FREE(self); }
+static char*
+aLong_hashes(aLong *self, size_t *len){
+	*len = sizeof(aLong);
+	return (char*)self;
+}
 
 aLong_vtable aLong_type = {
 	.parent = {
 		.hash = NULL,
-		.hashable = NULL,
+		.hashable = aLong_hashes,
 		.destroy = aLong_destroy,
 		.copy = NULL,
 		.equals = NULL,

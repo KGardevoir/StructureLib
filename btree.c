@@ -115,10 +115,13 @@ btree_find_with_depth(btree *root, Object *data, const Comparable_vtable *data_m
 	root = btree_parent_with_depth(root, data, data_method, r_depth);
 	if(root == NULL) return root;
 	//NODE_PRINT(root);
-	if(data_method->compare(data, root->data) < 0){
-		root = root->left;
-	} else {
-		root = root->right;
+	long c = data_method->compare(data, root->data);
+	if(c != 0){
+		if(c < 0){
+			root = root->left;
+		} else {
+			root = root->right;
+		}
 	}
 	//NODE_PRINT(root);
 	if(r_depth) *r_depth = *r_depth+1;

@@ -26,7 +26,7 @@ typedef struct htable_node_vtable {
 
 typedef struct htable_node {
 	const htable_node_vtable* method;
-	const htable* table;
+	const Comparable_vtable* compare;
 	Object* data;
 	uint64_t hash;
 } htable_node;

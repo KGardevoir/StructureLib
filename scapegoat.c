@@ -92,7 +92,8 @@ scapegoat_remove(scapegoat* goat, Object* key, const Comparable_vtable *key_meth
 Object*
 scapegoat_find(scapegoat* goat, Object* data, const Comparable_vtable *data_method){//returns the btree pointer to where Object is located
 	btree *found = btree_find(goat->root, data, data_method);
-	return (found&&data_method->compare(data, found->data)==0)?found->data:NULL;
+	//printf("%p: %ld\n", found, found?((aLong*)(found->data))->data:0);
+	return found?found->data:NULL;
 }
 
 void

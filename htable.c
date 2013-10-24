@@ -2,12 +2,35 @@
 
 #include "city.h"
 #include <math.h>
+
+#define max(a,b) \
+   ({ __typeof__(a) _a = (a); \
+       __typeof__(b) _b = (b); \
+     _a > _b ? _a : _b; })
+#define min(a,b) \
+   ({ __typeof__(a) _a = (a); \
+       __typeof__(b) _b = (b); \
+     _a > _b ? _b : _a; })
+
+static size_t next_prime(size_t n);
 static void htable_node_destroy(htable_node* tbl);
 static htable_node* htable_node_copy(const htable_node* tbl, void* buf);
 static long htable_node_compare(const htable_node *self, const htable_node *oth);
 static hash_t htable_hash(htable_node *self);
 
 static void htable_clear_internal(htable *tbl, BOOLEAN destroy, BOOLEAN destroy_nodes);
+#if 0
+#include "aLong.h"
+static void
+dump_nodes(btree* tree){
+	BOOLEAN
+	map(htable_node *data){
+		printf("%ld ", ((aLong*)(data->data))->data);
+		return TRUE;
+	}
+	btree_map(tree, DEPTH_FIRST_PRE, FALSE, NULL, map);
+}
+#endif
 
 static htable_node_vtable hash_type = {
 	.parent = {
@@ -24,10 +47,10 @@ static htable_node_vtable hash_type = {
 };
 
 static htable_node*
-new_htable_node(Object* data, const htable *table, void* buf){
+new_htable_node(Object* data, const Comparable_vtable *compare, void* buf){
 	htable_node *self = (htable_node*)memcpy(buf, &(htable_node){
 		.method = &hash_type,
-		.table = table,
+		.compare = compare,
 		.data = data
 	}, sizeof(htable_node));
 	self->method->parent.hash((const Object*)self);//get the hash
@@ -52,26 +75,15 @@ htable_hash(htable_node *self){
 
 static htable_node*
 htable_node_copy(const htable_node* self, void *buf){
-	return new_htable_node(self->data, self->table, buf);
+	return new_htable_node(self->data, self->compare, buf);
 }
 
 static long
 htable_node_compare(const htable_node* self, const htable_node *oth){
 	//return memcomp(self,oth);
-	return self->table->data_method->compare(self->data, oth->data);
+	return self->compare->compare(self->data, oth->data);
 }
 
-static size_t
-next_prime(size_t num){
-	if(num % 2 == 0) num++;
-	while(TRUE){
-		size_t max_test = floor(sqrt(num));
-		size_t x = 3;
-		for(; x < max_test && num % x != 0; x+=2);
-		if(x > max_test && num % x != 0) return num;
-		num+=2;
-	}
-}
 
 static inline void *
 allocate_set(size_t size, int num){
@@ -81,7 +93,7 @@ allocate_set(size_t size, int num){
 
 htable*
 htable_new(size_t size, const Comparable_vtable *key_method){
-	size = next_prime(size);
+	size = next_prime(max(size, 1U));
 	return memcpy(LINKED_MALLOC(sizeof(htable)), &(htable){
 		.m_max_size = size,
 		.data_method = key_method,
@@ -141,7 +153,7 @@ htable_resize(htable* tbl, double scalar, size_t isize){
 void
 htable_insert(htable* table, Object* data, BOOLEAN copy){
 	if(!table) return;
-	htable_node* lnew = new_htable_node(data, table, LINKED_MALLOC(sizeof(htable_node)));
+	htable_node* lnew = new_htable_node(data, table->data_method, LINKED_MALLOC(sizeof(htable_node)));
 	if(table->size > table->m_max_size/2){//make table bigger
 		htable_resize(table, 2.0, table->m_max_size);
 	}
@@ -161,12 +173,16 @@ Object*
 htable_remove(htable* table, Object* key, const Comparable_vtable *key_method, BOOLEAN destroy){
 	if(!table) return NULL;
 	htable_node *rtn2 = NULL;
-	const htable_node *node = new_htable_node(key, table, &(htable_node){});
+	const htable_node *node = new_htable_node(key, key_method, &(htable_node){});
 	size_t at = node->hash % table->m_max_size;
 #ifdef SPLAY_PROCESS
-	table->m_array[at] = splay_remove(table->m_array[at], key, key_method, (Object**)&rtn2, FALSE);
+	rtn2 = (htable_node*)splay_remove(table->m_array[at], (Object*)node, &node->method->compare, FALSE);
+	if(table->m_array[at]->size == 0){
+		splaytree_destroy(table->m_array[at]);
+		table->m_array[at] = NULL;
+	}
 #else
-	rtn2 = (htable_node*)scapegoat_remove(table->m_array[at], key, key_method, FALSE);
+	rtn2 = (htable_node*)scapegoat_remove(table->m_array[at], (Object*)node, &node->method->compare, FALSE);
 	if(table->m_array[at]->size == 0){
 		scapegoat_destroy(table->m_array[at]);
 		table->m_array[at] = NULL;
@@ -189,13 +205,16 @@ htable_remove(htable* table, Object* key, const Comparable_vtable *key_method, B
 Object*
 htable_find(htable* table, Object* key, const Comparable_vtable *key_method){
 	if(!table) return NULL;
-	const htable_node *node = new_htable_node(key, table, &(htable_node){});
+	const htable_node *node = new_htable_node(key, key_method, &(htable_node){});
 	size_t at = node->hash % table->m_max_size;
+	if(table->m_array[at]){
 #ifdef SPLAY_PROCESS
-	return splay_find(table->m_array[at], key, key_method);
+		return splay_find(table->m_array[at], (Object*)node, &node->method->compare);
 #else
-	return scapegoat_find(table->m_array[at], key, key_method);
+		return scapegoat_find(table->m_array[at], (Object*)node, &node->method->compare);
 #endif
+	}
+	return NULL;
 }
 
 BOOLEAN
@@ -206,15 +225,11 @@ htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_inf
 	size_t i = 0;
 	size_t processed = 0;
 	for(; i < table->m_max_size; i++){
-	#ifdef SPLAY_PROCESS
-		if(!btree_map(table->m_array[i], strat, FALSE, aux, func)) return FALSE;
-	#else
 		if(table->m_array[i]){
 			if(!btree_map(table->m_array[i]->root, strat, FALSE, aux, func)) return FALSE;
 			processed += table->m_array[i]->size;
 			if(processed >= table->size) break;
 		}
-	#endif
 	}
 	return TRUE;
 }
@@ -255,4 +270,203 @@ htable_clear_internal(htable *tbl, BOOLEAN destroy, BOOLEAN destroy_nodes){
 void
 htable_clear(htable *tbl, BOOLEAN destroy){
 	htable_clear_internal(tbl, destroy, TRUE);
+}
+
+
+//The below was adapted from the stack overflow post: http://codegolf.stackexchange.com/questions/10701/fastest-code-to-find-the-next-prime
+#define ARRLENGTH(A) ( sizeof(A)/sizeof(A[0]) )
+
+//legendre symbol (a|m)
+//note: returns m-1 if a is a non-residue, instead of -1
+static inline size_t
+modular_pow(size_t base, size_t exp, size_t mod){
+	size_t result = 0;
+	while(exp > 0){
+		if(exp % 2 == 1){
+			result = (result*base)%mod;
+		}
+		exp >>= 1;
+		base = base*base % mod;
+	}
+	return result;
+}
+
+#if 0
+static inline size_t
+legendre(size_t a, size_t m){
+	return modular_pow(a, (m-1)>>1, m);
+}
+
+//strong probable prime
+static inline BOOLEAN
+is_sprp(size_t n, size_t b/*=2*/){
+	size_t d = n-1, s = 0;
+	while((d&1) == 0){
+		s += 1;
+		d >>= 1;
+	}
+	size_t x = modular_pow(b,d,n);
+	if(x == 1 || x == n-1){
+		return TRUE;
+	}
+	for(size_t r = 1; r < s; r++){
+		x = x*x%n;
+		if(x == 1)
+			return FALSE;
+		else if(x==n-1)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+// lucas probable prime
+// assumes D = 1 (mod 4), (D|n) = -1
+static inline BOOLEAN
+is_lucas_prp(size_t n, size_t D){
+	size_t P = 1, Q = (1-D) >> 2;
+	//n+1 = 2**r*s where s is odd
+	size_t s = n+1, r=0;
+	while((s&1) == 0){
+		r += 1;
+		s >>= 1;
+	}
+	//calculate the bit reversal of (odd) s
+	//e.g. 19 (10011) <=> 25 (11001)
+	size_t t = 0;
+	while(s > 0){
+		if(s&1){
+			t++;
+			s--;
+		} else {
+			t <<= 1;
+			s >>= 1;
+		}
+	}
+
+	// use the same bit reversal process to calculate the sth Lucas number
+	// keep track of q = Q**n as we go
+	size_t U = 0, V = 2, q = 1;
+	//mod_inv(2,n)
+	size_t inv_2 = (n+1) >> 1;
+	while(t > 0){
+		if((t&1) == 1){
+			//U,V of n+1
+			size_t tU = ((U+V) * inv_2)%n;
+			size_t tV = ((D*U + V)*inv_2)%n;
+			U = tU; V = tV;
+		} else {
+			//U,V of n*2
+			size_t tU = (U*V)%n;
+			size_t tV = (V*V-2*q)%n;
+			U = tU; V = tV;
+			q = (q*q)%n;
+			t >>= 1;
+		}
+	}
+	//double s until we have the 2**r*sth Lucas number
+	while(r > 0){
+		size_t tU = (U*V)%n, tV=(V*V-2*q)%n;
+		U = tU; V = tV;
+		q = (q*q)%n;
+		r--;
+	}
+	// primality check
+	// if n is prime, n divides the n+1st Lucas number, given the assumptions
+	return U == 0;
+}
+
+#endif
+
+//primes less than 212
+static const size_t small_primes[] = {
+	    2,  3,  5,  7, 11, 13, 17, 19, 23, 29,
+	   31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
+	   73, 79, 83, 89, 97,101,103,107,109,113,
+	  127,131,137,139,149,151,157,163,167,173,
+	  179,181,191,193,197,199,211
+};
+
+//pre-calced sieve of eratosthenes for n = 2, 3, 5, 7
+static const size_t indices[] = {
+	    1, 11, 13, 17, 19, 23, 29, 31, 37, 41,
+	   43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
+	   89, 97,101,103,107,109,113,121,127,131,
+	  137,139,143,149,151,157,163,167,169,173,
+	  179,181,187,191,193,197,199,209
+};
+
+//distances between sieve values
+static const size_t offsets[] = {
+	10, 2, 4, 2, 4, 6, 2, 6, 4, 2, 4, 6,
+	 6, 2, 6, 4, 2, 6, 4, 6, 8, 4, 2, 4,
+	 2, 4, 8, 6, 4, 6, 2, 4, 6, 2, 6, 6,
+	 4, 2, 4, 6, 2, 6, 4, 2, 4, 2,10, 2
+};
+
+static inline size_t
+bisect_size_t(size_t n, const size_t arr[], size_t length){
+	size_t imin = 0, imax = length;
+	while(imin < imax){
+		size_t imid = (imin+imax)>>1;
+		if(n > arr[imid]){
+			imin = imid+1;
+		} else {
+			imax = imid;
+		}
+	}
+	return imin;
+}
+
+static BOOLEAN
+is_prime(size_t n){
+	if(n < small_primes[ARRLENGTH(small_primes)-1]+1){
+		size_t i = bisect_size_t(n, small_primes, ARRLENGTH(small_primes));//do a binary search on an array
+		if(small_primes[i] == n) return TRUE;
+	}
+	for(size_t i = 0; i < ARRLENGTH(small_primes); i++){
+		if(n%small_primes[i] == 0) return FALSE;
+	}
+	size_t i = small_primes[ARRLENGTH(small_primes)-1];
+	//perform full trial division for however many bits size_t is
+	while(i*i < n){
+		for(size_t j = 0; j < ARRLENGTH(offsets); j++){
+			i += offsets[j];
+			if(n%i == 0)
+				return FALSE;
+		}
+	}
+	return TRUE;
+	//if one wanted to abstract this further:
+#if 0
+	if(!is_sprp(n, 2)) return FALSE;
+	int32_t a = 0, s = 2;
+	while(legendre(a,n) != n-1){
+		s = -s;
+		a = s-a;
+	}
+	return is_lucas_prp(n,a);
+#endif
+}
+
+//next prime strictly larger than n
+static size_t
+next_prime(size_t n){
+	if(n < 2) return n;
+	n = (n+1)|1;
+	if(n < small_primes[ARRLENGTH(small_primes)-1]+1){
+		while(TRUE){
+			size_t i = bisect_size_t(n, small_primes, ARRLENGTH(small_primes));//do a binary search on an array
+			if(small_primes[i] == n) return n;
+			n+=2;
+		}
+	}
+	size_t x = n%(small_primes[ARRLENGTH(small_primes)-1]-1);
+	size_t m = bisect_size_t(x, indices, ARRLENGTH(indices));
+	size_t i = n+(indices[m]-x);
+	while(TRUE){
+		for(size_t j = 0; j < ARRLENGTH(offsets); j++){
+			if(is_prime(i)) return i;
+			i += offsets[(j+m)%ARRLENGTH(offsets)];
+		}
+	}
 }
