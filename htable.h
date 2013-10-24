@@ -1,15 +1,22 @@
 #ifndef _LINKED_STRUCTURES_HTABLE_H_
 #define _LINKED_STRUCTURES_HTABLE_H_
 #include "linked_base.h"
+#ifdef SPLAY_PROCESS
 #include "splaytree.h"
-
-#define DEFAULT_HTABLE_SIZE 256
+#else
+#include "scapegoat.h"
+static const double SCAPEGOAT_ALPHA=0.7;
+#endif
 
 typedef struct htable {
-	size_t m_size;
-	size_t m_filled, m_collision;
+	size_t m_max_size;
+	size_t size, m_collision;
 	const Comparable_vtable* data_method;
+#ifdef SPLAY_PROCESS
 	splaytree **m_array;//with type htable_data_cluster
+#else
+	scapegoat **m_array;
+#endif
 } htable;
 
 typedef struct htable_node_vtable {
@@ -28,9 +35,9 @@ htable *htable_new(size_t size, const Comparable_vtable* key_method) __attribute
 void htable_destroy(htable*);
 //Hash Tables
 void htable_insert(htable *table, Object* key, BOOLEAN copy);
-void htable_remove(htable *table, Object* key, const Comparable_vtable *key_method, Object **rtn, BOOLEAN destroy);
+Object *htable_remove(htable *table, Object* key, const Comparable_vtable *key_method, BOOLEAN destroy);
 BOOLEAN htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, void* aux, const lMapFunc);
-void htable_clear(htable* tbl);//Destroy all nodes in htable
-void* htable_element(htable *table, Object* key, const Comparable_vtable *key_method);
+void htable_clear(htable* tbl, BOOLEAN destroy);//Destroy all nodes in htable
+Object* htable_find(htable *table, Object* key, const Comparable_vtable *key_method);
 
 #endif

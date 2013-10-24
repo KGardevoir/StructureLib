@@ -49,10 +49,12 @@ isABalanced(scapegoat *goat, btree* run, btree* parent, size_t *size){
 	return (a <= (goat->a*(a+1+b))) && (b <= (goat->a*(a+1+b)));
 }
 
-void
+BOOLEAN
 scapegoat_insert(scapegoat* goat, Object* data, BOOLEAN copy){
 	size_t depth = 0;
-	goat->root = btree_insert_with_depth(goat->root, data, goat->data_method, &depth, copy);
+	BOOLEAN success;
+	goat->root = btree_insert_with_depth(goat->root, data, goat->data_method, &depth, copy, &success);
+	if(!success) return FALSE;
 	goat->size++;
 	goat->max_size = max(goat->max_size, goat->size);
 	if(depth > log(goat->max_size)*goat->inv_log_a_inv){
@@ -69,6 +71,7 @@ scapegoat_insert(scapegoat* goat, Object* data, BOOLEAN copy){
 		*side = btree_balance(*side);//update the side correctly
 		dlist_clear(path, FALSE);
 	}
+	return TRUE;
 }
 
 Object *
@@ -86,9 +89,10 @@ scapegoat_remove(scapegoat* goat, Object* key, const Comparable_vtable *key_meth
 	return data;
 }
 
-btree *
+Object*
 scapegoat_find(scapegoat* goat, Object* data, const Comparable_vtable *data_method){//returns the btree pointer to where Object is located
-	return btree_find(goat->root, data, data_method);
+	btree *found = btree_find(goat->root, data, data_method);
+	return (found&&data_method->compare(data, found->data)==0)?found->data:NULL;
 }
 
 void

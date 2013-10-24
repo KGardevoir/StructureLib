@@ -3,34 +3,7 @@
 #include <limits.h>
 #include <math.h>
 
-#define MIN(a,b) ({ __typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
-#define ARRLENGTH(A) ( sizeof(A)/sizeof(A[0]) )
-
-static const double alpha_weight = 0.7;
-
-static BOOLEAN
-compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
-	size_t i = 0;
-	size_t minlen = MIN(length, got_length);
-	BOOLEAN failure = FALSE;
-	for(; i < minlen; i++){
-		if(expect[i] != got[i]){
-			printf("FAILURE, value %lu does not match (Got: (", i);
-			for(i=0; i < got_length; i++)
-				printf("%ld ", got[i]);
-			printf("), Expected: (");
-			for(i=0; i < length; i++)
-				printf("%ld ", expect[i]);
-			printf(")\n");
-			failure = TRUE;
-		}
-	}
-	if(length != got_length){
-		printf("FAILURE, inconsitent number of nodes (Got: %ld, Expected: %ld)\n", got_length, length);
-	}
-	if(!failure) printf("PASS\n");
-	return !failure;
-}
+static const double alpha_weight = 0.75;
 
 #define BSTREE_TEST_SIZE 32
 typedef struct btree_dump_map_d {
@@ -143,13 +116,12 @@ test_find(){
 		.method = &aLong_type,
 		.data = x[6]
 	};
-	btree *f = scapegoat_find(t, (Object*)&tmp, &aLong_type.compare);
-	aLong *mp = f?(aLong*)f->data:NULL;
+	aLong *f = (aLong*)scapegoat_find(t, (Object*)&tmp, &aLong_type.compare);
 	printf("Find: ");
-	if(mp && mp->data == tmp.data){
+	if(f){
 		printf("PASS\n");
 	} else {
-		printf("FAIL: %ld %ld\n", mp?mp->data:LONG_MIN, tmp.data);
+		printf("FAIL\n");
 	}
 
 	//btree_map(t->root, DEPTH_FIRST_PRE, TRUE, NULL, (lMapFunc)btree_print_map_f);//I'm not sure what it's actually supposed to look like...
@@ -161,15 +133,18 @@ test_find(){
 void
 test_scapegoat(){
 	test_insert();
+#if 0
 	{
 		struct rusage start, end;
 		getrusage(RUSAGE_SELF, &start);
-		test_insert_many();
+		test_performance();
 		getrusage(RUSAGE_SELF, &end);
 		struct timeval diff;
 		timersub(&end.ru_utime, &start.ru_utime, &diff);
 		printf("Insert time: %lf\n", diff.tv_sec+diff.tv_usec/1e9);
 	}
+#endif
+	test_insert_many();
 	test_remove();
 	//test_remove_many();
 	//test_remove_root();

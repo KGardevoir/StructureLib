@@ -3,33 +3,6 @@
 #include "main.h"
 #include <limits.h>
 
-#define MIN(a,b) ({ __typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
-#define ARRLENGTH(A) ( sizeof(A)/sizeof(A[0]) )
-
-static BOOLEAN
-compare_arrs(const long *expect, const size_t length, const long *got, const size_t got_length){
-	size_t i = 0;
-	size_t minlen = MIN(length, got_length);
-	BOOLEAN failure = FALSE;
-	for(; i < minlen; i++){
-		if(expect[i] != got[i]){
-			printf("FAILURE, value %lu does not match (Got: (", i);
-			for(i=0; i < got_length; i++)
-				printf("%ld ", got[i]);
-			printf("), Expected: (");
-			for(i=0; i < length; i++)
-				printf("%ld ", expect[i]);
-			printf(")\n");
-			failure = TRUE;
-		}
-	}
-	if(length != got_length){
-		printf("FAILURE, inconsitent number of nodes (Got: %ld, Expected: %ld)\n", got_length, length);
-	}
-	if(!failure) printf("PASS\n");
-	return !failure;
-}
-
 #define BSTREE_TEST_SIZE 32
 typedef struct btree_dump_map_d {
 	size_t pos;
@@ -62,7 +35,7 @@ test_find(){
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	size_t i = 0;
 	for(i = 0; i < ARRLENGTH(x); i++){
-		t = btree_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t = btree_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
 	aLong tmp = {
 		.method = &aLong_type,
@@ -84,7 +57,7 @@ test_insert(){
 	long v[] = {0, -1, 1};
 	size_t i = 1;
 	for(i = 0; i < ARRLENGTH(v); i++)
-		t = btree_insert(t, (Object*)aLong_new(v[i]), &aLong_type.compare, FALSE);
+		t = btree_insert(t, (Object*)aLong_new(v[i]), &aLong_type.compare, FALSE, NULL);
 	printf("Insert: ");
 	size_t fail_mode = 0;
 	if( !t->left || ((aLong*)t->left->data)->data != v[1] ){
@@ -120,7 +93,7 @@ test_lots_insert(){
 	size_t i = 0;
 	btree *t = NULL;
 	for(i = 0; i < ARRLENGTH(x); i++)
-		t = btree_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t = btree_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	size_t size = 0;
 	btree_info(t, NULL, NULL, NULL, NULL, &size, NULL, NULL);
 	printf("Insert (Many): ");
@@ -130,6 +103,7 @@ test_lots_insert(){
 		printf("PASS");
 	}
 	printf("\n");
+	btree_clear(t, TRUE);
 }
 
 static void
@@ -138,7 +112,7 @@ test_remove(){
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	size_t i = 0;
 	for(i = 0; i < ARRLENGTH(x); i++){
-		t = btree_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t = btree_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
 	aLong tmp = {
 		.method = &aLong_type,
@@ -166,7 +140,7 @@ test_map_pre(){
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	size_t i=  0;
 	for(i = 0; i < ARRLENGTH(x); i++){
-		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
 	const long expect2[] = {0,1,2,2,3,3,1,2,3};
 	btree_dump_map_d buffer = {
@@ -189,7 +163,7 @@ test_map_infix(){
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	size_t i=  0;
 	for(i = 0; i < ARRLENGTH(x); i++){
-		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
 	const long expect1[] = {1,3,4,6,7,8,10,13,14};
 	const long expect2[] = {2,1,3,2,3,0,1,3};
@@ -213,7 +187,7 @@ test_map_post(){
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	size_t i =  0;
 	for(i = 0; i < ARRLENGTH(x); i++){
-		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
 	const long expect1[] = {1,4,7,6,3,13,14,10,8};
 	const long expect2[] = {2,3,3,2,1,3,2,1};
@@ -237,7 +211,7 @@ test_info(){
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	size_t i =  0;
 	for(i = 0; i < ARRLENGTH(x); i++){
-		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t1 = btree_insert(t1, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
 	size_t idepth, isize, fdepth, fsize;
 	btree_info(t1, NULL, &idepth, NULL, NULL, &isize, NULL, NULL);
@@ -260,7 +234,7 @@ test_balance(){
 	long x[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 };
 	size_t i=  0;
 	for(i = 0; i < ARRLENGTH(x); i++){
-		t2 = btree_insert(t2, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE);
+		t2 = btree_insert(t2, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
 	//a very linear tree
 	t2 = btree_balance(t2);
@@ -275,7 +249,7 @@ test_balance(){
 		printf("PASS\n");
 	else
 		printf("FAIL (size,depth):i(%lu, %lu), f(%lu, %lu); opt:(%lu)\n", isize, idepth, fsize, fdepth, (size_t)ceil(log(fsize+1)/log(2)));
-
+	btree_clear(t2, TRUE);
 }
 
 void

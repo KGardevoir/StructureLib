@@ -28,9 +28,10 @@ new_bsnode(Object* data, BOOLEAN deep_copy){
 }
 
 btree*
-btree_insert(btree *root, Object* data, const Comparable_vtable* data_method, BOOLEAN copy){
+btree_insert(btree *root, Object* data, const Comparable_vtable* data_method, BOOLEAN copy, BOOLEAN *success){
 	btree *p = btree_parent(root, data, data_method);
 	btree *lnew = new_bsnode(data, copy);
+	BOOLEAN my_success = TRUE;
 	if(!p){//tree was NULL
 		p = root = lnew;
 	} else if(data_method->compare(data, p->data) < 0) {
@@ -38,17 +39,20 @@ btree_insert(btree *root, Object* data, const Comparable_vtable* data_method, BO
 	} else if(data_method->compare(data, p->data) > 0) {
 		p->right = lnew;
 	} else {//are equal, ignore for now (no duplicates)
+		my_success = FALSE;
 		LINKED_FREE(lnew);
 	}
+	if(success) *success = my_success;
 	//NODE_PRINT(p);
 	return root;
 }
 
 btree*
-btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data_method, size_t *r_depth, BOOLEAN copy){
+btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data_method, size_t *r_depth, BOOLEAN copy, BOOLEAN *success){
 	size_t depth = 0;
 	btree *p = btree_parent_with_depth(root, data, data_method, &depth);
 	btree *lnew = new_bsnode(data, copy);
+	BOOLEAN my_success = TRUE;
 	if(p == NULL){//tree was NULL
 		root = lnew;
 	} else if(data_method->compare(data, p->data) < 0) {
@@ -56,8 +60,10 @@ btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data
 	} else if(data_method->compare(data, p->data) > 0) {
 		p->right = lnew;
 	} else {//are equal, ignore for now (no duplicates)
+		my_success = FALSE;
 		LINKED_FREE(lnew);
 	}
+	if(success) *success = my_success;
 	if(r_depth) *r_depth = depth+1;
 	return root;
 }
@@ -65,6 +71,7 @@ btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data
 
 static btree*
 btree_transplant(btree *root, btree *u, btree *v, btree *up, btree *vp){
+	(void)vp;
 	if(up == NULL){
 		return v;
 	} else if(u == up->left){
@@ -436,11 +443,13 @@ struct btree_clear_d {
 
 static BOOLEAN
 btree_clear_f1(Object *data, dlist **freer, btree* root){
+	(void)data;
 	*freer = dlist_pushback(*freer, (Object*)root, FALSE);
 	return TRUE;
 }
 static BOOLEAN
 btree_clear_f2(btree* root, struct btree_clear_d *aux, dlist *node){
+	(void)node;
 	if(aux->destroy_data) CALL_VOID(root->data, destroy, (root->data));
 	LINKED_FREE(root);
 	return TRUE;

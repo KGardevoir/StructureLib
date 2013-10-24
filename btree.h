@@ -10,8 +10,8 @@ typedef struct btree {
 } btree;
 
 //Binary Search Tree, a threaded tree would be nice, but determining leaf nodes is SIGNIFICANTLY more difficult
-btree* btree_insert(btree* root, Object* data, const Comparable_vtable *data_method, BOOLEAN copy);
-btree* btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data_method, size_t *r_depth, BOOLEAN copy);
+btree* btree_insert(btree* root, Object* data, const Comparable_vtable *data_method, BOOLEAN copy, BOOLEAN *success);
+btree* btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data_method, size_t *r_depth, BOOLEAN copy, BOOLEAN *success);
 btree* btree_remove(btree* root, Object* key, const Comparable_vtable *key_method, Object** rtn, BOOLEAN destroy_data) __attribute__((warn_unused_result));
 
 void    btree_clear(btree* root, BOOLEAN destroy_data);

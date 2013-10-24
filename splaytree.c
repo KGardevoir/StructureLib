@@ -1,22 +1,40 @@
 #include "splaytree.h"
 
 /*Adapted from ftp://ftp.cs.cmu.edu/usr/ftp/usr/sleator/splaying*/
-splaytree header = {.left = NULL, .right = NULL, .data = NULL};
-static splaytree*
+splaytree*
+splaytree_new(const Comparable_vtable *data_method){
+	return (splaytree*)memcpy(
+		LINKED_MALLOC(sizeof(splaytree)),
+		&(splaytree){
+			.size = 0,
+			.root = NULL,
+			.data_method = data_method
+		},
+		sizeof(splaytree));
+}
+
+void
+splaytree_destroy(splaytree *root){
+	LINKED_FREE(root);
+}
+
+
+static btree*
 new_splaynode(Object* data, BOOLEAN deep_copy) {
-	return memcpy(LINKED_MALLOC(sizeof(splaytree)), &(splaytree){
+	return memcpy(LINKED_MALLOC(sizeof(btree)), &(btree){
 		.right = NULL,
 		.left = NULL,
 		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)), data):data
-	}, sizeof(splaytree));
+	}, sizeof(btree));
 }
 
-static splaytree*
-splay(splaytree* root, Object* data, const Comparable_vtable* data_method) {
-	splaytree *l, *r, *t, *y;
+static btree*
+splay(btree* root, Object* data, __typeof__(((splaytree*)NULL)->data_method) data_method){
+	btree *l, *r, *t, *y;
+	btree header = {.left = NULL, .right = NULL, .data = NULL};
+	if(!root) return root;
 	l = r = &header;
 	t = root;
-	header.left = header.right = NULL;
 	for(;;){
 		if(data_method->compare(data, (Object*)t->data) < 0){
 			if(t->left == NULL) break;
@@ -43,7 +61,7 @@ splay(splaytree* root, Object* data, const Comparable_vtable* data_method) {
 				if(t->right == NULL) break;
 			}
 			l->right = t; //link left
-			//t->parent = lBinary Search Tree;
+			//t->parent = Binary Search Tree;
 			l = t;
 			t = t->right;
 		} else {
@@ -62,55 +80,70 @@ splay(splaytree* root, Object* data, const Comparable_vtable* data_method) {
 	return t;
 }
 
-splaytree*
-splay_insert(splaytree* root, Object* data, const Comparable_vtable* method, BOOLEAN copy){
-	splaytree* n;
+BOOLEAN
+splay_insert(splaytree* root, Object* data, BOOLEAN copy){
+	btree* n;
 	long c;
-	if(root == NULL) return new_splaynode(data, copy);
+	if(!root) return FALSE;
 
-	root = splay(root, data, method);
-	if((c = method->compare(data, (Object*)root->data)) == 0) return root;//disallow duplicate elements (for now)
+	if(!root->root){
+		root->root = new_splaynode(data, copy);
+		root->size++;
+		return TRUE;
+	} else {
+		root->root = splay(root->root, data, root->data_method);
+	}
+	if((c = root->data_method->compare(data, (Object*)root->root->data)) == 0) return FALSE;//disallow duplicate elements (for now)
 	n = new_splaynode(data, copy);
 	if(c < 0){
-		n->left = root->left;
-		n->right = root;
-		root->left = NULL;
+		n->left = root->root->left;
+		n->right = root->root;
+		root->root->left = NULL;
 	} else {
-		n->right = root->right;
-		n->left = root;
-		root->right = NULL;
+		n->right = root->root->right;
+		n->left = root->root;
+		root->root->right = NULL;
 	}
-	return n;
+	root->size++;
+	root->root = n;
+	return TRUE;
 }
 
-splaytree*
-splay_remove(splaytree* root, Object *data, const Comparable_vtable *data_method, Object **rtn, BOOLEAN destroy_data){
-	splaytree* x;
-	if(root == NULL) return root;
-	root = splay(root, data, data_method);
-	if(data_method->compare(data, (Object*)root->data) == 0){// match found
-		if(rtn) *rtn = root->data;
+Object*
+splay_remove(splaytree* root, Object *key, const Comparable_vtable *key_method, BOOLEAN destroy_data){
+	if(!root || !root->root) return NULL;
+	root->root = splay(root->root, key, key_method);
+	Object *rtn = NULL;
+	if(key_method->compare(key, (Object*)root->root->data) == 0){// match found
+		btree *del = root->root;
+		rtn = del->data;
 		if(destroy_data){
-			CALL_VOID(root->data,destroy,(root->data));
-			root->data = NULL;
+			CALL_VOID(rtn,destroy,(rtn));
 		}
-		if(root->left == NULL){
-			x = root->right;
+		if(!del->left){
+			root->root = del->right;
 		} else {
-			x = splay(root->left, data, data_method);
-			x->right = root->right;
+			btree* x = del->right;
+			root->root = splay(del->left, key, key_method);
+			root->root->right = x;
 		}
-		LINKED_FREE(root);
-		return x;
+		LINKED_FREE(del);
+		root->size--;
 	}
-	return root;
+	return rtn;
 }
 
-splaytree*
-splay_find(splaytree* root, Object* data, const Comparable_vtable* data_method){
-	if(root == NULL) return root;
-	root = splay(root, data, data_method);
-	if(data_method->compare(data, (Object*)root->data) != 0) return root;
-	return root;
+Object*
+splay_find(splaytree* root, Object* key, const Comparable_vtable *key_method){
+	if(!root || !root->root) return NULL;
+	root->root = splay(root->root, key, key_method);
+	if(key_method->compare(key, (Object*)root->root->data) == 0) return root->root->data;
+	return NULL;
 }
 
+void
+splay_clear(splaytree *root, BOOLEAN destroy){
+	btree_clear(root->root, destroy);
+	root->root = NULL;
+	root->size = 0;
+}
