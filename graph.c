@@ -27,7 +27,7 @@ static inline graph*
 graph_node_new(graph* self, Object* data, BOOLEAN copy){
 	graph init = {
 		.method = &_graph_vtable,
-		.data = copy?CALL(data,copy,(data, LINKED_MALLOC(self->method->parent.size)),data):data,
+		.data = copy?CALL(data,copy,data, LINKED_MALLOC(self->method->parent.size)):data,
 		.edges = NULL
 	};
 	//graph *mem = (graph*)LINKED_MALLOC(sizeof(graph));
@@ -287,7 +287,7 @@ graph_clear(graph *root, BOOLEAN destroy_data){
 	graph_map(root, DEPTH_FIRST, FALSE, &aux, (lMapFunc)graph_clear_f);
 	slist *iter;
 	SLIST_ITERATE(iter, aux.head){
-		CALL_VOID(iter->data, destroy,(iter->data));
+		CALL_VOID(iter->data, destroy);
 		LINKED_FREE(iter->data);
 	}
 	slist_clear(aux.head, FALSE);

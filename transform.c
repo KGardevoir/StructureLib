@@ -10,7 +10,7 @@ dlist* p = head;
 	len = 0; p = head;
 	DLIST_ITERATE(p, head) {
 		if(deep_copy){
-			values[len] = CALL(p->data,copy,(p->data, LINKED_MALLOC(p->data->method->size)), p->data);
+			values[len] = CALL(p->data,copy,p->data, LINKED_MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
@@ -32,7 +32,7 @@ dlist* p = head;
 	len = 0;
 	DLIST_ITERATE_REVERSE(p, head){
 		if(deep_copy){
-			values[len] = CALL(p->data,copy,(p->data, LINKED_MALLOC(p->data->method->size)),p->data);
+			values[len] = CALL(p->data,copy,p->data, LINKED_MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}
@@ -75,7 +75,7 @@ slist* p = head;
 	len = 0;
 	SLIST_ITERATE(p, head) {
 		if(deep){
-			values[len] = CALL(p->data,copy,(p->data, LINKED_MALLOC(p->data->method->size)), p->data);
+			values[len] = CALL(p->data,copy,p->data, LINKED_MALLOC(p->data->method->size));
 		} else {
 			values[len] = p->data;
 		}

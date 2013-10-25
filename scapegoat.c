@@ -76,15 +76,17 @@ scapegoat_insert(scapegoat* goat, Object* data, BOOLEAN copy){
 
 Object *
 scapegoat_remove(scapegoat* goat, Object* key, const Comparable_vtable *key_method, BOOLEAN destroy_data){
-	btree *tr;
 	Object *data = NULL;
-	if((tr = btree_remove(goat->root, key, key_method, &data, destroy_data))) {
+	BOOLEAN success = FALSE;
+	btree *tr = btree_remove(goat->root, key, key_method, &data, destroy_data, &success);
+	if(success){
 		goat->size--;
 		goat->root = tr;
 		if(goat->size < goat->a*goat->max_size){
 			goat->root = btree_balance(goat->root);
 			goat->max_size = goat->size;
 		}
+		//printf("root: %p, size: %zu\n", goat->root, goat->size);
 	}
 	return data;
 }

@@ -27,7 +27,7 @@ test_insert_many(){
 
 static void
 test_find(){
-	htable *t = htable_new(17, &aLong_type.compare);
+	htable *t = htable_new(0, &aLong_type.compare);
 	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
 	for(size_t i = 0; i < ARRLENGTH(x); i++)
 		htable_insert(t, (Object*)aLong_new(x[i]), FALSE);
@@ -37,12 +37,46 @@ test_find(){
 	for(i = 0; i < ARRLENGTH(x); i++){
 		aLong *obj = (aLong*)htable_find(t, (Object*)&(aLong){.method = &aLong_type, .data = x[i]}, t->data_method);
 		if(!obj){
-			printf("Failed to find object\n");
 			//printf("%ld ", x[i]);
 			failure = TRUE;
+			break;
 		}
 	}
 	printf("Find: ");
+	if(failure)
+		printf("FAIL");
+	else
+		printf("PASS");
+	printf("\n");
+	htable_clear(t, TRUE);
+	htable_destroy(t);
+}
+
+static void
+test_remove(){
+	htable *t = htable_new(0, &aLong_type.compare);
+	long x[] = { 8, 3, 1, 6, 4, 7, 10, 14, 13 };
+	for(size_t i = 0; i < ARRLENGTH(x); i++)
+		htable_insert(t, (Object*)aLong_new(x[i]), FALSE);
+	BOOLEAN failure = FALSE;
+	//void dump_htable(htable*); dump_htable(t);
+	size_t i = 0;
+	for(i = 0; i < ARRLENGTH(x); i+=2){
+		htable_remove(t, (Object*)&(aLong){.method = &aLong_type, .data = x[i]}, t->data_method, TRUE);
+		//printf("%zu (%ld), %d, %d\n", i, x[i], !obj && (i&1) == 1, obj && (i&1)==0);
+	}
+	//dump_htable(t);
+	if(!failure){
+		for(i = 0; i < ARRLENGTH(x); i++){
+			aLong *obj = (aLong*)htable_find(t, (Object*)&(aLong){.method = &aLong_type, .data = x[i]}, t->data_method);
+			//printf("%zu (%ld), %p, %d, %d\n", i, x[i], obj, !obj && (i&1) == 1, obj && (i&1)==0);
+			if((!obj && (i&1) == 1) || (obj && (i&1)==0)){//did we find something we should have, or not find something we should have?
+				failure = TRUE;
+				break;
+			}
+		}
+	}
+	printf("Remove: ");
 	if(failure)
 		printf("FAIL");
 	else
@@ -68,4 +102,5 @@ test_htable(){
 #endif
 	test_insert_many();
 	test_find();
+	test_remove();
 }

@@ -24,7 +24,7 @@ new_splaynode(Object* data, BOOLEAN deep_copy) {
 	return memcpy(LINKED_MALLOC(sizeof(btree)), &(btree){
 		.right = NULL,
 		.left = NULL,
-		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)), data):data
+		.data = deep_copy?CALL(data,copy,data, LINKED_MALLOC(data->method->size)):data
 	}, sizeof(btree));
 }
 
@@ -118,7 +118,7 @@ splay_remove(splaytree* root, Object *key, const Comparable_vtable *key_method, 
 		btree *del = root->root;
 		rtn = del->data;
 		if(destroy_data){
-			CALL_VOID(rtn,destroy,(rtn));
+			CALL_VOID(rtn,destroy);
 		}
 		if(!del->left){
 			root->root = del->right;

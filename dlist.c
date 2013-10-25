@@ -7,7 +7,7 @@ new_dlist(Object* data, BOOLEAN deep_copy, dlist* prev, dlist* next){
 	dlist init = {
 		.next = (next==NULL&&prev==NULL)?lnew:next,
 		.prev = (next==NULL&&prev==NULL)?lnew:prev,
-		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)), data):data
+		.data = deep_copy?CALL(data,copy,data,LINKED_MALLOC(data->method->size)):data
 	};
 	memcpy(lnew, &init, sizeof(*lnew));
 	return lnew;
@@ -79,7 +79,7 @@ dlist_clear(dlist *head, BOOLEAN destroy_data){
 	dlist *run = head, *n = head;
 	if(head == NULL) return;
 	do{
-		if(destroy_data) CALL_VOID(run->data,destroy,(run->data));
+		if(destroy_data) CALL_VOID(run->data,destroy);
 		n = run->next;
 		LINKED_FREE(run);
 		run = n;
@@ -106,7 +106,7 @@ dlist_popfront(dlist *head, Object** data, BOOLEAN destroy_data){
 	if(!head) return NULL;
 	if(head->next == head){
 		if(data) *data = head->data;
-		if(destroy_data) CALL_VOID(head->data,destroy,(head->data));
+		if(destroy_data) CALL_VOID(head->data,destroy);
 		LINKED_FREE(head);
 		head = NULL;
 	} else {
@@ -115,7 +115,7 @@ dlist_popfront(dlist *head, Object** data, BOOLEAN destroy_data){
 		tmp->next->prev = tmp->prev;
 		tmp->prev->next = tmp->next;
 		if(data) *data = tmp->data;
-		if(destroy_data) CALL_VOID(tmp->data,destroy,(tmp->data));
+		if(destroy_data) CALL_VOID(tmp->data,destroy);
 		LINKED_FREE(tmp);
 	}
 	return head;

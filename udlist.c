@@ -102,14 +102,14 @@ udlist_pushback(udlist *head, Object *obj, BOOLEAN copy){
 		n->prev = n;
 		head->root = n;
 	}
-	udlist_node_insert(head, n, n->n_filled, copy?CALL(obj, copy, (obj, LINKED_MALLOC(obj->method->size)), obj):obj);
+	udlist_node_insert(head, n, n->n_filled, copy?CALL(obj, copy, obj, LINKED_MALLOC(obj->method->size)):obj);
 }
 
 void
 udlist_pushfront(udlist *head, Object *obj, BOOLEAN copy){
 	if(head->root){
 		udlist_node *n = head->root;
-		udlist_node_insert(head, n, 0, copy?CALL(obj, copy, (obj, LINKED_MALLOC(obj->method->size)), obj):obj);
+		udlist_node_insert(head, n, 0, copy?CALL(obj, copy, obj, LINKED_MALLOC(obj->method->size)):obj);
 	} else {
 		udlist_pushback(head, obj, copy);
 		return;
@@ -132,7 +132,7 @@ udlist_insert(udlist *head, Object *obj, size_t idx, BOOLEAN copy){
 			cidx += run->n_filled;
 			run = run->next;
 		} while(head->root != run);
-		udlist_node_insert(head, run, idx - cidx, copy?CALL(obj, copy, (obj, LINKED_MALLOC(obj->method->size)), obj):obj);
+		udlist_node_insert(head, run, idx - cidx, copy?CALL(obj, copy, obj, LINKED_MALLOC(obj->method->size)):obj);
 	}
 }
 
@@ -143,7 +143,7 @@ udlist_addOrdered(udlist* head, Object* obj, const Comparable_vtable* buf_method
 		size_t idx = 0;
 		for(; idx < run->n_filled; idx++){
 			if(buf_method->compare(obj, run->elements[idx]) > 0){
-				udlist_node_insert(head, run, idx, copy?CALL(obj, copy, (obj, LINKED_MALLOC(obj->method->size)), obj):obj);
+				udlist_node_insert(head, run, idx, copy?CALL(obj, copy, obj, LINKED_MALLOC(obj->method->size)):obj);
 				return;
 			}
 		}
@@ -184,7 +184,7 @@ udlist_clear(udlist *head, BOOLEAN destroy_data){
 			if(destroy_data){
 				size_t i = 0;
 				for(; i < run->n_filled; i++){
-					CALL_VOID(run->elements[i], destroy, (run->elements[i]));
+					CALL_VOID(run->elements[i], destroy);
 				}
 			}
 			run = run->next;
@@ -196,14 +196,14 @@ udlist_clear(udlist *head, BOOLEAN destroy_data){
 Object*
 udlist_popback(udlist* head, BOOLEAN destroy_data){
 	Object *data = udlist_node_remove(head, head->root->prev, head->root->prev->n_filled);
-	if(destroy_data) CALL_VOID(data, destroy, (data));
+	if(destroy_data) CALL_VOID(data, destroy);
 	return data;
 }
 
 Object*
 udlist_popfront(udlist* head, BOOLEAN destroy_data){
 	Object *data = udlist_node_remove(head, head->root, 0);
-	if(destroy_data) CALL_VOID(data, destroy, (data));
+	if(destroy_data) CALL_VOID(data, destroy);
 	return data;
 }
 
@@ -215,7 +215,7 @@ udlist_delete(udlist *head, size_t idx, BOOLEAN destroy_data){
 	do {
 		if(cidx + run->n_filled > idx){
 			Object *data = udlist_node_remove(head, run, idx-cidx);
-			if(destroy_data) CALL_VOID(data, destroy, (data));
+			if(destroy_data) CALL_VOID(data, destroy);
 			return data;
 		}
 		cidx += run->n_filled;

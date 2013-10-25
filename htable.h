@@ -1,6 +1,7 @@
 #ifndef _LINKED_STRUCTURES_HTABLE_H_
 #define _LINKED_STRUCTURES_HTABLE_H_
 #include "linked_base.h"
+//#define SPLAY_PROCESS
 #ifdef SPLAY_PROCESS
 #include "splaytree.h"
 #else

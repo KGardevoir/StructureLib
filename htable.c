@@ -3,6 +3,14 @@
 #include "city.h"
 #include <math.h>
 
+static inline double collision_ratio(htable* t) { if(t->size > 0) return ((double)t->m_collision)/t->size; return 0; }
+static inline BOOLEAN shrink_table_Q(htable *t, const double ratio /*degree by which to shrink, < 1*/){
+	return t->m_collision < t->m_max_size*(ratio*ratio) && collision_ratio(t) < ratio*ratio;
+}
+static inline BOOLEAN grow_table_Q(htable *t, const double ratio /*degree by which to grow, > 1*/){
+	return t->m_collision > t->m_max_size/(ratio) && collision_ratio(t) > 1/ratio;
+}
+
 #define max(a,b) \
    ({ __typeof__(a) _a = (a); \
        __typeof__(b) _b = (b); \
@@ -19,16 +27,25 @@ static long htable_node_compare(const htable_node *self, const htable_node *oth)
 static hash_t htable_hash(htable_node *self);
 
 static void htable_clear_internal(htable *tbl, BOOLEAN destroy, BOOLEAN destroy_nodes);
-#if 0
+#if 1
 #include "aLong.h"
 static void
 dump_nodes(btree* tree){
 	BOOLEAN
-	map(htable_node *data){
+	map(htable_node *data, lMapFuncAux *dat, btree *tree){
+		//printf("<%ld (%p) %zu: %p %p> ", ((aLong*)(data->data))->data, tree, dat->depth, tree->left, tree->right);
 		printf("%ld ", ((aLong*)(data->data))->data);
 		return TRUE;
 	}
-	btree_map(tree, DEPTH_FIRST_PRE, FALSE, NULL, map);
+	btree_map(tree, DEPTH_FIRST_PRE, TRUE, NULL, (lMapFunc)map);
+}
+void
+dump_htable(htable *t){
+	size_t i = 0;
+	printf("%zu/%zu, collision: %zu\n", t->size, t->m_max_size, t->m_collision);
+	for(;i < t->m_max_size; i++){
+		if(t->m_array[i]){ printf("%3zu: ", i); dump_nodes(t->m_array[i]->root); printf("\n"); }
+	}
 }
 #endif
 
@@ -66,10 +83,10 @@ static hash_t
 htable_hash(htable_node *self){
 	if(!self->data->method->hash){
 		size_t len = 0;
-		const char* hashes = CALL(self->data, hashable, (self->data, &len), ({ len = sizeof(self->data); ((const char*)&self->data); }) );
+		const char* hashes = CALL(self->data, hashable, ({ len = sizeof(self->data); ((const char*)&self->data); }), &len);
 		return self->hash = CityHash64(hashes, len);
 	} else {
-		return self->hash = CALL(self->data, hash, (self->data), 0);
+		return self->hash = CALL(self->data, hash, 0);
 	}
 }
 
@@ -81,7 +98,9 @@ htable_node_copy(const htable_node* self, void *buf){
 static long
 htable_node_compare(const htable_node* self, const htable_node *oth){
 	//return memcomp(self,oth);
-	return self->compare->compare(self->data, oth->data);
+	long c = self->compare->compare(self->data, oth->data);
+	//printf("compare(self->data=%ld, oth->data=%ld)=%ld\n", ((aLong*)(self->data))->data, ((aLong*)(oth->data))->data, c);
+	return c;
 }
 
 
@@ -119,7 +138,7 @@ static BOOLEAN
 htable_recompute_f(htable_node *data, htable_recompute_d* tbl){
 	//TODO remove old data first, assuming new entry
 	uint64_t idx = data->hash%tbl->size;
-	if(tbl->array[idx]) tbl->ctable->m_collision++;
+	if(tbl->array[idx]) tbl->collision++;
 #ifdef SPLAY_PROCESS
 	if(!tbl->array[idx]) tbl->array[idx] = splaytree_new(&data->method->compare);
 	splay_insert(tbl->array[idx], (Object*)data, FALSE);
@@ -131,15 +150,14 @@ htable_recompute_f(htable_node *data, htable_recompute_d* tbl){
 }
 
 static void
-htable_resize(htable* tbl, double scalar, size_t isize){
-	size_t next_size = next_prime(scalar*isize);
+htable_resize(htable* tbl, double scalar){
+	size_t next_size = next_prime(scalar*tbl->m_max_size);
 	htable_recompute_d ntbl = {
 		.ctable = tbl,
 		.array = (__typeof__(tbl->m_array))allocate_set(sizeof(tbl->m_array[0])*next_size, 0),
 		.size = next_size,
 		.collision = 0
 	};
-	tbl->m_collision = 0;
 	htable_map(tbl, DEPTH_FIRST_PRE, FALSE, &ntbl, (lMapFunc)htable_recompute_f);
 	size_t filled = tbl->size;
 	htable_clear_internal(tbl, FALSE, FALSE);
@@ -154,8 +172,8 @@ void
 htable_insert(htable* table, Object* data, BOOLEAN copy){
 	if(!table) return;
 	htable_node* lnew = new_htable_node(data, table->data_method, LINKED_MALLOC(sizeof(htable_node)));
-	if(table->size > table->m_max_size/2){//make table bigger
-		htable_resize(table, 2.0, table->m_max_size);
+	if(grow_table_Q(table, 2)){//make table bigger
+		htable_resize(table, 2.0);
 	}
 	size_t at = lnew->hash % table->m_max_size;
 	if(table->m_array[at]) table->m_collision++;
@@ -182,20 +200,23 @@ htable_remove(htable* table, Object* key, const Comparable_vtable *key_method, B
 		table->m_array[at] = NULL;
 	}
 #else
+	//printf("Removing: %ld\n", ((aLong*)key)->data);
 	rtn2 = (htable_node*)scapegoat_remove(table->m_array[at], (Object*)node, &node->method->compare, FALSE);
 	if(table->m_array[at]->size == 0){
 		scapegoat_destroy(table->m_array[at]);
 		table->m_array[at] = NULL;
 	}
 #endif
-	if(destroy) CALL_VOID(rtn2->data, destroy, (rtn2->data));
-	Object* data = rtn2->data;
+	//dump_htable(table);
+	Object* data = NULL;
 	if(rtn2){
-		if(!table->m_array[at]) table->m_collision--;//means there was a collision
+		data = rtn2->data;
+		if(destroy) CALL_VOID(rtn2->data, destroy);
+		if(table->m_array[at]) table->m_collision--;//means there was a collision
 		table->size--;
 		LINKED_FREE(rtn2);
-		if(table->size < table->m_max_size/4){//make table smaller
-			htable_resize(table, 0.5, 0);
+		if(shrink_table_Q(table, 0.5)){//make table smaller
+			htable_resize(table, 0.5);
 			//rehash table
 		}
 	}
@@ -237,7 +258,7 @@ htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_inf
 
 static BOOLEAN
 htable_clear_f(htable_node* node, BOOLEAN *destroy){
-	if(*destroy) CALL_VOID(node->data, destroy, ((Object*)node->data));
+	if(*destroy) CALL_VOID(node->data, destroy);
 	return TRUE;
 }
 
@@ -249,7 +270,15 @@ htable_clear_internal(htable *tbl, BOOLEAN destroy, BOOLEAN destroy_nodes){
 	size_t processed = 0;
 	for(; i < tbl->m_max_size; i++){
 	#ifdef SPLAY_PROCESS
-		btree_clear(tbl->m_array[i], destroy);
+		if(tbl->m_array[i]){
+			if(destroy_nodes)
+				btree_map(tbl->m_array[i]->root, DEPTH_FIRST_PRE, FALSE, &destroy, (lMapFunc)htable_clear_f);
+			processed += tbl->m_array[i]->size;
+			splay_clear(tbl->m_array[i], destroy_nodes);
+			splaytree_destroy(tbl->m_array[i]);
+			tbl->m_array[i] = NULL;
+			if(processed >= tbl->size) break;
+		}
 	#else
 		if(tbl->m_array[i]){
 			if(destroy_nodes)

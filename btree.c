@@ -12,6 +12,9 @@
 	if((P)->right) printf("->data->data=%ld", ((aLong*)(P)->right->data)->data);\
 	printf("\n");\
 } while(0)
+#define NODE_DUMP(P) if(P){ \
+	printf("%s: <%p: %p %p> ", #P, P, (P)->left, (P)->right); \
+}
 
 
 /* Algorithms adapted from Ch.12 of Introduction To Algorithms by Thomas H. Cormen, Charles E. Leiserson, Ronald L.
@@ -22,7 +25,7 @@ new_bsnode(Object* data, BOOLEAN deep_copy){
 	btree init = {
 		.left = NULL,
 		.right = NULL,
-		.data = deep_copy?CALL(data,copy,(data, LINKED_MALLOC(data->method->size)),data):data
+		.data = deep_copy?CALL(data,copy,data,LINKED_MALLOC(data->method->size)):data
 	};
 	return memcpy(LINKED_MALLOC(sizeof(btree)), &init, sizeof(init));
 }
@@ -32,6 +35,7 @@ btree_insert(btree *root, Object* data, const Comparable_vtable* data_method, BO
 	btree *p = btree_parent(root, data, data_method);
 	btree *lnew = new_bsnode(data, copy);
 	BOOLEAN my_success = TRUE;
+	if(!p) p = root;//btree_parent returns NULL if no parent
 	if(!p){//tree was NULL
 		p = root = lnew;
 	} else if(data_method->compare(data, p->data) < 0) {
@@ -51,6 +55,7 @@ btree*
 btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data_method, size_t *r_depth, BOOLEAN copy, BOOLEAN *success){
 	size_t depth = 0;
 	btree *p = btree_parent_with_depth(root, data, data_method, &depth);
+	if(!p) p = root;//btree_parent returns NULL if no parent
 	btree *lnew = new_bsnode(data, copy);
 	BOOLEAN my_success = TRUE;
 	if(p == NULL){//tree was NULL
@@ -72,61 +77,75 @@ btree_insert_with_depth(btree *root, Object *data, const Comparable_vtable* data
 static btree*
 btree_transplant(btree *root, btree *u, btree *v, btree *up, btree *vp){
 	(void)vp;
-	if(up == NULL){
+	if(!up){
 		return v;
 	} else if(u == up->left){
 		up->left = v;
-	} else {
+	} else { //u == up->right
 		up->right = v;
 	}
 	return root;
 }
 
 btree*
-btree_remove(btree *root, Object* data, const Comparable_vtable* data_method, Object** rtn, BOOLEAN destroy_data){
+btree_remove(btree *root, Object* data, const Comparable_vtable* data_method, Object** rtn, BOOLEAN destroy_data, BOOLEAN *success){
 	btree *nodep = btree_parent(root, data, data_method);//look for the parent first (or the would-be parent)
-	btree *node = btree_find(nodep, data, data_method);//use the parent to locate the next node
-	if(node == NULL) return NULL;//nothing to return, no such element
-	if(node->left == NULL){
-		root = btree_transplant(root, node, node->right, nodep, node);
-	} else if(node->right == NULL){
-		root = btree_transplant(root, node, node->left, nodep, node);
+	btree *node;
+	if(nodep){
+		node = btree_find(nodep, data, data_method);//use the parent to locate the next node
 	} else {
-		btree* min = btree_findmin(node->right);
-		btree* par = btree_parent(root, min->data, data_method);
-		if(par != node){
-			root = btree_transplant(root, min, min->right, par, min);
-			min->right = node->right;
-		}
-		root = btree_transplant(root, node, min, nodep, par);
-		min->left = node->left;
+		node = btree_find(root, data, data_method);//the node we are looking for is the root (probably)
+		if(!node) return NULL;
+	}
+	if(success) *success = TRUE;
+	//NODE_DUMP(root); NODE_DUMP(node); NODE_DUMP(node->right); NODE_DUMP(node->left); NODE_DUMP(nodep); printf("\n");
+	int whois = (node->left?1:0) | (node->right?2:0);
+	switch(whois){
+		default:
+		case 1:
+			root = btree_transplant(root, node, node->left, nodep, node);
+			break;
+		case 2:
+			root = btree_transplant(root, node, node->right, nodep, node);
+			break;
+		case 3:{
+			btree* par = btree_findmin_parent(node->right);
+			btree* min = btree_findmin(par);
+			if(par != node){
+				root = btree_transplant(root, min, min->right, par, min);
+				min->right = node->right;
+			}
+			root = btree_transplant(root, node, min, nodep, par);
+			min->left = node->left;
+		} break;
 	}
 	data = node->data;
 	LINKED_FREE(node);
 	if(destroy_data){
-		CALL_VOID(data, destroy,(data));
+		CALL_VOID(data, destroy);
 	}
 	if(rtn) *rtn = data;
+	//NODE_DUMP(root); printf("\n");
 	return root;
 }
 
 btree*
 btree_find_with_depth(btree *root, Object *data, const Comparable_vtable *data_method, size_t *r_depth){
-	root = btree_parent_with_depth(root, data, data_method, r_depth);
-	if(root == NULL) return root;
-	//NODE_PRINT(root);
-	long c = data_method->compare(data, root->data);
+	if(!root) return root;
+	btree *node = btree_parent_with_depth(root, data, data_method, r_depth);
+	if(!node) node = root;
+	//NODE_DUMP(node); printf("\n");
+	long c = data_method->compare(data, node->data);
 	if(c != 0){
 		if(c < 0){
-			root = root->left;
+			node = node->left;
 		} else {
-			root = root->right;
+			node = node->right;
 		}
 	}
-	//NODE_PRINT(root);
 	if(r_depth) *r_depth = *r_depth+1;
-	if(root && data_method->compare(data, root->data) != 0) return NULL;
-	return root;
+	if(node && data_method->compare(data, node->data) != 0) return NULL;
+	return node;
 }
 
 btree*
@@ -139,7 +158,7 @@ btree_parent_with_depth(btree *root, Object* data, const Comparable_vtable *data
 	long c;
 	size_t depth = 0;
 	if(!root) return root;
-	btree *parent = root;
+	btree *parent = NULL;
 	while(root != NULL && (c = data_method->compare(data, root->data)) != 0){
 		parent = root;
 		if(c < 0){
@@ -207,16 +226,38 @@ btree_successor(btree* root, btree* node, const Comparable_vtable *data_method){
 }
 
 btree*
+btree_findmin_parent(btree* root){
+	if(!root) return root;
+	btree *p = NULL;
+	while(root->left){
+		p = root;
+		root = root->left;
+	}
+	return p;
+}
+
+btree*
 btree_findmin(btree* root){
 	if(root == NULL) return root;
-	while(root->left != NULL) root = root->left;
+	while(root->left) root = root->left;
 	return root;
 }
 
 btree*
+btree_findmax_parent(btree* root){
+	if(!root) return root;
+	btree *p = NULL;
+	while(root->left){
+		p = root;
+		root = root->left;
+	}
+	return p;
+}
+
+btree*
 btree_findmax(btree* root){
-	if(root == NULL) return root;
-	while(root->right != NULL) root = root->right;
+	if(!root) return root;
+	while(root->left) root = root->left;
 	return root;
 }
 
@@ -459,7 +500,7 @@ btree_clear_f1(Object *data, dlist **freer, btree* root){
 static BOOLEAN
 btree_clear_f2(btree* root, struct btree_clear_d *aux, dlist *node){
 	(void)node;
-	if(aux->destroy_data) CALL_VOID(root->data, destroy, (root->data));
+	if(aux->destroy_data) CALL_VOID(root->data, destroy);
 	LINKED_FREE(root);
 	return TRUE;
 }

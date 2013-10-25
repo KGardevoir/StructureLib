@@ -114,22 +114,19 @@ test_remove(){
 	for(i = 0; i < ARRLENGTH(x); i++){
 		t = btree_insert(t, (Object*)aLong_new(x[i]), &aLong_type.compare, FALSE, NULL);
 	}
-	aLong tmp = {
+	const aLong tmp = {
 		.method = &aLong_type,
 		.data = x[6]
 	};
-	aLong *mp=NULL;
-
 	//btree_map(t, DEPTH_FIRST_PRE, TRUE, NULL, (lMapFunc)btree_print_map_f);
-
-	btree *f = btree_remove(t, (Object*)&tmp, &aLong_type.compare, (Object**)&mp, FALSE);
+	BOOLEAN success;
+	btree *f = btree_remove(t, (Object*)&tmp, &aLong_type.compare, NULL, TRUE, &success);
 	printf("Remove: ");
-	if(f && mp->data == tmp.data){
+	if(success){
 		printf("PASS\n");
 		t = f;
-		mp->method->parent.destroy((Object*)mp);
 	} else {
-		printf("FAIL: %p %ld %ld\n", f, mp?mp->data:LONG_MIN, tmp.data);
+		printf("FAIL\n");
 	}
 	btree_clear(t, TRUE);
 }
