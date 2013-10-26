@@ -193,19 +193,24 @@ btree_path(btree *root, Object* data, const Comparable_vtable *data_method){
 	return (root==NULL)?head:dlist_pushback(head, (Object*)root, FALSE);
 }
 
+//predecessor, successor
 btree*
-btree_predessor(btree* root, btree* node, const Comparable_vtable *data_method){
-	if(root == NULL || node == NULL) return NULL;
-	if(node->left != NULL) return btree_findmax(node->left);
-	dlist* parent = btree_path(root, node->data, data_method);//use btree_path instead
-	if(parent == NULL) return root;
-	dlist* head = parent;
-	parent = parent->prev;
-	while((btree*)parent->prev->data == node && (btree*)parent->data != root){
-		node = (btree*)parent->data;
-		parent = parent->prev;
+btree_predecessor(btree* root, btree* node, const Comparable_vtable *data_method){
+	if(!root || !node) return NULL;
+	if(node->left) return btree_findmax(node->left);
+	dlist* parents = btree_path(root, node->data, data_method);//use btree_path instead
+	if(!parents) return NULL;
+	dlist* run = parents;
+	parents = dlist_tail(parents);//rotate so we are at the tail (parents->data == node)
+	DLIST_ITERATE_REVERSE(run, parents){
+		if(((btree*)run->data)->right == (btree*)run->next->data){//check if our last child was a right child
+			node = (btree*)run->data;
+			goto end;
+		}
 	}
-	dlist_clear(head, FALSE);
+	node = NULL;//there is no predecessor, node was a global minimum
+end:
+	dlist_clear(parents, FALSE);
 	return node;
 }
 
@@ -213,15 +218,19 @@ btree*
 btree_successor(btree* root, btree* node, const Comparable_vtable *data_method){
 	if(root == NULL || node == NULL) return NULL;
 	if(node->right != NULL) return btree_findmin(node->right);
-	dlist* parent = btree_path(root, node->data, data_method);//use btree_path instead
-	if(parent == NULL) return root;
-	dlist* head = parent;
-	parent = parent->prev;
-	while((btree*)parent->prev->data == node && (btree*)parent->data != root){
-		node = (btree*)parent->data;
-		parent = parent->prev;
+	dlist* parents = btree_path(root, node->data, data_method);//use btree_path instead
+	if(parents == NULL) return NULL;
+	dlist* run = parents;
+	parents = dlist_tail(parents);//rotate so we are at the tail (parents->data == node)
+	DLIST_ITERATE_REVERSE(run, parents){
+		if(((btree*)run->data)->left == (btree*)run->next->data){//check if our last child was a left child
+			node = (btree*)run->data;
+			goto end;
+		}
 	}
-	dlist_clear(head, FALSE);
+	node = NULL;
+end:
+	dlist_clear(parents, FALSE);
 	return node;
 }
 
@@ -247,9 +256,9 @@ btree*
 btree_findmax_parent(btree* root){
 	if(!root) return root;
 	btree *p = NULL;
-	while(root->left){
+	while(root->right){
 		p = root;
-		root = root->left;
+		root = root->right;
 	}
 	return p;
 }
@@ -257,7 +266,7 @@ btree_findmax_parent(btree* root){
 btree*
 btree_findmax(btree* root){
 	if(!root) return root;
-	while(root->left) root = root->left;
+	while(root->right) root = root->right;
 	return root;
 }
 

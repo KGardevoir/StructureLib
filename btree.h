@@ -21,7 +21,7 @@ btree*  btree_parent(btree *root, Object* data, const Comparable_vtable *data_me
 btree*  btree_parent_with_depth(btree *root, Object* data, const Comparable_vtable *data_method, size_t *r_depth);
 dlist*  btree_path(btree *root, Object* data, const Comparable_vtable *data_method) __attribute__((warn_unused_result));
 
-btree* btree_predessor(btree *root, btree *node, const Comparable_vtable *data_method);
+btree* btree_predecessor(btree *root, btree *node, const Comparable_vtable *data_method);
 btree* btree_successor(btree *root, btree *node, const Comparable_vtable *data_method);
 btree* btree_findmin_parent(btree *root);
 btree* btree_findmax_parent(btree *root);
