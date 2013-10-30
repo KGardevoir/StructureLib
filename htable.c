@@ -27,7 +27,7 @@ static long htable_node_compare(const htable_node *self, const htable_node *oth)
 static hash_t htable_hash(htable_node *self);
 
 static void htable_clear_internal(htable *tbl, BOOLEAN destroy, BOOLEAN destroy_nodes);
-#if 1
+#if 0
 #include "aLong.h"
 static void
 dump_nodes(btree* tree){
