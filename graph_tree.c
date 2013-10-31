@@ -246,4 +246,3 @@ graph_tree_size(graph* root, size_t *nodes, size_t *edges){
 	if(nodes) *nodes = mm.nodes;
 	if(edges) *edges = mm.edges;
 }
-

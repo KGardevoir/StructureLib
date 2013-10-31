@@ -360,6 +360,20 @@ graph_path_key_match(graph *root, dlist *key_path){
 }
 
 
+static BOOLEAN
+graph_tree_topological_sort_f(Object* data, dlist **list, graph *tree){
+	(void)data;
+	*list = dlist_pushback(*list, (Object*)tree, FALSE);
+	return TRUE;
+}
+
+dlist*
+graph_topological_sort(graph* tree){
+	dlist *list = NULL;
+	graph_map(tree, DEPTH_FIRST_POST, FALSE, &list, (lMapFunc)graph_tree_topological_sort_f);
+	return list;
+}
+
 #if 0
 graph*
 graph_spanning(graph* root, long(edge_weight)(graph*,graph*)){
