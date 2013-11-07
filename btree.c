@@ -288,32 +288,39 @@ btree_map_internal_d_new(size_t depth, btree *node){
 
 btree_iterator_in*
 btree_iterator_in_new(btree *root, btree_iterator_in* mem){
-	mem->r_current = mem->i_root = root;
-	mem->r_depth = 0;
+	mem->i_curafter = mem->r_current = mem->i_root = root;
+	mem->r_depth = -1;
 	mem->i_stk = NULL;
 	return mem;
 }
 
 btree *
 btree_iterator_in_next(btree_iterator_in *self){
-	if(!self->r_current || !self->i_stk){
+	if(!self->r_current){
 		self->r_current = NULL;
+		self->r_depth = 0;
 		return NULL;
 	}
 	size_t depth = self->r_depth;
-	btree *cur = self->r_current;
-	cur = cur->right;
-	while(cur){
-		depth++;
-		self->i_stk = dlist_pushback(self->i_stk, (Object*)btree_map_internal_d_new(depth, cur), FALSE);
-		cur = cur->left;
+	btree *cur = self->i_curafter;
+	while(self->i_stk || cur){
+		if(cur){
+			depth++;
+			self->i_stk = dlist_pushback(self->i_stk, (Object*)btree_map_internal_d_new(depth, cur), FALSE);
+			cur = cur->left;
+		} else {
+			struct btree_map_internal_d *node = NULL;
+			self->i_stk = dlist_popback(self->i_stk, (Object**)&node, FALSE);
+			self->r_current = node->node;
+			self->r_depth = node->depth;
+			self->i_curafter = node->node->right;
+			LINKED_FREE(node);
+			return self->r_current;
+		}
 	}
-	struct btree_map_internal_d *node = NULL;
-	self->i_stk = dlist_popback(self->i_stk, (Object**)&node, FALSE);
-	self->r_current = node->node;
-	self->r_depth = node->depth;
-	LINKED_FREE(node);
-	return self->r_current;
+	self->r_current = NULL;
+	self->r_depth = 0;
+	return NULL;
 }
 
 void
@@ -330,7 +337,7 @@ btree_iterator_in_destroy(btree_iterator_in* self){
 btree_iterator_pre*
 btree_iterator_pre_new(btree *root, btree_iterator_pre* mem){
 	mem->r_current = mem->i_curafter = mem->i_root = root;
-	mem->r_depth = -1;//I don't like this as it depends on the behavior of 
+	mem->r_depth = -1;//I don't like this as it depends on the behavior of
 	mem->i_stk = NULL;
 	mem->p_add_children = TRUE;
 	return mem;
@@ -397,15 +404,14 @@ btree *
 btree_iterator_post_next(btree_iterator_post *self){
 	if(!(self->i_stk || self->r_current)){
 		self->r_current = NULL;
+		self->r_depth = 0;
 		return NULL;
 	}
-	struct btree_map_internal_d* node = (struct btree_map_internal_d*)dlist_head(self->i_stk)->data;
-	btree *cur = node->node;
-	size_t depth = node->depth;
+	size_t depth = self->r_depth;
 	btree *prev = self->i_prev;
-	while( (!prev || prev->left == cur || prev->right == cur) || (cur->left == prev) ){
-		node = (struct btree_map_internal_d*)dlist_head(self->i_stk)->data;
-		cur = node->node;
+	while(self->i_stk){
+		struct btree_map_internal_d* node = (struct btree_map_internal_d*)self->i_stk->data;
+		btree *cur = node->node;
 		depth = node->depth;
 		if(!prev || prev->left == cur || prev->right == cur){
 			if(cur->left || cur->right){
@@ -414,18 +420,20 @@ btree_iterator_post_next(btree_iterator_post *self){
 		} else if(cur->left == prev){
 			if(cur->right)
 				self->i_stk = dlist_pushfront(self->i_stk, (Object*)btree_map_internal_d_new(depth+1, cur->right), FALSE);
+		} else {
+			self->i_stk = dlist_popfront(self->i_stk, (Object**)&node, FALSE);
+			LINKED_FREE(node);
+			//visit cur
+			self->r_current = cur;
+			self->r_depth = depth;
+			self->i_prev = cur;
+			return self->r_current;
 		}
 		prev = cur;
 	}
-	self->i_prev = cur;
-
-	self->i_stk = dlist_popfront(self->i_stk, (Object**)&node, FALSE);
-	cur = node->node;
-	depth = node->depth;
-	LINKED_FREE(node);
-	self->r_current = cur;
-	self->r_depth = depth;
-	return self->r_current;
+	self->r_current = NULL;
+	self->r_depth = 0;
+	return NULL;
 }
 
 void
@@ -499,14 +507,14 @@ btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, void* aux, TMapF
 void
 btree_clear(btree* root, BOOLEAN destroy_data){//iterate in postfix order
 	dlist *freer = NULL;
-	btree_iterator_in* it = btree_iterator_in_new(root, &(btree_iterator_in){});
-	for(btree *next = btree_iterator_in_next(it); next; next = btree_iterator_in_next(it)){
-		freer = dlist_pushback(freer, (Object*)root, FALSE);
+	btree_iterator_pre* it = btree_iterator_pre_new(root, &(btree_iterator_pre){});
+	for(btree *next = btree_iterator_pre_next(it); next; next = btree_iterator_pre_next(it)){
+		freer = dlist_pushback(freer, (Object*)next, FALSE);
 	}
 	dlist *run;
 	DLIST_ITERATE(run, freer){
-		if(destroy_data) CALL_VOID(root->data, destroy);
-		LINKED_FREE(root);
+		if(destroy_data) CALL_VOID(((btree*)run->data)->data, destroy);
+		LINKED_FREE(run->data);
 	}
 	dlist_clear(freer, FALSE);
 }

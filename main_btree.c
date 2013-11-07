@@ -147,17 +147,16 @@ test_map_pre(){
 		.test2 = {0}
 	};
 	btree_iterator_pre *it = btree_iterator_pre_new(t1, &(btree_iterator_pre){});
-	size_t pos = 0;
-	for(btree *node = btree_iterator_pre_next(it); node; node = btree_iterator_pre_next(it), pos++){
-		buffer.test1[pos] = ((aLong*)node->data)->data;
-		buffer.test2[pos] = it->r_depth;
-		if(pos >= buffer.max)
+	for(btree *node = btree_iterator_pre_next(it); node; node = btree_iterator_pre_next(it), buffer.pos++){
+		buffer.test1[buffer.pos] = ((aLong*)node->data)->data;
+		buffer.test2[buffer.pos] = it->r_depth;
+		if(buffer.pos >= buffer.max)
 			break;
 	}
 	printf("Pre Order (Element Order): ");
-	compare_arrs(&x[0], buffer.max, &buffer.test1[0], pos);
+	compare_arrs(&x[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("Pre Order (Level Order): ");
-	compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], pos);
+	compare_arrs(&expect2[0], buffer.max, &buffer.test2[0], buffer.pos);
 	btree_clear(t1, TRUE);
 }
 
@@ -178,12 +177,10 @@ test_map_infix(){
 		.test2 = {0}
 	};
 	btree_iterator_in *it = btree_iterator_in_new(t1, &(btree_iterator_in){});
-	size_t pos = 0;
-	for(btree *node = btree_iterator_in_next(it); node; node = btree_iterator_in_next(it), pos++){
-		buffer.test1[pos] = ((aLong*)node->data)->data;
-		buffer.test2[pos] = it->r_depth;
-		pos++;
-		if(pos >= buffer.max)
+	for(btree *node = btree_iterator_in_next(it); node; node = btree_iterator_in_next(it), buffer.pos++){
+		buffer.test1[buffer.pos] = ((aLong*)node->data)->data;
+		buffer.test2[buffer.pos] = it->r_depth;
+		if(buffer.pos >= buffer.max)
 			break;
 	}
 	printf("In Order (Element Order): ");
@@ -210,12 +207,10 @@ test_map_post(){
 		.test2 = {0}
 	};
 	btree_iterator_post *it = btree_iterator_post_new(t1, &(btree_iterator_post){});
-	size_t pos = 0;
-	for(btree *node = btree_iterator_post_next(it); node; node = btree_iterator_post_next(it), pos++){
-		buffer.test1[pos] = ((aLong*)node->data)->data;
-		buffer.test2[pos] = it->r_depth;
-		pos++;
-		if(pos >= buffer.max)
+	for(btree *node = btree_iterator_post_next(it); node; node = btree_iterator_post_next(it), buffer.pos++){
+		buffer.test1[buffer.pos] = ((aLong*)node->data)->data;
+		buffer.test2[buffer.pos] = it->r_depth;
+		if(buffer.pos >= buffer.max)
 			break;
 	}
 	printf("Post Order (Element Order): ");
@@ -279,8 +274,8 @@ test_btree(){
 	test_find();
 	test_remove();
 	test_map_pre();
-	//test_map_post();
-	//test_map_infix();
+	test_map_post();
+	test_map_infix();
 	test_balance();
 	test_info();
 }

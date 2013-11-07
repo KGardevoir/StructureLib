@@ -33,6 +33,7 @@ void   btree_info(btree *root, size_t *min, size_t *max, size_t *avg, size_t *le
 typedef struct {
 	dlist *i_stk;
 	btree *i_root;
+	btree *i_curafter;
 	btree *r_current;
 	size_t r_depth;
 } btree_iterator_in;
