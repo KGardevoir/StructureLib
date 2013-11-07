@@ -30,6 +30,56 @@ btree* btree_findmax(btree *root);
 
 void   btree_info(btree *root, size_t *min, size_t *max, size_t *avg, size_t *leaves, size_t *size, dlist **lleaves, dlist **lnodes);
 
+typedef struct {
+	dlist *i_stk;
+	btree *i_root;
+	btree *r_current;
+	size_t r_depth;
+} btree_iterator_in;
+
+btree_iterator_in* btree_iterator_in_new(btree *tree, btree_iterator_in* mem);
+btree* btree_iterator_in_next(btree_iterator_in *it);
+void btree_iterator_in_destroy(btree_iterator_in* it);
+
+typedef struct {
+	dlist *i_stk;
+	btree *i_root;
+	btree *i_curafter;
+	btree *r_current;
+	size_t r_depth;
+	BOOLEAN p_add_children;
+} btree_iterator_pre;
+
+btree_iterator_pre* btree_iterator_pre_new(btree *tree, btree_iterator_pre* mem);
+btree* btree_iterator_pre_next(btree_iterator_pre *it);
+void btree_iterator_pre_destroy(btree_iterator_pre* it);
+
+typedef struct {
+	dlist *i_stk;
+	btree *i_prev;
+	btree *i_root;
+	btree *r_current;
+	size_t r_depth;
+} btree_iterator_post;
+
+btree_iterator_post* btree_iterator_post_new(btree *tree, btree_iterator_post* mem);
+btree* btree_iterator_post_next(btree_iterator_post *it);
+void btree_iterator_post_destroy(btree_iterator_post* it);
+
+typedef struct {
+	dlist *i_stk;
+	btree *i_prev;
+	btree *i_root;
+	btree *r_current;
+	size_t r_depth;
+	BOOLEAN p_add_children;
+} btree_iterator_breadth;
+
+btree_iterator_breadth* btree_iterator_breadth_new(btree *tree, btree_iterator_breadth* mem);
+btree* btree_iterator_breadth_next(btree_iterator_breadth *it);
+void btree_iterator_breadth_destroy(btree_iterator_breadth* it);
+
+
 BOOLEAN btree_map(btree *root, const TRAVERSAL_STRATEGY, const BOOLEAN more_info, void* aux, const lMapFunc func);
 btree* btree_balance(btree *root);
 

@@ -17,7 +17,41 @@ void graph_tree_size(graph* root, size_t* nodes, size_t* edges);//count of all t
 graph* graph_tree_find(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_vtable* key_method);
 dlist* graph_tree_path(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_vtable* key_method) __attribute__((warn_unused_result));
 
-BOOLEAN graph_tree_map(graph* root, const TRAVERSAL_STRATEGY, const BOOLEAN more_info, const void* aux, const lMapFunc func);
+typedef struct {
+	graph *i_root;
+	dlist *i_stk;
+	graph *r_current;
+	size_t r_depth;
+} graph_tree_iterator_post;
+
+graph_tree_iterator_post* graph_tree_iterator_post_new(graph *, graph_tree_iterator_post* mem);
+graph* graph_tree_iterator_post_next(graph_tree_iterator_post*);
+void graph_tree_iterator_post_destroy(graph_tree_iterator_post*);
+
+typedef struct {
+	graph *i_root;
+	dlist *i_stk;
+	graph *r_current;
+	size_t r_depth;
+	BOOLEAN p_add_children;
+} graph_tree_iterator_pre;
+
+graph_tree_iterator_pre* graph_tree_iterator_pre_new(graph *, graph_tree_iterator_pre* mem);
+graph* graph_tree_iterator_pre_next(graph_tree_iterator_pre*);
+void graph_tree_iterator_pre_destroy(graph_tree_iterator_pre*);
+
+typedef struct {
+	graph *i_root;
+	dlist *i_stk;
+	graph *r_current;
+	size_t r_depth;
+	BOOLEAN p_add_children;
+} graph_tree_iterator_breadth;
+
+graph_tree_iterator_breadth* graph_tree_iterator_breadth_new(graph *, graph_tree_iterator_breadth* mem);
+graph* graph_tree_iterator_breadth_next(graph_tree_iterator_breadth*);
+void graph_tree_iterator_breadth_destroy(graph_tree_iterator_breadth*);
+
 
 
 #endif /* end of include guard: _GRAPH_TREE_H_ */

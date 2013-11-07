@@ -13,16 +13,6 @@ graph_tree_insert(graph* root, Object* data, BOOLEAN copy){
 	return graph_tree_link(root, graph_insert(NULL, data, copy));
 }
 
-static BOOLEAN
-graph_tree_verify_f(Object *data, graph_tree_verify_d *aux, graph *node){
-	(void)data;
-	if(node == aux->root){
-		aux->num++;
-	}
-	//printf("NUM: %zu\n", aux->num);
-	return aux->num <= 1;
-}
-
 graph*
 graph_tree_link(graph* root, graph* child){
 	if(child == NULL) return root;
@@ -30,15 +20,20 @@ graph_tree_link(graph* root, graph* child){
 	//printf("%p %p %p\n", child, child->data, child->edges);
 	root->edges = dlist_pushback(root->edges, (Object*)child, FALSE);
 	//verify tree
-	graph_tree_verify_d test = {
-		.root = root,
-		.num = 0
-	};
-	if(!graph_tree_map(root, DEPTH_FIRST_PRE, FALSE, &test, (lMapFunc)graph_tree_verify_f)){
-		//printf("Not adding child\n");
+	size_t root_visited = 0;
+	graph_tree_iterator_pre *iter =
+		graph_tree_iterator_pre_new(root, &(graph_tree_iterator_pre){});
+	for(graph *g = graph_tree_iterator_pre_next(iter); g; g = graph_tree_iterator_pre_next(iter)){
+		if(g == root){
+			root_visited++;
+		}
+		if(root_visited > 1){
+			break;
+		}
+	}
+	if(root_visited > 1){
 		root->edges = dlist_popback(root->edges, NULL, FALSE);
 	}
-	//Rather than adding ordered, order based on arrival time
 	return root;
 }
 
@@ -84,17 +79,12 @@ graph_print_children(aLong *data){
  * case, time complexity is O(N) (approximately).
  *
  * @param root - the root of the graph
- * @param pass_data - pass the data, instead of the node itself.
- * @param more_info - give more info, as defined by the lMapFuncAux datatype.
- * @param aux - auxillarly persistent data
- * @param func - function to do
+ * @param mem  - the memory
  */
-static inline BOOLEAN
-graph_tree_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void* aux, const lMapFunc func){//Post fix
+graph_tree_iterator_post*
+graph_tree_iterator_post_new(graph *root, graph_tree_iterator_post *mem){
 	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
 	dlist *exec = NULL;
-	size_t position = 0, size = 0;
-	if(more_info) graph_size(root, &size, NULL);
 	while(stk){
 		node_info *g;
 		stk = dlist_popfront(stk, (Object**)&g, FALSE);
@@ -113,136 +103,182 @@ graph_tree_map_internal_dfs_po(graph *root, const BOOLEAN more_info, const void*
 	#endif
 		exec = dlist_pushback(exec, (Object*)g, FALSE);
 	}
-	dlist *run;
-	exec = dlist_tail(exec);//execute from tail->head, so make the tail first
-	DLIST_ITERATE_REVERSE(run, exec){
-		node_info *g = (node_info*)(run->data);
-		if(more_info){
-			lMapFuncAux ax;
-			ax.isAux = TRUE;
-			ax.depth = g->depth;
-			ax.position = position;
-			ax.size = size;
-			ax.aux = (void*)aux;
-			if(!func(g->node->data, &ax, (graph*)g->node)){
-				goto cleanup;
-			}
-			position++;
-		} else {
-			if(!func(g->node->data, aux, (graph*)g->node)){
-				goto cleanup;
-			}
-		}
-	}
-	dlist_clear(exec, TRUE);
-	return TRUE;
-cleanup:
-	dlist_clear(stk, TRUE);
-	dlist_clear(exec, TRUE);
-	return FALSE;
-}
-
-
-BOOLEAN
-graph_tree_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info, const void* aux, const lMapFunc func){
-	if(method == DEPTH_FIRST_POST) return graph_tree_map_internal_dfs_po(root, more_info, aux, func);
-	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
-	size_t position = 0, size = 0;
-	if(more_info) graph_tree_size(root, &size, NULL);
-	while(stk){
-		node_info *g;
-		stk = dlist_popfront(stk, (Object**)&g, FALSE);
-		dlist *new_list = dlist_copy(g->node->edges, FALSE);
-		dlist *run;
-		DLIST_ITERATE(run, new_list){
-			run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
-		}
-		if(method == DEPTH_FIRST || method == DEPTH_FIRST_PRE){
-			stk = dlist_concat(new_list, stk);
-		} else {
-			stk = dlist_concat(stk, new_list);
-		}
-		/*
-		printf("<");
-		dlist_map(g->node->edges, FALSE, NULL, (lMapFunc)graph_print_children);
-		printf(">");
-		printf("[");
-		dlist_map(stk, FALSE, NULL, (lMapFunc)graph_print_children);
-		printf("]\n");
-		*/
-		if(more_info){
-			lMapFuncAux ax = {
-				.isAux = TRUE,
-				.depth = g->depth,
-				.position = position,
-				.size = size,
-				.aux = (void*)aux
-			};
-			if(!func(g->node->data, &ax, (graph*)g->node)){
-				LINKED_FREE(g);
-				goto cleanup;
-			}
-			position++;
-		} else {
-			if(!func(g->node->data, aux, (graph*)g->node)){
-				LINKED_FREE(g);
-				goto cleanup;
-			}
-		}
-		LINKED_FREE(g);
-	}
-	return TRUE;
-cleanup:
-	dlist_clear(stk, TRUE);
-	return FALSE;
-}
-
-struct graph_find_d {
-	graph *rtn;
-	void* goal;
-	const Comparable_vtable *goal_method;
-};
-
-static BOOLEAN
-graph_find_f(Object* data, struct graph_find_d *aux, graph* node){
-	if(aux->goal_method->compare(aux->goal, data) == 0){
-		aux->rtn = node;
-		return FALSE;
-	}
-	return TRUE;
+	mem->i_stk = exec;
+	mem->i_root = root;
+	mem->r_depth = 0;
+	mem->r_current = NULL;
+	return mem;
 }
 
 graph*
-graph_tree_find(graph *root, TRAVERSAL_STRATEGY strat, void* key, const Comparable_vtable* key_method){
-	struct graph_find_d mm = {
-		.rtn = NULL,
-		.goal = key,
-		.goal_method = key_method
-	};
-	if(!graph_tree_map(root, strat, FALSE, &mm, (lMapFunc)graph_find_f) && mm.rtn)
-		return mm.rtn;
-	return NULL;
+graph_tree_iterator_post_next(graph_tree_iterator_post* self){
+	if(!self->i_stk){
+		self->r_current = NULL;
+		self->r_depth = 0;
+		return NULL;
+	}
+	node_info *g;
+	self->i_stk = dlist_popback(self->i_stk, (Object**)&g, FALSE);
+	self->r_depth = g->depth;
+	self->r_current = (graph*)g->node;
+	CALL_VOID(g, destroy);
+	return self->r_current;
 }
 
-struct graph_size_d {
-	size_t nodes;
-	size_t edges;
-};
+void
+graph_tree_iterator_post_destroy(graph_tree_iterator_post* self){
+	dlist_clear(self->i_stk, TRUE);
+	self->i_root = NULL;
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+}
 
-static BOOLEAN
-graph_size_f(Object *data, struct graph_size_d *aux, graph *root){
-	aux->nodes = aux->nodes + 1;
-	aux->edges = aux->edges + dlist_length(root->edges);
-	return TRUE;
+
+graph_tree_iterator_pre*
+graph_tree_iterator_pre_new(graph *root, graph_tree_iterator_pre* mem){
+	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
+	mem->i_root = root;
+	mem->r_depth = 0;
+	mem->r_current = root;
+	mem->p_add_children = TRUE;
+	return mem;
+}
+
+graph*
+graph_tree_iterator_pre_next(graph_tree_iterator_pre* self){
+	if(!self->i_stk){
+		self->r_current = NULL;
+		self->r_depth = 0;
+		self->p_add_children = TRUE;
+		return NULL;
+	}
+	if(self->p_add_children){
+		dlist *new_list = dlist_copy(self->r_current->edges, FALSE);
+		dlist *run;
+		DLIST_ITERATE(run, new_list){
+			run->data = (void*)node_info_new((graph*)run->data, self->r_depth+1);
+		}
+		self->i_stk = dlist_concat(new_list, self->i_stk);
+	}
+
+	node_info *g;
+	self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
+	self->r_current = (graph*)g->node;
+	self->r_depth = g->depth;
+	self->p_add_children = TRUE;
+	CALL_VOID(g, destroy);
+	return self->r_current;
+}
+
+void
+graph_tree_iterator_pre_destroy(graph_tree_iterator_pre* self){
+	dlist_clear(self->i_stk, TRUE);
+	self->i_root = NULL;
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->p_add_children = TRUE;
+}
+
+
+graph_tree_iterator_breadth*
+graph_tree_iterator_breadth_new(graph *root, graph_tree_iterator_breadth* mem){
+	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
+	mem->i_root = root;
+	mem->r_depth = 0;
+	mem->r_current = root;
+	mem->p_add_children = TRUE;
+	return mem;
+}
+
+graph*
+graph_tree_iterator_breadth_next(graph_tree_iterator_breadth* self){
+	if(!self->i_stk){
+		self->r_current = NULL;
+		self->r_depth = 0;
+		self->p_add_children = TRUE;
+		return NULL;
+	}
+	if(self->p_add_children){
+		dlist *new_list = dlist_copy(self->r_current->edges, FALSE);
+		dlist *run;
+		DLIST_ITERATE(run, new_list){
+			run->data = (void*)node_info_new((graph*)run->data, self->r_depth+1);
+		}
+		self->i_stk = dlist_concat(self->i_stk, new_list);
+	}
+
+	node_info *g;
+	self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
+	self->r_current = (graph*)g->node;
+	self->r_depth = g->depth;
+	self->p_add_children = TRUE;
+	CALL_VOID(g, destroy);
+	return self->r_current;
+}
+
+void
+graph_tree_iterator_breadth_destroy(graph_tree_iterator_breadth* self){
+	dlist_clear(self->i_stk, TRUE);
+	self->i_root = NULL;
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->p_add_children = TRUE;
+}
+
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+#define MAX(a,b) ( (a)>(b)?a:b )
+
+graph*
+graph_tree_find(graph *root, TRAVERSAL_STRATEGY strat, void* key, const Comparable_vtable* key_method){
+	void *iter = (void*)&(char[MAX(sizeof(graph_tree_iterator_breadth), MAX(sizeof(graph_tree_iterator_pre), sizeof(graph_tree_iterator_post)))]){0};
+	void (*destroy)(void*);
+	graph* (*next)(void*);
+	switch(strat){
+		//select iterator and next function
+		case DEPTH_FIRST_POST:
+			iter    = graph_tree_iterator_post_new(root, iter);
+			destroy = graph_tree_iterator_post_destroy;
+			next    = graph_tree_iterator_post_next;
+			break;
+		case DEPTH_FIRST_PRE:
+			iter    = graph_tree_iterator_pre_new(root, iter);
+			destroy = graph_tree_iterator_pre_destroy;
+			next    = graph_tree_iterator_pre_next;
+			break;
+		default:
+		case BREADTH_FIRST:
+			iter    = graph_tree_iterator_breadth_new(root, iter);
+			destroy = graph_tree_iterator_breadth_destroy;
+			next    = graph_tree_iterator_breadth_next;
+			break;
+	}
+	graph *rtn = NULL;
+	for(graph *g = next(iter); g; g = next(iter)){
+		if(key_method->compare(key, g->data) == 0){
+			rtn = g;
+			break;
+		}
+	}
+	destroy(iter);
+	return rtn;
 }
 
 void
 graph_tree_size(graph* root, size_t *nodes, size_t *edges){
-	struct graph_size_d mm = {
-		.nodes = 0,
-		.edges = 0
-	};
-	graph_tree_map(root, BREADTH_FIRST, FALSE, &mm, (lMapFunc)graph_size_f);
-	if(nodes) *nodes = mm.nodes;
-	if(edges) *edges = mm.edges;
+	size_t i_nodes = 0;
+	size_t i_edges = 0;
+	graph_tree_iterator_breadth *iter =
+		graph_tree_iterator_breadth_new(root, &(graph_tree_iterator_breadth){});
+	for(graph *g = graph_tree_iterator_breadth_next(iter); g; g = graph_tree_iterator_breadth_next(iter)){
+		nodes++;
+		edges += dlist_length(g->edges);
+	}
+	if(nodes) *nodes = i_nodes;
+	if(edges) *edges = i_edges;
 }

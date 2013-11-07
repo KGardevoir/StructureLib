@@ -44,8 +44,8 @@ struct Comparator_vtable {
 };
 
 #define CALL_POSSIBLE(OBJ, METHOD) (OBJ && OBJ->method && OBJ->method->METHOD)
-#define CALL(OBJ, METHOD, ELSE, ...) (CALL_POSSIBLE(OBJ, METHOD)?(OBJ->method->METHOD(OBJ, ## __VA_ARGS__)):(ELSE))
-#define CALL_VOID(OBJ, METHOD, ...) do{ if(CALL_POSSIBLE(OBJ, METHOD)) OBJ->method->METHOD (OBJ, ## __VA_ARGS__); } while(0)
+#define CALL(OBJ, METHOD, ELSE, ...) (CALL_POSSIBLE(OBJ, METHOD)?(OBJ->method->METHOD((void*)OBJ, ## __VA_ARGS__)):(ELSE))
+#define CALL_VOID(OBJ, METHOD, ...) do{ if(CALL_POSSIBLE(OBJ, METHOD)) OBJ->method->METHOD ((void*)OBJ, ## __VA_ARGS__); } while(0)
 
 
 typedef struct lMapFuncAux {

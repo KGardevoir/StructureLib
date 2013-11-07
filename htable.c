@@ -158,7 +158,7 @@ htable_resize(htable* tbl, double scalar){
 		.size = next_size,
 		.collision = 0
 	};
-	htable_map(tbl, DEPTH_FIRST_PRE, FALSE, &ntbl, (lMapFunc)htable_recompute_f);
+	//htable_map(tbl, DEPTH_FIRST_PRE, FALSE, &ntbl, (lMapFunc)htable_recompute_f);
 	size_t filled = tbl->size;
 	htable_clear_internal(tbl, FALSE, FALSE);
 	tbl->m_max_size = ntbl.size;
@@ -247,7 +247,7 @@ htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_inf
 	size_t processed = 0;
 	for(; i < table->m_max_size; i++){
 		if(table->m_array[i]){
-			if(!btree_map(table->m_array[i]->root, strat, FALSE, aux, func)) return FALSE;
+			//if(!btree_map(table->m_array[i]->root, strat, FALSE, aux, func)) return FALSE;
 			processed += table->m_array[i]->size;
 			if(processed >= table->size) break;
 		}
@@ -271,8 +271,8 @@ htable_clear_internal(htable *tbl, BOOLEAN destroy, BOOLEAN destroy_nodes){
 	for(; i < tbl->m_max_size; i++){
 	#ifdef SPLAY_PROCESS
 		if(tbl->m_array[i]){
-			if(destroy_nodes)
-				btree_map(tbl->m_array[i]->root, DEPTH_FIRST_PRE, FALSE, &destroy, (lMapFunc)htable_clear_f);
+			//if(destroy_nodes)
+				//btree_map(tbl->m_array[i]->root, DEPTH_FIRST_PRE, FALSE, &destroy, (lMapFunc)htable_clear_f);
 			processed += tbl->m_array[i]->size;
 			splay_clear(tbl->m_array[i], destroy_nodes);
 			splaytree_destroy(tbl->m_array[i]);
@@ -281,8 +281,8 @@ htable_clear_internal(htable *tbl, BOOLEAN destroy, BOOLEAN destroy_nodes){
 		}
 	#else
 		if(tbl->m_array[i]){
-			if(destroy_nodes)
-				btree_map(tbl->m_array[i]->root, DEPTH_FIRST_PRE, FALSE, &destroy, (lMapFunc)htable_clear_f);
+			//if(destroy_nodes)
+				//btree_map(tbl->m_array[i]->root, DEPTH_FIRST_PRE, FALSE, &destroy, (lMapFunc)htable_clear_f);
 			processed += tbl->m_array[i]->size;
 			scapegoat_clear(tbl->m_array[i], destroy_nodes);
 			scapegoat_destroy(tbl->m_array[i]);

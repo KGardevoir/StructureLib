@@ -286,200 +286,205 @@ btree_map_internal_d_new(size_t depth, btree *node){
 	return new;
 }
 
-static inline BOOLEAN
-btree_map_in_internal(btree *root, const BOOLEAN more_info, void *aux, const lMapFunc func){
-	dlist *stk = NULL;
-	size_t depth = 0, position = 0, size = 0;
-	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
-	btree *cur = root;
-	while(stk || cur){
+btree_iterator_in*
+btree_iterator_in_new(btree *root, btree_iterator_in* mem){
+	mem->r_current = mem->i_root = root;
+	mem->r_depth = 0;
+	mem->i_stk = NULL;
+	return mem;
+}
+
+btree *
+btree_iterator_in_next(btree_iterator_in *self){
+	if(!self->r_current || !self->i_stk){
+		self->r_current = NULL;
+		return NULL;
+	}
+	size_t depth = self->r_depth;
+	btree *cur = self->r_current;
+	cur = cur->right;
+	while(cur){
+		depth++;
+		self->i_stk = dlist_pushback(self->i_stk, (Object*)btree_map_internal_d_new(depth, cur), FALSE);
+		cur = cur->left;
+	}
+	struct btree_map_internal_d *node = NULL;
+	self->i_stk = dlist_popback(self->i_stk, (Object**)&node, FALSE);
+	self->r_current = node->node;
+	self->r_depth = node->depth;
+	LINKED_FREE(node);
+	return self->r_current;
+}
+
+void
+btree_iterator_in_destroy(btree_iterator_in* self){
+	dlist *run;
+	DLIST_ITERATE(run, self->i_stk) LINKED_FREE(run->data);
+	dlist_clear(self->i_stk, FALSE);
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->i_root = NULL;
+}
+
+btree_iterator_pre*
+btree_iterator_pre_new(btree *root, btree_iterator_pre* mem){
+	mem->r_current = mem->i_curafter = mem->i_root = root;
+	mem->r_depth = -1;//I don't like this as it depends on the behavior of 
+	mem->i_stk = NULL;
+	mem->p_add_children = TRUE;
+	return mem;
+}
+
+btree *
+btree_iterator_pre_next(btree_iterator_pre *self){
+	if(!self->r_current){
+		self->r_depth = 0;
+		self->r_current = NULL;
+		self->p_add_children = TRUE;
+		return NULL;
+	}
+	size_t depth = self->r_depth;
+	btree *cur = self->i_curafter;
+	while(self->i_stk || cur){
 		if(cur){
 			depth++;
-			stk = dlist_pushback(stk, (Object*)btree_map_internal_d_new(depth, cur), FALSE);
-			cur = cur->left;
+			self->i_stk = dlist_pushback(self->i_stk, (Object*)btree_map_internal_d_new(depth, cur), FALSE);
+			self->r_current = cur;
+			self->i_curafter = cur->left;
+			self->r_depth = depth;
+			self->p_add_children = TRUE;
+			return self->r_current;
 		} else {
 			struct btree_map_internal_d *node = NULL;
-			stk = dlist_popback(stk, (Object**)&node, FALSE);
+			self->i_stk = dlist_popback(self->i_stk, (Object**)&node, FALSE);
 			cur = node->node;
 			depth = node->depth;
 			LINKED_FREE(node);
 			//by changing this from a stack to a queue, this can be transformed to a pre-order
 			//traversal
-			if(more_info){
-				lMapFuncAux ax = {
-					.isAux = TRUE,
-					.depth = depth-1,
-					.position = position,
-					.size = size,
-					.aux = aux
-				};
-				if(!func(cur->data, &ax, cur)) goto cleanup;
-				position++;
-			} else {
-				if(!func(cur->data, aux, cur)) goto cleanup;
-			}
 			cur = cur->right;
 		}
 	}
-	return TRUE;
-cleanup:{
-		dlist *run;
-		DLIST_ITERATE(run, stk) LINKED_FREE(run->data);
-		dlist_clear(stk, FALSE);
-		return FALSE;
-	}
+	self->p_add_children = TRUE;
+	self->r_current = NULL;
+	self->r_depth = 0;
+	return NULL;
 }
-static inline BOOLEAN
-btree_map_pre_internal(btree *root, const BOOLEAN more_info, void* aux, const lMapFunc func){
-	dlist *stk = NULL;
-	size_t depth = 0, position = 0, size = 0;
-	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
-	btree *cur = root;
-	while(stk || cur){
-		if(cur){
-			depth++;
-			stk = dlist_pushback(stk, (Object*)btree_map_internal_d_new(depth, cur), FALSE);
-			if(more_info){
-				lMapFuncAux ax = {
-					.isAux = TRUE,
-					.depth = depth-1,
-					.position = position,
-					.size = size,
-					.aux = aux
-				};
-				if(!func(cur->data, &ax, cur)) goto false_cleanup;
-				position++;
-			} else {
-				if(!func(cur->data, aux, cur)) goto false_cleanup;
-			}
-			cur = cur->left;
-		} else {
-			struct btree_map_internal_d *node = NULL;
-			stk = dlist_popback(stk, (Object**)&node, FALSE);
-			cur = node->node;
-			depth = node->depth;
-			LINKED_FREE(node);
-			//by changing this from a stack to a queue, this can be transformed to a pre-order
-			//traversal
-			cur = cur->right;
-		}
-	}
-	return TRUE;
-false_cleanup:
-	{
-		dlist* run;
-		DLIST_ITERATE(run, stk) LINKED_FREE(run->data);
-		dlist_clear(stk, FALSE);
-		return FALSE;
-	}
+
+void
+btree_iterator_pre_destroy(btree_iterator_pre* self){
+	dlist *run;
+	DLIST_ITERATE(run, self->i_stk) LINKED_FREE(run->data);
+	dlist_clear(self->i_stk, FALSE);
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->i_root = NULL;
 }
-static inline BOOLEAN
-btree_map_post_internal(btree *root, const BOOLEAN more_info, void* aux, const lMapFunc func){
-	if(!root) return TRUE;
-	size_t depth = 0, position = 0, size = 0;
-	if(more_info){
-		btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
+
+btree_iterator_post*
+btree_iterator_post_new(btree *root, btree_iterator_post* mem){
+	mem->i_root = root;
+	mem->r_current = NULL;
+	mem->r_depth = 0;
+	mem->i_stk = dlist_pushfront(NULL, (Object*)btree_map_internal_d_new(0, root), FALSE);
+	mem->i_prev = NULL;
+	return mem;
+}
+
+btree *
+btree_iterator_post_next(btree_iterator_post *self){
+	if(!(self->i_stk || self->r_current)){
+		self->r_current = NULL;
+		return NULL;
 	}
-	dlist *stk = dlist_pushfront(NULL, (Object*)btree_map_internal_d_new(depth, root), FALSE);
-	btree *prev = NULL;
-	while(stk){
-		struct btree_map_internal_d* node = (struct btree_map_internal_d*)stk->data;
-		btree *cur = node->node;
+	struct btree_map_internal_d* node = (struct btree_map_internal_d*)dlist_head(self->i_stk)->data;
+	btree *cur = node->node;
+	size_t depth = node->depth;
+	btree *prev = self->i_prev;
+	while( (!prev || prev->left == cur || prev->right == cur) || (cur->left == prev) ){
+		node = (struct btree_map_internal_d*)dlist_head(self->i_stk)->data;
+		cur = node->node;
 		depth = node->depth;
 		if(!prev || prev->left == cur || prev->right == cur){
 			if(cur->left || cur->right){
-				stk = dlist_pushfront(stk, (Object*)btree_map_internal_d_new(depth+1, cur->left?cur->left:cur->right), FALSE);
+				self->i_stk = dlist_pushfront(self->i_stk, (Object*)btree_map_internal_d_new(depth+1, cur->left?cur->left:cur->right), FALSE);
 			}
 		} else if(cur->left == prev){
 			if(cur->right)
-				stk = dlist_pushfront(stk, (Object*)btree_map_internal_d_new(depth+1, cur->right), FALSE);
-		} else {
-			if(more_info){
-				lMapFuncAux ax = {
-					.isAux = TRUE,
-					.depth = depth,
-					.position = position,
-					.size = size,
-					.aux = aux
-				};
-				if(!func(cur->data, &ax, cur)) goto false_cleanup;
-				position++;
-			} else {
-				if(!func(cur->data, aux, cur)) goto false_cleanup;
-			}
-			stk = dlist_popfront(stk, (Object**)&node, FALSE);
-			LINKED_FREE(node);
+				self->i_stk = dlist_pushfront(self->i_stk, (Object*)btree_map_internal_d_new(depth+1, cur->right), FALSE);
 		}
 		prev = cur;
 	}
-	return TRUE;
-false_cleanup:
-	{
-		dlist* run;
-		DLIST_ITERATE(run, stk) LINKED_FREE(run->data);
-		dlist_clear(stk, FALSE);
-		return FALSE;
-	}
-}
-static inline BOOLEAN
-btree_map_breadth_internal(btree *root, const BOOLEAN more_info, void* aux, const lMapFunc func){
-	dlist* q = dlist_pushback(NULL, (Object*)btree_map_internal_d_new(0, root), FALSE);
-	size_t depth = 0, position = 0, size = 0;
-	if(more_info) btree_info(root, NULL, NULL, NULL, NULL, &size, NULL, NULL);
-	btree *prev = root;
-	while(q){
-		btree *node;
-		q = dlist_popfront(q, (Object**)&node, FALSE);
-		if(more_info){
-			lMapFuncAux ax = {
-				.isAux = TRUE,
-				.depth = depth,
-				.position = position,
-				.size = size,
-				.aux = aux
-			};
-			if(!func(node->data, &ax, node)) goto false_cleanup;
-			position++;
-		} else {
-			if(!func(node->data, aux, node)) goto false_cleanup;
-		}
-		if(prev && (prev->left == node || prev->right == node)){//new level
-			depth++;
-			prev = NULL;
-		}
-		if(!prev)
-			prev = node->left?node->left:node->right;
-		if(node->left)
-			q = dlist_pushback(q, (Object*)node->left, FALSE);
-		if(node->right)
-			q = dlist_pushback(q, (Object*)node->right, FALSE);
-	}
-	return TRUE;
-false_cleanup:
-	{
-		dlist* run;
-		DLIST_ITERATE(run, q) LINKED_FREE(run->data);
-		dlist_clear(q, FALSE);
-		return FALSE;
-	}
+	self->i_prev = cur;
+
+	self->i_stk = dlist_popfront(self->i_stk, (Object**)&node, FALSE);
+	cur = node->node;
+	depth = node->depth;
+	LINKED_FREE(node);
+	self->r_current = cur;
+	self->r_depth = depth;
+	return self->r_current;
 }
 
-static inline BOOLEAN
-btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, void* aux, const lMapFunc func){
-	if(!func) return FALSE;
-	if(!root) return TRUE;
-	switch(strat){
-		case DEPTH_FIRST_PRE:
-			return btree_map_pre_internal(root, more_info, aux, func);
-		case DEPTH_FIRST_IN:
-			return btree_map_in_internal(root, more_info, aux, func);
-		case DEPTH_FIRST_POST:
-			return btree_map_post_internal(root, more_info, aux, func);
-		case BREADTH_FIRST:
-			return btree_map_breadth_internal(root, more_info, aux, func);
-	}
-	return FALSE;
+void
+btree_iterator_post_destroy(btree_iterator_post* self){
+	dlist *run;
+	DLIST_ITERATE(run, self->i_stk) LINKED_FREE(run->data);
+	dlist_clear(self->i_stk, FALSE);
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->i_root = NULL;
 }
+
+
+btree_iterator_breadth*
+btree_iterator_breadth_new(btree *root, btree_iterator_breadth* mem){
+	mem->i_root = root;
+	mem->r_current = NULL;
+	mem->r_depth = 0;
+	mem->i_stk = dlist_pushfront(NULL, (Object*)btree_map_internal_d_new(0, root), FALSE);
+	mem->i_prev = root;
+	return mem;
+}
+
+btree *
+btree_iterator_breadth_next(btree_iterator_breadth *self){
+	if(!(self->i_stk || self->r_current)){
+		self->r_current = NULL;
+		return NULL;
+	}
+	size_t depth = self->r_depth;
+	btree *node;
+	self->i_stk = dlist_popfront(self->i_stk, (Object**)&node, FALSE);
+	self->r_current = node;
+	//return node
+	if(self->i_prev && (self->i_prev->left == node || self->i_prev->right == node)){//new level
+		depth++;//TODO figure out how to make this work
+		self->i_prev = NULL;
+	}
+	if(!self->i_prev)
+		self->i_prev = node->left?node->left:node->right;
+	if(node->left)
+		self->i_stk = dlist_pushback(self->i_stk, (Object*)node->left, FALSE);
+	if(node->right)
+		self->i_stk = dlist_pushback(self->i_stk, (Object*)node->right, FALSE);
+	return self->r_current;
+}
+
+void
+btree_iterator_breadth_destroy(btree_iterator_breadth* self){
+	dlist *run;
+	DLIST_ITERATE(run, self->i_stk) LINKED_FREE(run->data);
+	dlist_clear(self->i_stk, FALSE);
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->i_root = NULL;
+}
+
 #else
 static BOOLEAN
 btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, void* aux, TMapFunc func){
@@ -491,35 +496,18 @@ btree_map_internal(btree *root, const TRAVERSAL_STRATEGY strat, void* aux, TMapF
 }
 #endif
 
-BOOLEAN
-btree_map(btree* root, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, void* aux, const lMapFunc func){
-	return btree_map_internal(root, strat, more_info, aux, func);
-}
-
-struct btree_clear_d {
-	const BOOLEAN destroy_data;
-};
-
-static BOOLEAN
-btree_clear_f1(Object *data, dlist **freer, btree* root){
-	(void)data;
-	*freer = dlist_pushback(*freer, (Object*)root, FALSE);
-	return TRUE;
-}
-static BOOLEAN
-btree_clear_f2(btree* root, struct btree_clear_d *aux, dlist *node){
-	(void)node;
-	if(aux->destroy_data) CALL_VOID(root->data, destroy);
-	LINKED_FREE(root);
-	return TRUE;
-}
-
 void
 btree_clear(btree* root, BOOLEAN destroy_data){//iterate in postfix order
 	dlist *freer = NULL;
-	btree_map_post_internal(root, FALSE, &freer, (lMapFunc)btree_clear_f1);
-	struct btree_clear_d aux = {.destroy_data = destroy_data};
-	dlist_map(freer, FALSE, &aux, (lMapFunc)btree_clear_f2);
+	btree_iterator_in* it = btree_iterator_in_new(root, &(btree_iterator_in){});
+	for(btree *next = btree_iterator_in_next(it); next; next = btree_iterator_in_next(it)){
+		freer = dlist_pushback(freer, (Object*)root, FALSE);
+	}
+	dlist *run;
+	DLIST_ITERATE(run, freer){
+		if(destroy_data) CALL_VOID(root->data, destroy);
+		LINKED_FREE(root);
+	}
 	dlist_clear(freer, FALSE);
 }
 
@@ -569,21 +557,6 @@ btree_info(btree *root, size_t *min, size_t *max, size_t *avg, size_t *num_leave
 	if(rnodes)  *rnodes = nodes;
 }
 
-struct btree_balance_inplace_d {
-	btree *prev;
-	btree *head;
-};
-
-static BOOLEAN
-btree_balance_inplace_f(Object *data, struct btree_balance_inplace_d *dat, btree *node){
-	(void)data;
-	node->left = dat->prev;
-	if(dat->prev) dat->prev->right = node;
-	else dat->head = node;
-	dat->prev = node;
-	return TRUE;
-}
-
 static btree *
 btree_balance_inplace_i(btree *mid, size_t len){
 	if(mid == NULL){
@@ -610,19 +583,23 @@ end:
 btree*
 btree_balance(btree *root){
 	if(!root) return root;
-	struct btree_balance_inplace_d nodes = {
-		.prev = NULL,
-		.head = NULL
-	};
 	//turn tree into list
-	btree_map_in_internal(root, FALSE, &nodes, (lMapFunc)btree_balance_inplace_f);
-	nodes.prev->right = NULL;
-	btree* node = nodes.head;
+	btree *prev = NULL;
+	btree *head = NULL;
+	btree_iterator_in *it = btree_iterator_in_new(root, &(btree_iterator_in){});
+	for(btree* node = btree_iterator_in_next(it); node; node = btree_iterator_in_next(it)){
+		node->left = prev;
+		if(prev) prev->right = node;
+		else head = node;
+		prev = node;
+	}
+	prev->right = NULL;
+	btree* node = head;
 	size_t len = 1;
 	//left=prev
 	//right=next
 	for(; node->right != NULL; node = node->right, len++);
-	return btree_balance_inplace_i(nodes.head, len);
+	return btree_balance_inplace_i(head, len);
 }
 
 #if 0

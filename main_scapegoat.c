@@ -13,17 +13,6 @@ typedef struct btree_dump_map_d {
 	long test2[BSTREE_TEST_SIZE];
 } btree_dump_map_d;
 
-static BOOLEAN
-btree_dump_map_f(aLong* data, lMapFuncAux* more){
-	//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-	btree_dump_map_d *aux = more->aux;
-	aux->test1[aux->pos] = data->data;
-	aux->test2[aux->pos] = (long)more->depth;
-	aux->pos++;
-	if(aux->pos >= aux->max)
-		return FALSE;
-	return TRUE;
-}
 
 static BOOLEAN
 btree_print_map_f(aLong *data, lMapFuncAux*more, btree *node){
@@ -47,7 +36,15 @@ test_insert(){
 		.test1 = {0},
 		.test2 = {0}
 	};
-	btree_map(t->root, DEPTH_FIRST_IN, TRUE, &buffer, (lMapFunc)btree_dump_map_f);
+	btree_iterator_pre *it = btree_iterator_pre_new(t->root, &(btree_iterator_pre){});
+	size_t pos = 0;
+	for(btree *node = btree_iterator_pre_next(it); node; node = btree_iterator_pre_next(it), pos++){
+		buffer.test1[pos] = ((aLong*)node->data)->data;
+		buffer.test2[pos] = it->r_depth;
+		pos++;
+		if(pos >= buffer.max)
+			break;
+	}
 	printf("In Order (Element Order): ");
 	compare_arrs(&expect[0], buffer.max, &buffer.test1[0], buffer.pos);
 
