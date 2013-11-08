@@ -34,16 +34,35 @@ Object *udlist_remove(udlist*, void *key, const Comparable_vtable* key_method, B
 
 Object **udlist_at(udlist *head, size_t idx);
 
-#define UDLIST_ITERATE(_ITER, _HEAD, _CODE) do { \
-	if(!(_HEAD) && !(_HEAD)->root){ \
-		size_t _idx = 0, _depth = 0; \
-		do { \
-			for(_idx = 0; _idx < (_ITER)->n_filled; _idx++){ \
-				Object *_ITER ## _data = (_ITER)->elements[idx]; \;\
-			} \
-			_ITER = (_ITER)->next; \
-		} while(_ITER != (_HEAD)->root);\
-	} \
-} while(0)
+inline udlist_node *udlist_next(udlist_node *self, udlist_node* last, size_t *j){
+	if(*j >= last->n_filled){
+		if(last->next == self){
+			return NULL;
+		}
+		*j = 0;
+		return last->next;
+	}
+	(*j)++;
+	return last;
+}
+
+inline udlist_node *udlist_prev(udlist_node *self, udlist_node* last, size_t *j){
+	if(*j == 0){
+		if(last->prev == self){
+			return NULL;
+		}
+		*j = last->prev->n_filled;
+		return last->prev;
+	}
+	(*j)--;
+	return last;
+}
+
+inline udlist_node* udlist_tail(udlist* self){ return self->root->prev; }
+inline udlist_node* udlist_head(udlist* self){ return self->root; }
+
+#define UDLIST_ITERATE(_ITER, _J, _HEAD) for((_ITER)=(_HEAD); _ITER; (_ITER) = udlist_next(_HEAD, _HEAD, &(_J)))
+#define UDLIST_ITERATE_REVERSE(_ITER, _J, _HEAD) for((_ITER)=(_HEAD); _ITER; (_ITER) = udlist_prev(_HEAD, _HEAD, &(_J)))
+
 
 #endif
