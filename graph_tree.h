@@ -30,7 +30,7 @@ void graph_tree_iterator_post_destroy(graph_tree_iterator_post*);
 
 typedef struct {
 	graph *i_root;
-	dlist *i_stk;
+	dlist *i_stk, *i_children;
 	graph *r_current;
 	size_t r_depth;
 	BOOLEAN p_add_children;
@@ -42,7 +42,7 @@ void graph_tree_iterator_pre_destroy(graph_tree_iterator_pre*);
 
 typedef struct {
 	graph *i_root;
-	dlist *i_stk;
+	dlist *i_stk, *i_children;
 	graph *r_current;
 	size_t r_depth;
 	BOOLEAN p_add_children;

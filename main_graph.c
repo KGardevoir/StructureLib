@@ -52,7 +52,16 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_iterator_pre* it = graph_iterator_pre_new(g[0], &(graph_iterator_pre){});
+		for(graph *g = graph_iterator_pre_next(it); g; g = graph_iterator_pre_next(it)){
+			if(buffer.pos >= GRAPH_TEST_SIZE){
+				break;
+			} else {
+				buffer.test[buffer.pos] = ((aLong*)g->data)->data;
+				buffer.pos++;
+			}
+		}
+		graph_iterator_pre_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -63,7 +72,16 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], DEPTH_FIRST_POST, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_iterator_post* it = graph_iterator_post_new(g[0], &(graph_iterator_post){});
+		for(graph *g = graph_iterator_post_next(it); g; g = graph_iterator_post_next(it)){
+			if(buffer.pos >= GRAPH_TEST_SIZE){
+				break;
+			} else {
+				buffer.test[buffer.pos] = ((aLong*)g->data)->data;
+				buffer.pos++;
+			}
+		}
+		graph_iterator_post_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -74,7 +92,16 @@ test_graph(){
 			.pos = 0,
 			.test = {0}
 		};
-		graph_map(g[0], BREADTH_FIRST, TRUE, &buffer, (lMapFunc)graph_dump_map_f);
+		graph_iterator_breadth* it = graph_iterator_breadth_new(g[0], &(graph_iterator_breadth){});
+		for(graph *g = graph_iterator_breadth_next(it); g; g = graph_iterator_breadth_next(it)){
+			if(buffer.pos >= GRAPH_TEST_SIZE){
+				break;
+			} else {
+				buffer.test[buffer.pos] = ((aLong*)g->data)->data;
+				buffer.pos++;
+			}
+		}
+		graph_iterator_breadth_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{

@@ -51,7 +51,16 @@ test_order(){
 		.test2 = {0}
 	};
 	dlist *l1 = make_dlist(expect1, buffer.max);
-	dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+	dlist *run;
+	size_t i = 0;
+	DLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	printf("List 1 (Element Order): ");
 	compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("List 1 (Index Order): ");
@@ -70,7 +79,16 @@ test_order2(){
 		.test2 = {0}
 	};
 	dlist *l1 = make_dlist(expect1, buffer.max);
-	dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+	dlist *run;
+	size_t i = 0;
+	DLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	printf("List 2 (Element Order): ");
 	compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("List 2 (Index Order): ");
@@ -89,7 +107,16 @@ test_order3(){
 		.test2 = {0}
 	};
 	dlist *l1 = make_dlist(expect1, buffer.max);
-	dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+	dlist *run;
+	size_t i = 0;
+	DLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	printf("List 3 (Element Order): ");
 	compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("List 3 (Index Order): ");
@@ -134,7 +161,16 @@ test_sort(){
 	};
 	dlist *l1 = make_dlist(init, buffer.max);
 	l1 = dlist_sort(l1, &cmp, &aLong_comparator_type.compare);
-	dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+	dlist *run;
+	size_t i = 0;
+	DLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	printf("List 2 Sort (Element Order): ");
 	compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("List 2 Sort (Index Order): ");
@@ -155,7 +191,16 @@ test_popback(){
 	};
 	dlist *l1 = make_dlist(init, ARRLENGTH(init));
 	l1 = dlist_popfront(l1, NULL, TRUE);
-	dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+	dlist *run;
+	size_t i = 0;
+	DLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	printf("List 2 Popback (Element Order): ");
 	compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("List 2 Popback (Index Order): ");
@@ -177,7 +222,16 @@ test_reverse(){
 	};
 	dlist *l1 = make_dlist(init1, ARRLENGTH(init1));
 	l1 = dlist_reverse(l1);
-	dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+	dlist *run;
+	size_t i = 0;
+	DLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	printf("List 1 Reverse: "); compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 	dlist_clear(l1, TRUE);
 	l1 = NULL;
@@ -185,7 +239,14 @@ test_reverse(){
 	buffer.max = ARRLENGTH(init2);
 	l1 = make_dlist(init2, buffer.max);
 	l1 = dlist_reverse(l1);
-	dlist_map(l1, TRUE, &buffer, (lMapFunc)dlist_dump_map_f);
+	DLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	dlist_clear(l1, TRUE);
 	printf("List 2 Reverse: "); compare_arrs(&expect2[0], buffer.max, &buffer.test1[0], buffer.pos);
 }

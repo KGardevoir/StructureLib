@@ -50,7 +50,16 @@ test_order(){
 		.test2 = {0}
 	};
 	slist *l1 = make_list(&expect1[0], buffer.max);
-	slist_map(l1, TRUE, &buffer, (lMapFunc)slist_dump_map_f);
+	slist *run;
+	size_t i = 0;
+	SLIST_ITERATE(run, l1){
+		buffer.test1[buffer.pos] = ((aLong*)run->data)->data;
+		buffer.test2[buffer.pos] = i;
+		buffer.pos++;
+		if(buffer.pos >= buffer.max)
+			break;
+		i++;
+	}
 	printf("Element Order: ");
 	compare_arrs(&expect1[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("Index Order: ");

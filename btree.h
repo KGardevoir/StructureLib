@@ -80,8 +80,6 @@ btree_iterator_breadth* btree_iterator_breadth_new(btree *tree, btree_iterator_b
 btree* btree_iterator_breadth_next(btree_iterator_breadth *it);
 void btree_iterator_breadth_destroy(btree_iterator_breadth* it);
 
-
-BOOLEAN btree_map(btree *root, const TRAVERSAL_STRATEGY, const BOOLEAN more_info, void* aux, const lMapFunc func);
 btree* btree_balance(btree *root);
 
 static inline btree* btree_sibling(btree* root, btree *sibling){ btree *side = root->left; if(side == sibling) return root->right; return side; }

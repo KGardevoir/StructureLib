@@ -49,6 +49,26 @@ test_graph_tree(){
 	graph_tree_link(g[5], g[4]);
 	graph_tree_link(g[6], g[5]);
 	{
+		printf("DAG Depth First Search (PRE): ");
+		const long expect[] = {0,1,2,3,4,5,6};
+		graph_dump_map_d buffer = {
+			.max = ARRLENGTH(expect),
+			.pos = 0,
+			.test = {0}
+		};
+		graph_iterator_pre *it = graph_iterator_pre_new(g[0], &(graph_iterator_pre){});
+		for(graph *node = graph_iterator_pre_next(it); node; node = graph_iterator_pre_next(it)){
+			if(buffer.pos >= GRAPH_TEST_SIZE){
+				break;
+			} else {
+				buffer.test[buffer.pos] = ((aLong*)node->data)->data;
+				buffer.pos++;
+			}
+		}
+		graph_iterator_pre_destroy(it);
+		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
+	}
+	{
 		printf("Depth First Search (PRE): ");
 		const long expect[] = {0,1,2,3,4,4,5,4,6,5,4,4,6,5,4};
 		graph_dump_map_d buffer = {
@@ -57,17 +77,17 @@ test_graph_tree(){
 			.test = {0}
 		};
 		graph_tree_iterator_pre *it = graph_tree_iterator_pre_new(g[0], &(graph_tree_iterator_pre){});
-		size_t pos = 0;
-		for(graph *node = graph_tree_iterator_pre_next(it); node; graph_tree_iterator_pre_next(it)){
+		for(graph *node = graph_tree_iterator_pre_next(it); node; node = graph_tree_iterator_pre_next(it)){
 			//if(more->position == 0) printf("\n");
 			//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-			if(pos >= GRAPH_TEST_SIZE){
+			if(buffer.pos >= GRAPH_TEST_SIZE){
 				break;
 			} else {
-				buffer.test[pos] = ((aLong*)node->data)->data;
-				pos++;
+				buffer.test[buffer.pos] = ((aLong*)node->data)->data;
+				buffer.pos++;
 			}
 		}
+		graph_tree_iterator_pre_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -79,17 +99,17 @@ test_graph_tree(){
 			.test = {0}
 		};
 		graph_tree_iterator_post *it = graph_tree_iterator_post_new(g[0], &(graph_tree_iterator_post){});
-		size_t pos = 0;
-		for(graph *node = graph_tree_iterator_post_next(it); node; graph_tree_iterator_post_next(it)){
+		for(graph *node = graph_tree_iterator_post_next(it); node; node = graph_tree_iterator_post_next(it)){
 			//if(more->position == 0) printf("\n");
 			//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-			if(pos >= GRAPH_TEST_SIZE){
+			if(buffer.pos >= GRAPH_TEST_SIZE){
 				break;
 			} else {
-				buffer.test[pos] = ((aLong*)node->data)->data;
-				pos++;
+				buffer.test[buffer.pos] = ((aLong*)node->data)->data;
+				buffer.pos++;
 			}
 		}
+		graph_tree_iterator_post_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -101,17 +121,17 @@ test_graph_tree(){
 			.test = {0}
 		};
 		graph_tree_iterator_breadth *it = graph_tree_iterator_breadth_new(g[0], &(graph_tree_iterator_breadth){});
-		size_t pos = 0;
-		for(graph *node = graph_tree_iterator_breadth_next(it); node; graph_tree_iterator_breadth_next(it)){
+		for(graph *node = graph_tree_iterator_breadth_next(it); node; node = graph_tree_iterator_breadth_next(it)){
 			//if(more->position == 0) printf("\n");
 			//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-			if(pos >= GRAPH_TEST_SIZE){
+			if(buffer.pos >= GRAPH_TEST_SIZE){
 				break;
 			} else {
-				buffer.test[pos] = ((aLong*)node->data)->data;
-				pos++;
+				buffer.test[buffer.pos] = ((aLong*)node->data)->data;
+				buffer.pos++;
 			}
 		}
+		graph_tree_iterator_breadth_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -123,16 +143,16 @@ test_graph_tree(){
 			.test = {0}
 		};
 		graph_tree_iterator_pre *it = graph_tree_iterator_pre_new(g[0], &(graph_tree_iterator_pre){});
-		size_t pos = 0;
-		for(graph *node = graph_tree_iterator_pre_next(it); node; graph_tree_iterator_pre_next(it)){
+		for(graph *node = graph_tree_iterator_pre_next(it); node; node = graph_tree_iterator_pre_next(it)){
 			//if(more->position == 0) printf("\n");
 			//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-			if(pos < GRAPH_TEST_SIZE){
-				buffer.test[pos] = ((aLong*)node->data)->data;
-				pos++;
+			if(buffer.pos < GRAPH_TEST_SIZE){
+				buffer.test[buffer.pos] = ((aLong*)node->data)->data;
+				buffer.pos++;
 			}
 			if(((aLong*)node->data)->data == 2) it->p_add_children = FALSE;
 		}
+		graph_tree_iterator_pre_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{
@@ -144,16 +164,16 @@ test_graph_tree(){
 			.test = {0}
 		};
 		graph_tree_iterator_breadth *it = graph_tree_iterator_breadth_new(g[0], &(graph_tree_iterator_breadth){});
-		size_t pos = 0;
-		for(graph *node = graph_tree_iterator_breadth_next(it); node; graph_tree_iterator_breadth_next(it)){
+		for(graph *node = graph_tree_iterator_breadth_next(it); node; node = graph_tree_iterator_breadth_next(it)){
 			//if(more->position == 0) printf("\n");
 			//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-			if(pos < GRAPH_TEST_SIZE){
-				buffer.test[pos] = ((aLong*)node->data)->data;
-				pos++;
+			if(buffer.pos < GRAPH_TEST_SIZE){
+				buffer.test[buffer.pos] = ((aLong*)node->data)->data;
+				buffer.pos++;
 			}
 			if(((aLong*)node->data)->data == 2) it->p_add_children = FALSE;
 		}
+		graph_tree_iterator_breadth_destroy(it);
 		compare_arrs(&expect[0], buffer.max, &buffer.test[0], buffer.pos);
 	}
 	{

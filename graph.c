@@ -93,7 +93,7 @@ node_info_new(graph *node, size_t depth){
 static BOOLEAN
 graph_map_filter_f(node_info *child, splaytree* tree){
 	Object *found = splay_find(tree, (Object*)child->node, &child->node->method->comparable);
-	if(found && child->node->method->comparable.compare(child->node, found) == 0){
+	if(found){
 		//printf("E");
 		return FALSE;
 	}
@@ -118,230 +118,258 @@ graph_print_children(dlist *head){
 #define DUMPLIST(BSTR, ESTR, LST, FMT, ACC)
 #endif
 
-/**
- * Iterate through the graph in postfix order, normally this is performed prefix. The space complexity is O(3*E+N) worst
- * case, time complexity is O(N) (approximately).
- *
- * @param root - the root of the graph
- * @param pass_data - pass the data, instead of the node itself.
- * @param more_info - give more info, as defined by the lMapFuncAux datatype.
- * @param aux - auxillarly persistent data
- * @param func - function to do
- */
-static inline BOOLEAN
-graph_map_internal_dfs_po(graph *root, const BOOLEAN more_info, void* aux, const lMapFunc func){//Post fix
-	if(!root) return TRUE;
-	splaytree *visited = splaytree_new(&root->method->comparable); //splay_insert(NULL, (Object*)root, &root->method->comparable, FALSE);
-	splaytree *processed = splaytree_new(&root->method->comparable);
-	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
-	size_t position = 0, size = 0;
-	if(more_info) graph_size(root, &size, NULL);
-	while(stk){
-		while(TRUE){//expand nodes to maximum (left-most)
-			node_info *g;
-			size_t prev_size = dlist_length(stk);
-			stk = dlist_popfront(stk, (Object**)&g, FALSE);
-			splay_insert(visited, (Object*)g->node, FALSE);
-			//stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
-			dlist *new_list = dlist_copy(g->node->edges, FALSE);
-			dlist *run;
-			DLIST_ITERATE(run, new_list)
-				run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
-
-			new_list = dlist_filter_i(new_list, visited, (lMapFunc)graph_map_filter_f, TRUE);
-			stk = dlist_concat(dlist_pushback(new_list, (Object*)g, FALSE), stk);
-			size_t new_size = dlist_length(stk);
-			if(new_size <= prev_size) break;
-		}//expand till we can't expand any more.
-		node_info *g;
-		stk = dlist_popfront(stk, (Object**)&g, FALSE);
-		splay_insert(processed, (Object*)g->node, FALSE);
-		stk = dlist_filter_i(stk, processed, (lMapFunc)graph_map_filter_f, TRUE);//clear entries we have now processed
-		/*
-		printf("<");
-		dlist_map(g->edges, FALSE, NULL, (lMapFunc)graph_print_children);
-		printf(">");
-		printf("[");
-		dlist_map(stk, FALSE, NULL, (lMapFunc)graph_print_children);
-		printf("]");
-		printf("(%ld);", g->data);
-		*/
-		if(more_info){
-			lMapFuncAux ax = {
-				.isAux = TRUE,
-				.depth = g->depth,
-				.position = position,
-				.size = size,
-				.aux = aux
-			};
-			if(!func(g->node->data, &ax, (graph*)g->node)){
-				LINKED_FREE(g);
-				goto cleanup;
-			}
-			position++;
-		} else {
-			if(!func(g->node->data, aux, (graph*)g->node)){
-				LINKED_FREE(g);
-				goto cleanup;
-			}
-		}
-		LINKED_FREE(g);
-	}
-	splay_clear(visited, FALSE);
-	splay_clear(processed, FALSE);
-	splaytree_destroy(visited);
-	splaytree_destroy(processed);
-	return TRUE;
-cleanup:
-	splay_clear(visited, FALSE);
-	splay_clear(processed, FALSE);
-	splaytree_destroy(visited);
-	splaytree_destroy(processed);
-	dlist_clear(stk, TRUE);
-	return FALSE;
-}
-
-BOOLEAN
-graph_map(graph *root, const TRAVERSAL_STRATEGY method, const BOOLEAN more_info, void* aux, const lMapFunc func){
-	if(method == DEPTH_FIRST_POST) return graph_map_internal_dfs_po(root, more_info, aux, func);
-	splaytree *visited = splaytree_new(&root->method->comparable);
-	splay_insert(visited, (Object*)root, FALSE);
-	dlist *stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
-	size_t position = 0, size = 0;
-	if(more_info) graph_size(root, &size, NULL);
-	while(stk){
-		node_info *g;
-		stk = dlist_popfront(stk, (Object**)&g, FALSE);
-		splay_insert(visited, (Object*)g->node, FALSE);
-
-		dlist *new_list = dlist_copy(g->node->edges, FALSE);
-		dlist *run = NULL;
-		DLIST_ITERATE(run, new_list){
-			run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
-		}
-		if(method == DEPTH_FIRST || method == DEPTH_FIRST_PRE){
-			stk = dlist_concat(new_list, stk);
-		} else {
-			stk = dlist_concat(stk, new_list);
-		}
-		stk = dlist_filter_i(stk, visited, (lMapFunc)graph_map_filter_f, TRUE);
-	#if 0
-		printf("<");
-		dlist_map(g->edges, FALSE, NULL, (lMapFunc)graph_print_children);
-		printf(">");
-		printf("[");
-		dlist_map(stk, FALSE, NULL, (lMapFunc)graph_print_children);
-		printf("]");
-		printf("(%ld);", g->data);
-	#endif
-		if(more_info){
-			lMapFuncAux ax = {
-				.isAux = TRUE,
-				.depth = g->depth,
-				.position = position,
-				.size = size,
-				.aux = aux
-			};
-			if(!func(g->node->data, &ax, (graph*)g->node)){
-				LINKED_FREE(g);
-				goto cleanup;
-			}
-			position++;
-		} else {
-			if(!func(g->node->data, aux, (graph*)g->node)){
-				LINKED_FREE(g);
-				goto cleanup;
-			}
-		}
-		LINKED_FREE(g);
-	}
-	splay_clear(visited, FALSE);
-	splaytree_destroy(visited);
-	return TRUE;
-cleanup:
-	splay_clear(visited, FALSE);
-	splaytree_destroy(visited);
-	dlist_clear(stk, TRUE);
-	return FALSE;
-}
-
-typedef struct
-graph_clear_d {
-	BOOLEAN destroy_data;
-	slist *head;
-} graph_clear_d;
-
-static BOOLEAN
-graph_clear_f(Object* dat, graph_clear_d* aux, graph *node){
-	if(aux->destroy_data) dat->method->destroy(dat);
-	aux->head = slist_pushfront(aux->head, (Object*)node, FALSE);
-	return TRUE;
-}
-
-void
-graph_clear(graph *root, BOOLEAN destroy_data){
-	graph_clear_d aux = {
-		.destroy_data = destroy_data,
-		.head = NULL
-	};
-	graph_map(root, DEPTH_FIRST, FALSE, &aux, (lMapFunc)graph_clear_f);
-	slist *iter;
-	SLIST_ITERATE(iter, aux.head){
-		CALL_VOID(iter->data, destroy);
-		LINKED_FREE(iter->data);
-	}
-	slist_clear(aux.head, FALSE);
-}
-
-struct graph_find_d {
-	graph *rtn;
-	void* goal;
-	const Comparable_vtable *goal_method;
-};
-
-static BOOLEAN
-graph_find_f(Object* data, struct graph_find_d *aux, graph* node){
-	if(aux->goal_method->compare(aux->goal, data) == 0){
-		aux->rtn = node;
-		return FALSE;
-	}
-	return TRUE;
+graph_iterator_post*
+graph_iterator_post_new(graph* root, graph_iterator_post *mem){
+	mem->i_visited = splaytree_new(&root->method->comparable);
+	mem->i_processed = splaytree_new(&root->method->comparable);
+	mem->i_root = root;
+	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
+	mem->r_depth = 0;
+	mem->r_current = NULL;
+	return mem;
 }
 
 graph*
-graph_find(graph *root, TRAVERSAL_STRATEGY strat, void* key, const Comparable_vtable* key_method){
-	struct graph_find_d mm = {
-		.rtn = NULL,
-		.goal = key,
-		.goal_method = key_method
-	};
-	if(!graph_map(root, strat, FALSE, &mm, (lMapFunc)graph_find_f) && mm.rtn)
-		return mm.rtn;
-	return NULL;
+graph_iterator_post_next(graph_iterator_post *self){
+	if(!self->i_stk){
+		self->r_current = NULL;
+		self->r_depth = 0;
+		return NULL;
+	}
+	while(TRUE){//expand nodes to maximum (left-most)
+		node_info *g;
+		size_t prev_size = dlist_length(self->i_stk);
+		self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
+		splay_insert(self->i_visited, (Object*)g->node, FALSE);
+		//stk = dlist_filter_i(stk, &visited, (lMapFunc)graph_map_filter_f, FALSE);
+		dlist *new_list = dlist_copy(g->node->edges, FALSE);
+		dlist *run;
+		DLIST_ITERATE(run, new_list)
+			run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
+
+		new_list = dlist_filter_i(new_list, self->i_visited, (lMapFunc)graph_map_filter_f, TRUE);
+		self->i_stk = dlist_concat(dlist_pushback(new_list, (Object*)g, FALSE), self->i_stk);
+		size_t new_size = dlist_length(self->i_stk);
+		if(new_size <= prev_size) break;
+	}//expand till we can't expand any more.
+	node_info *g;
+	self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
+	splay_insert(self->i_processed, (Object*)g->node, FALSE);
+	self->i_stk = dlist_filter_i(self->i_stk, self->i_processed, (lMapFunc)graph_map_filter_f, TRUE);//clear entries we have now processed
+
+	self->r_current = (graph*)g->node;
+	self->r_depth = g->depth;
+	LINKED_FREE(g);
+	return self->r_current;
 }
 
-struct graph_size_d {
-	size_t nodes;
-	size_t edges;
-};
+void
+graph_iterator_post_destroy(graph_iterator_post* self){
+	splay_clear(self->i_visited, FALSE);
+	splay_clear(self->i_processed, FALSE);
+	splaytree_destroy(self->i_visited);
+	splaytree_destroy(self->i_processed);
+	self->i_visited = NULL;
+	self->i_processed = NULL;
+	dlist_clear(self->i_stk, TRUE);
+	self->i_root = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+}
 
-static BOOLEAN
-graph_size_f(Object *data, struct graph_size_d *aux, graph *root){
-	(void)data;
-	aux->nodes = aux->nodes + 1;
-	aux->edges = aux->edges + dlist_length(root->edges);
-	return TRUE;
+graph_iterator_pre*
+graph_iterator_pre_new(graph *root, graph_iterator_pre* mem){
+	mem->i_root = root;
+	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
+	mem->i_visited = splaytree_new(&root->method->comparable);
+	mem->i_children = NULL;
+	mem->r_depth = 0;
+	mem->r_current = NULL;
+	mem->p_add_children = TRUE;
+	return mem;
+}
+
+graph*
+graph_iterator_pre_next(graph_iterator_pre* self){
+	if(self->i_children){
+		if(self->p_add_children){
+			self->i_stk = dlist_concat(self->i_children, self->i_stk);
+		} else {
+			dlist_clear(self->i_children, TRUE);
+		}
+		self->i_children = NULL;
+	}
+	self->i_stk = dlist_filter_i(self->i_stk, self->i_visited, (lMapFunc)graph_map_filter_f, TRUE);
+	if(!self->i_stk){
+		self->r_current = NULL;
+		self->r_depth = 0;
+		return NULL;
+	}
+	node_info *g;
+	self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
+	splay_insert(self->i_visited, (Object*)g->node, FALSE);
+
+	dlist *new_list = dlist_copy(g->node->edges, FALSE);
+	dlist *run = NULL;
+	DLIST_ITERATE(run, new_list){
+		run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
+	}
+	self->i_children = new_list;
+
+	self->r_current = (graph*)g->node;
+	self->r_depth = g->depth;
+	self->p_add_children = TRUE;
+	LINKED_FREE(g);
+	return self->r_current;
+}
+
+void
+graph_iterator_pre_destroy(graph_iterator_pre* self){
+	splay_clear(self->i_visited, FALSE);
+	splaytree_destroy(self->i_visited);
+	self->i_visited = NULL;
+	dlist_clear(self->i_stk, TRUE);
+	dlist_clear(self->i_children, TRUE);
+	self->i_root = NULL;
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->p_add_children = TRUE;
+}
+
+graph_iterator_breadth*
+graph_iterator_breadth_new(graph *root, graph_iterator_breadth* mem){
+	mem->i_root = root;
+	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
+	mem->i_visited = splaytree_new(&root->method->comparable);
+	mem->i_children = NULL;
+	mem->r_depth = 0;
+	mem->r_current = NULL;
+	mem->p_add_children = TRUE;
+	return mem;
+}
+
+graph*
+graph_iterator_breadth_next(graph_iterator_breadth* self){
+	if(self->i_children){
+		if(self->p_add_children){
+			self->i_stk = dlist_concat(self->i_stk, self->i_children);
+		} else {
+			dlist_clear(self->i_children, TRUE);
+		}
+		self->i_children = NULL;
+	}
+	self->i_stk = dlist_filter_i(self->i_stk, self->i_visited, (lMapFunc)graph_map_filter_f, TRUE);
+	if(!self->i_stk){
+		self->r_current = NULL;
+		self->r_depth = 0;
+		return NULL;
+	}
+	node_info *g;
+	self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
+	splay_insert(self->i_visited, (Object*)g->node, FALSE);
+
+	dlist *new_list = dlist_copy(g->node->edges, FALSE);
+	dlist *run = NULL;
+	DLIST_ITERATE(run, new_list){
+		run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
+	}
+	self->i_children = new_list;
+
+	self->r_current = (graph*)g->node;
+	self->r_depth = g->depth;
+	self->p_add_children = TRUE;
+	LINKED_FREE(g);
+	return self->r_current;
+}
+
+void
+graph_iterator_breadth_destroy(graph_iterator_breadth* self){
+	splay_clear(self->i_visited, FALSE);
+	splaytree_destroy(self->i_visited);
+	self->i_visited = NULL;
+	dlist_clear(self->i_stk, TRUE);
+	dlist_clear(self->i_children, TRUE);
+	self->i_root = NULL;
+	self->i_stk = NULL;
+	self->r_depth = 0;
+	self->r_current = NULL;
+	self->p_add_children = TRUE;
+}
+
+#include "aLong.h"
+void
+graph_clear(graph *root, BOOLEAN destroy_data){
+	slist *head = NULL;
+	graph_iterator_breadth *it = graph_iterator_breadth_new(root, &(graph_iterator_breadth){});
+	size_t i = 0;
+	for(graph *g = graph_iterator_breadth_next(it); g; g = graph_iterator_breadth_next(it)){
+		if(destroy_data) CALL_VOID(g->data, destroy);
+		head = slist_pushfront(head, (Object*)g, FALSE);
+	}
+	graph_iterator_breadth_destroy(it);
+	slist *iter;
+	SLIST_ITERATE(iter, head){
+		CALL_VOID(iter->data, destroy);
+		LINKED_FREE(iter->data);
+	}
+	slist_clear(head, FALSE);
+}
+
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+#define MAX(a,b) ( (a)>(b)?a:b )
+
+graph*
+graph_find(graph *root, TRAVERSAL_STRATEGY strat, void* key, const Comparable_vtable* key_method){
+	void *iter = (void*)&(char[MAX(sizeof(graph_iterator_breadth), MAX(sizeof(graph_iterator_pre), sizeof(graph_iterator_post)))]){0};
+	void (*destroy)(void*);
+	graph* (*next)(void*);
+	switch(strat){
+		//select iterator and next function
+		case DEPTH_FIRST_POST:
+			iter    = graph_iterator_post_new(root, iter);
+			destroy = graph_iterator_post_destroy;
+			next    = graph_iterator_post_next;
+			break;
+		case DEPTH_FIRST_PRE:
+			iter    = graph_iterator_pre_new(root, iter);
+			destroy = graph_iterator_pre_destroy;
+			next    = graph_iterator_pre_next;
+			break;
+		default:
+		case BREADTH_FIRST:
+			iter    = graph_iterator_breadth_new(root, iter);
+			destroy = graph_iterator_breadth_destroy;
+			next    = graph_iterator_breadth_next;
+			break;
+	}
+	graph *rtn = NULL;
+	for(graph *g = next(iter); g; g = next(iter)){
+		if(key_method->compare(key, g->data) == 0){
+			rtn = g;
+			break;
+		}
+	}
+	destroy(iter);
+	return rtn;
 }
 
 void
 graph_size(graph* root, size_t *nodes, size_t *edges){
-	struct graph_size_d mm = {
-		.nodes = 0,
-		.edges = 0
-	};
-	graph_map(root, BREADTH_FIRST, FALSE, &mm, (lMapFunc)graph_size_f);
-	if(nodes) *nodes = mm.nodes;
-	if(edges) *edges = mm.edges;
+	size_t i_nodes = 0;
+	size_t i_edges = 0;
+	graph_iterator_pre *iter =
+		graph_iterator_pre_new(root, &(graph_iterator_pre){});
+	for(graph *g = graph_iterator_pre_next(iter); g; g = graph_iterator_pre_next(iter)){
+		i_nodes++;
+		i_edges += dlist_length(g->edges);
+	}
+	graph_iterator_pre_destroy(iter);
+	if(nodes) *nodes = i_nodes;
+	if(edges) *edges = i_edges;
 }
 
 graph*
@@ -359,18 +387,15 @@ graph_path_key_match(graph *root, dlist *key_path){
 	return troot;
 }
 
-
-static BOOLEAN
-graph_tree_topological_sort_f(Object* data, dlist **list, graph *tree){
-	(void)data;
-	*list = dlist_pushback(*list, (Object*)tree, FALSE);
-	return TRUE;
-}
-
 dlist*
 graph_topological_sort(graph* tree){
 	dlist *list = NULL;
-	graph_map(tree, DEPTH_FIRST_POST, FALSE, &list, (lMapFunc)graph_tree_topological_sort_f);
+	graph_iterator_post *iter =
+		graph_iterator_post_new(tree, &(graph_iterator_post){});
+	for(graph *g = graph_iterator_post_next(iter); g; g = graph_iterator_post_next(iter)){
+		list = dlist_pushback(list, (Object*)tree, FALSE);
+	}
+	graph_iterator_post_destroy(iter);
 	return list;
 }
 

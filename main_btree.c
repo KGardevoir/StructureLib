@@ -153,6 +153,7 @@ test_map_pre(){
 		if(buffer.pos >= buffer.max)
 			break;
 	}
+	btree_iterator_pre_destroy(it);
 	printf("Pre Order (Element Order): ");
 	compare_arrs(&x[0], buffer.max, &buffer.test1[0], buffer.pos);
 	printf("Pre Order (Level Order): ");
@@ -276,6 +277,7 @@ test_btree(){
 	test_map_pre();
 	test_map_post();
 	test_map_infix();
+	//test_map_breadth();
 	test_balance();
 	test_info();
 }

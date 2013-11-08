@@ -37,7 +37,20 @@ void htable_destroy(htable*);
 //Hash Tables
 void htable_insert(htable *table, Object* key, BOOLEAN copy);
 Object *htable_remove(htable *table, Object* key, const Comparable_vtable *key_method, BOOLEAN destroy);
-BOOLEAN htable_map(htable *table, const TRAVERSAL_STRATEGY strat, const BOOLEAN more_info, void* aux, const lMapFunc);
+
+typedef struct {
+	size_t i_processed;
+	htable *i_table;
+	BOOLEAN i_iterator_initilized;
+	btree_iterator_in i_iterator;
+	htable_node *r_current;
+	size_t r_idx;
+} htable_iterator;
+
+htable_iterator* htable_iterator_new(htable *tree, htable_iterator* mem);
+htable_node* htable_iterator_next(htable_iterator *it);
+void htable_iterator_destroy(htable_iterator* it);
+
 void htable_clear(htable* tbl, BOOLEAN destroy);//Destroy all nodes in htable
 Object* htable_find(htable *table, Object* key, const Comparable_vtable *key_method);
 

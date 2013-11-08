@@ -31,6 +31,7 @@ graph_tree_link(graph* root, graph* child){
 			break;
 		}
 	}
+	graph_tree_iterator_pre_destroy(iter);
 	if(root_visited > 1){
 		root->edges = dlist_popback(root->edges, NULL, FALSE);
 	}
@@ -142,30 +143,37 @@ graph_tree_iterator_pre_new(graph *root, graph_tree_iterator_pre* mem){
 	mem->r_depth = 0;
 	mem->r_current = root;
 	mem->p_add_children = TRUE;
+	mem->i_children = NULL;
 	return mem;
 }
 
 graph*
 graph_tree_iterator_pre_next(graph_tree_iterator_pre* self){
+	if(self->i_children){
+		if(self->p_add_children){
+			self->i_stk = dlist_concat(self->i_children, self->i_stk);
+		} else {
+			dlist_clear(self->i_children, TRUE);
+		}
+		self->i_children = NULL;
+	}
 	if(!self->i_stk){
 		self->r_current = NULL;
 		self->r_depth = 0;
 		self->p_add_children = TRUE;
 		return NULL;
 	}
-	if(self->p_add_children){
-		dlist *new_list = dlist_copy(self->r_current->edges, FALSE);
-		dlist *run;
-		DLIST_ITERATE(run, new_list){
-			run->data = (void*)node_info_new((graph*)run->data, self->r_depth+1);
-		}
-		self->i_stk = dlist_concat(new_list, self->i_stk);
-	}
-
 	node_info *g;
 	self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
-	self->r_current = (graph*)g->node;
+	dlist *new_list = dlist_copy(g->node->edges, FALSE);
+	dlist *run;
+	DLIST_ITERATE(run, new_list){
+		run->data = (void*)node_info_new((graph*)run->data, g->depth+1);
+	}
+	self->i_children = new_list;
+	//visit g->node
 	self->r_depth = g->depth;
+	self->r_current = (graph*)g->node;
 	self->p_add_children = TRUE;
 	CALL_VOID(g, destroy);
 	return self->r_current;
@@ -174,6 +182,7 @@ graph_tree_iterator_pre_next(graph_tree_iterator_pre* self){
 void
 graph_tree_iterator_pre_destroy(graph_tree_iterator_pre* self){
 	dlist_clear(self->i_stk, TRUE);
+	dlist_clear(self->i_children, TRUE);
 	self->i_root = NULL;
 	self->i_stk = NULL;
 	self->r_depth = 0;
@@ -189,28 +198,35 @@ graph_tree_iterator_breadth_new(graph *root, graph_tree_iterator_breadth* mem){
 	mem->r_depth = 0;
 	mem->r_current = root;
 	mem->p_add_children = TRUE;
+	mem->i_children = NULL;
 	return mem;
 }
 
 graph*
 graph_tree_iterator_breadth_next(graph_tree_iterator_breadth* self){
+	if(self->i_children){
+		if(self->p_add_children){
+			self->i_stk = dlist_concat(self->i_stk, self->i_children);
+		} else {
+			dlist_clear(self->i_children, TRUE);
+		}
+	}
 	if(!self->i_stk){
 		self->r_current = NULL;
 		self->r_depth = 0;
 		self->p_add_children = TRUE;
 		return NULL;
 	}
-	if(self->p_add_children){
-		dlist *new_list = dlist_copy(self->r_current->edges, FALSE);
-		dlist *run;
-		DLIST_ITERATE(run, new_list){
-			run->data = (void*)node_info_new((graph*)run->data, self->r_depth+1);
-		}
-		self->i_stk = dlist_concat(self->i_stk, new_list);
-	}
-
 	node_info *g;
 	self->i_stk = dlist_popfront(self->i_stk, (Object**)&g, FALSE);
+
+	dlist *new_list = dlist_copy(g->node->edges, FALSE);
+	dlist *run;
+	DLIST_ITERATE(run, new_list){
+		run->data = (void*)node_info_new((graph*)run->data, self->r_depth+1);
+	}
+	self->i_children = new_list;
+
 	self->r_current = (graph*)g->node;
 	self->r_depth = g->depth;
 	self->p_add_children = TRUE;
@@ -221,8 +237,10 @@ graph_tree_iterator_breadth_next(graph_tree_iterator_breadth* self){
 void
 graph_tree_iterator_breadth_destroy(graph_tree_iterator_breadth* self){
 	dlist_clear(self->i_stk, TRUE);
+	dlist_clear(self->i_children, TRUE);
 	self->i_root = NULL;
 	self->i_stk = NULL;
+	self->i_children = NULL;
 	self->r_depth = 0;
 	self->r_current = NULL;
 	self->p_add_children = TRUE;
@@ -273,12 +291,13 @@ void
 graph_tree_size(graph* root, size_t *nodes, size_t *edges){
 	size_t i_nodes = 0;
 	size_t i_edges = 0;
-	graph_tree_iterator_breadth *iter =
-		graph_tree_iterator_breadth_new(root, &(graph_tree_iterator_breadth){});
-	for(graph *g = graph_tree_iterator_breadth_next(iter); g; g = graph_tree_iterator_breadth_next(iter)){
-		nodes++;
-		edges += dlist_length(g->edges);
+	graph_tree_iterator_pre *iter =
+		graph_tree_iterator_pre_new(root, &(graph_tree_iterator_pre){});
+	for(graph *g = graph_tree_iterator_pre_next(iter); g; g = graph_tree_iterator_pre_next(iter)){
+		i_nodes++;
+		i_edges += dlist_length(g->edges);
 	}
+	graph_tree_iterator_pre_destroy(iter);
 	if(nodes) *nodes = i_nodes;
 	if(edges) *edges = i_edges;
 }

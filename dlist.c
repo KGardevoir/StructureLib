@@ -163,58 +163,15 @@ dlist_removeElement(dlist *head, dlist *rem, BOOLEAN destroy_data){
 	return head;
 }
 
-//Other Functions
-BOOLEAN
-dlist_map(dlist *head, const BOOLEAN more_info, const void* aux, const lMapFunc func){
-	dlist *run = head;
-	size_t depth = 0, length = 0;
-	if(more_info) length = dlist_length(head);
-	if(!func) return FALSE;
-	if(!head) return TRUE;
-	do{
-		if(more_info){
-			lMapFuncAux ax = {
-				.isAux = TRUE,
-				.position = depth,
-				.depth = depth,
-				.size = length,
-				.aux = (void*)aux
-			};
-			if(!func(run->data, (void*)&ax, run)) return FALSE;
-		} else {
-			if(!func(run->data, aux, run)) return FALSE;
-		}
-		run = run->next;
-		depth++;
-	} while(run != head);
-	return TRUE;
-}
-
-struct dlist_filter_d {
-	void *aux;
-	BOOLEAN deep;
-	lMapFunc func;
-	dlist *list;
-};
-
-static BOOLEAN
-dlist_filter_f(Object *data, struct dlist_filter_d *aux, void *node){
-	if(aux->func(data, aux->aux, node)){
-		aux->list = dlist_pushback(aux->list, data, aux->deep);
-	}
-	return TRUE;
-}
-
 dlist*
 dlist_filter(dlist *head, void* aux, lMapFunc func, BOOLEAN deep){
-	struct dlist_filter_d dd = {
-		.aux = aux,
-		.deep = deep,
-		.func = func,
-		.list = NULL
-	};
-	dlist_map(head, FALSE, &dd, (lMapFunc)dlist_filter_f);
-	return dd.list;
+	dlist *run, *nhead = NULL;
+	DLIST_ITERATE(run, head){
+		if(func(run->data, aux, run)){
+			nhead = dlist_pushback(nhead, run->data, deep);
+		}
+	}
+	return nhead;
 }
 
 dlist*
@@ -241,26 +198,15 @@ dlist_filter_i(dlist *head, void* aux, lMapFunc func, BOOLEAN free_data){
 	return head;
 }
 
-struct dlist_transform_d {
-	void* aux;
-	lTransFunc func;
-};
-
-static BOOLEAN
-dlist_transform_f(Object* dat, struct dlist_transform_d* aux, dlist *node){
-	return aux->func(&node->data, aux->aux, node);
-}
-
 /**
  * Transform data
  */
 dlist*
 dlist_transform(dlist *head, void* aux, lTransFunc func){
-	struct dlist_transform_d dd = {
-		.aux = aux,
-		.func = func
-	};
-	dlist_map(head, FALSE, &dd, (lMapFunc)dlist_transform_f);
+	dlist *run;
+	DLIST_ITERATE(run, head){
+		if(!func(&run->data, aux, run)) return head;
+	}
 	return head;
 }
 

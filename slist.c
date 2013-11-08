@@ -200,32 +200,6 @@ slist_removeElement(slist *head, slist *rem, BOOLEAN destroy_data){
 
 
 //Other Functions
-BOOLEAN
-slist_map(slist *head, const BOOLEAN more_info, const void* aux, const lMapFunc func){
-	if(!func) return FALSE;
-	if(!head) return TRUE;
-	size_t depth = 0;
-	size_t length = 0;
-	if(more_info) length = slist_length(head);
-	slist *p;
-	SLIST_ITERATE(p, head){
-		if(more_info){
-			lMapFuncAux ax = {
-				.isAux = TRUE,
-				.position = depth,
-				.depth = depth,
-				.size = length,
-				.aux = (void*)aux
-			};
-			if(!func(p->data, &ax, p)) return FALSE;
-		} else {
-			if(!func(p->data, aux, p)) return FALSE;
-		}
-		depth++;
-	}
-	return TRUE;
-}
-
 slist*
 slist_find(slist *head, void* key, const Comparable_vtable* key_method, BOOLEAN ordered){
 	if(!head) return NULL;

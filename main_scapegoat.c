@@ -36,16 +36,15 @@ test_insert(){
 		.test1 = {0},
 		.test2 = {0}
 	};
-	btree_iterator_pre *it = btree_iterator_pre_new(t->root, &(btree_iterator_pre){});
-	size_t pos = 0;
-	for(btree *node = btree_iterator_pre_next(it); node; node = btree_iterator_pre_next(it), pos++){
-		buffer.test1[pos] = ((aLong*)node->data)->data;
-		buffer.test2[pos] = it->r_depth;
-		pos++;
-		if(pos >= buffer.max)
+	btree_iterator_in *it = btree_iterator_in_new(t->root, &(btree_iterator_in){});
+	for(btree *node = btree_iterator_in_next(it); node; node = btree_iterator_in_next(it), buffer.pos++){
+		buffer.test1[buffer.pos] = ((aLong*)node->data)->data;
+		buffer.test2[buffer.pos] = it->r_depth;
+		if(buffer.pos >= buffer.max)
 			break;
 	}
 	printf("In Order (Element Order): ");
+	btree_iterator_in_destroy(it);
 	compare_arrs(&expect[0], buffer.max, &buffer.test1[0], buffer.pos);
 
 	//btree_map(t->root, DEPTH_FIRST_IN, TRUE, NULL, (lMapFunc)btree_print_map_f);//I'm not sure what it's actually supposed to look like...
