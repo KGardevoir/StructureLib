@@ -8,27 +8,6 @@ typedef struct graph_dump_map_d {
 	long test[GRAPH_TEST_SIZE];
 } graph_dump_map_d;
 
-static BOOLEAN
-graph_dump_map_f(aLong* data, lMapFuncAux* more, graph* node){
-	(void)node;
-}
-
-static BOOLEAN
-graph_dump_map_inhibit_f(aLong* data, lMapFuncAux* more, graph* node){
-	(void)node;
-	graph_dump_map_d *aux = more->aux;
-	//if(more->position == 0) printf("\n");
-	//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-	if(aux->pos < GRAPH_TEST_SIZE){
-		aux->test[aux->pos] = data->data;
-		aux->pos++;
-	}
-	if(data->data == 2) return FALSE;
-	return TRUE;
-}
-
-
-
 void
 test_graph_tree(){
 	long nums[] = {0,1,2,3,4,5,6};

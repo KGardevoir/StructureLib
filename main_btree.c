@@ -11,23 +11,13 @@ typedef struct btree_dump_map_d {
 	long test2[BSTREE_TEST_SIZE];
 } btree_dump_map_d;
 
-static BOOLEAN
-btree_dump_map_f(aLong* data, lMapFuncAux* more){
-	//printf("%*s%-4lu: %ld\n", (int)more->depth, "", more->depth, data->data);
-	btree_dump_map_d *aux = more->aux;
-	aux->test1[aux->pos] = data->data;
-	aux->test2[aux->pos] = (long)more->depth;
-	aux->pos++;
-	if(aux->pos >= aux->max)
-		return FALSE;
-	return TRUE;
-}
-
+/*
 static BOOLEAN
 btree_print_map_f(aLong *data, lMapFuncAux*more, btree *node){
 	printf("%*s%lu: %ld (%p,%p)\n", (int)more->depth, "", more->depth, data->data, node->left?node->left->data:NULL, node->right?node->right->data:NULL);
 	return TRUE;
 }
+*/
 
 static void
 test_find(){

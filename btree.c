@@ -1,7 +1,7 @@
 #include "btree.h"
 #include <math.h>
 
-#include "aLong.h"
+//#include "aLong.h"
 #include <limits.h>
 #define NODE_PRINT(P) do {\
 	printf("(%s=%p)", #P, P);\
@@ -508,7 +508,8 @@ void
 btree_clear(btree* root, BOOLEAN destroy_data){//iterate in postfix order
 	dlist *freer = NULL;
 	btree_iterator_pre* it = btree_iterator_pre_new(root, &(btree_iterator_pre){});
-	for(btree *next = btree_iterator_pre_next(it); next; next = btree_iterator_pre_next(it)){
+	btree *next;
+	for(next = btree_iterator_pre_next(it); next; next = btree_iterator_pre_next(it)){
 		freer = dlist_pushback(freer, (Object*)next, FALSE);
 	}
 	dlist *run;
@@ -595,14 +596,15 @@ btree_balance(btree *root){
 	btree *prev = NULL;
 	btree *head = NULL;
 	btree_iterator_in *it = btree_iterator_in_new(root, &(btree_iterator_in){});
-	for(btree* node = btree_iterator_in_next(it); node; node = btree_iterator_in_next(it)){
+	btree *node;
+	for(node = btree_iterator_in_next(it); node; node = btree_iterator_in_next(it)){
 		node->left = prev;
 		if(prev) prev->right = node;
 		else head = node;
 		prev = node;
 	}
 	prev->right = NULL;
-	btree* node = head;
+	node = head;
 	size_t len = 1;
 	//left=prev
 	//right=next

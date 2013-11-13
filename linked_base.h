@@ -48,13 +48,6 @@ struct Comparator_vtable {
 #define CALL_VOID(OBJ, METHOD, ...) do{ if(CALL_POSSIBLE(OBJ, METHOD)) OBJ->method->METHOD ((void*)OBJ, ## __VA_ARGS__); } while(0)
 
 
-typedef struct lMapFuncAux {
-	BOOLEAN isAux;
-	size_t depth;
-	size_t position;
-	size_t size;
-	void* aux;//user data
-} lMapFuncAux;//TODO finish implementing all fields for graphs and htable
 typedef BOOLEAN (*lMapFunc)(Object *data, const void *aux/*auxilarly data (constant between calls)*/, void* node); //a mapping function
 typedef BOOLEAN (*lTransFunc)(Object **data, const void* aux, const void* node);/*in-place data transformation, should always return TRUE as FALSE means stop*/
 

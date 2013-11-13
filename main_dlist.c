@@ -28,18 +28,6 @@ typedef struct dlist_dump_map_d {
 	long test2[DLIST_TEST_SIZE];
 } dlist_dump_map_d;
 
-static BOOLEAN
-dlist_dump_map_f(aLong *data, lMapFuncAux *more){
-	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
-	dlist_dump_map_d *aux = more->aux;
-	aux->test1[aux->pos] = data->data;
-	aux->test2[aux->pos] = (long)more->position;
-	aux->pos++;
-	if(aux->pos >= aux->max)
-		return FALSE;
-	return TRUE;
-}
-
 static void
 test_order(){
 	const long expect1[] = { 1, 3, 5, 6, 9, 10, 13 };

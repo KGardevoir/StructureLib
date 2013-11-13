@@ -13,14 +13,6 @@ typedef struct btree_dump_map_d {
 	long test2[BSTREE_TEST_SIZE];
 } btree_dump_map_d;
 
-
-static BOOLEAN
-btree_print_map_f(aLong *data, lMapFuncAux*more, btree *node){
-	printf("%*s%lu: %ld (%p,%p)\n", (int)more->depth, "", more->depth, data->data, node->left?node->left->data:NULL, node->right?node->right->data:NULL);
-	return TRUE;
-}
-
-
 static void
 test_insert(){
 	scapegoat *t = scapegoat_new(alpha_weight, &aLong_type.compare);//an average scapegoat (0.5 would be a very rigorously balanced tree)

@@ -297,7 +297,7 @@ graph_iterator_breadth_destroy(graph_iterator_breadth* self){
 	self->p_add_children = TRUE;
 }
 
-#include "aLong.h"
+//#include "aLong.h"
 void
 graph_clear(graph *root, BOOLEAN destroy_data){
 	slist *head = NULL;

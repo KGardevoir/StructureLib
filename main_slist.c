@@ -18,18 +18,6 @@ typedef struct slist_dump_map_d {
 	long test2[SLIST_TEST_SIZE];
 } slist_dump_map_d;
 
-static BOOLEAN
-slist_dump_map_f(aLong *data, lMapFuncAux *more){
-	//printf("%*s%-4lu: %ld\n", (int)aux->depth, "", aux->depth, node);
-	slist_dump_map_d *aux = more->aux;
-	aux->test1[aux->pos] = data->data;
-	aux->test2[aux->pos] = (long)more->position;
-	aux->pos++;
-	if(aux->pos >= aux->max)
-		return FALSE;
-	return TRUE;
-}
-
 static slist*
 make_list(const long arr[], size_t len){
 	slist *list = NULL;
