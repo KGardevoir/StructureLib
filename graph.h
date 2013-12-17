@@ -34,43 +34,39 @@ dlist* graph_path(graph* root, TRAVERSAL_STRATEGY, void* key, const Comparable_v
 graph* graph_path_key_match(graph *root, dlist *key_path);
 
 typedef struct {
+	const struct Iterator_vtable *method;
+	graph *r_current;
+	size_t r_depth;
+	BOOLEAN p_add_children;
+} graph_iterator;
+
+typedef struct {
+	graph_iterator iterator;
 	graph *i_root;
 	dlist *i_stk;
 	splaytree *i_processed;
 	splaytree *i_visited;
-	graph *r_current;
-	size_t r_depth;
 } graph_iterator_post;
 
 graph_iterator_post* graph_iterator_post_new(graph *, graph_iterator_post* mem);
-graph* graph_iterator_post_next(graph_iterator_post*);
-void graph_iterator_post_destroy(graph_iterator_post*);
 
 typedef struct {
+	graph_iterator iterator;
 	graph *i_root;
 	dlist *i_stk, *i_children;
 	splaytree *i_visited;
-	graph *r_current;
-	size_t r_depth;
-	BOOLEAN p_add_children;
 } graph_iterator_pre;
 
 graph_iterator_pre* graph_iterator_pre_new(graph *, graph_iterator_pre* mem);
-graph* graph_iterator_pre_next(graph_iterator_pre*);
-void graph_iterator_pre_destroy(graph_iterator_pre*);
 
 typedef struct {
+	graph_iterator iterator;
 	graph *i_root;
 	dlist *i_stk, *i_children;
 	splaytree *i_visited;
-	graph *r_current;
-	size_t r_depth;
-	BOOLEAN p_add_children;
 } graph_iterator_breadth;
 
 graph_iterator_breadth* graph_iterator_breadth_new(graph *, graph_iterator_breadth* mem);
-graph* graph_iterator_breadth_next(graph_iterator_breadth*);
-void graph_iterator_breadth_destroy(graph_iterator_breadth*);
 
 //returns a list of nodes topographically sorted (using graph_map DEPTH_FIRST_POST). Your graph should ideally be a DAG,
 //otherwise the sort will be invalid as it is impossible to topologically sort these types of graphs, but this will

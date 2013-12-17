@@ -43,6 +43,11 @@ struct Comparator_vtable {
 	long  (*compare)(const void* self, const void* oth1, const void* oth2);
 };
 
+struct Iterator_vtable {
+	Object_vtable parent;
+	void* (*next)(const Object *self);
+};
+
 #define CALL_POSSIBLE(OBJ, METHOD) (OBJ && OBJ->method && OBJ->method->METHOD)
 #define CALL(OBJ, METHOD, ELSE, ...) (CALL_POSSIBLE(OBJ, METHOD)?(OBJ->method->METHOD((void*)OBJ, ## __VA_ARGS__)):(ELSE))
 #define CALL_VOID(OBJ, METHOD, ...) do{ if(CALL_POSSIBLE(OBJ, METHOD)) OBJ->method->METHOD ((void*)OBJ, ## __VA_ARGS__); } while(0)

@@ -23,7 +23,8 @@ graph_tree_link(graph* root, graph* child){
 	size_t root_visited = 0;
 	graph_tree_iterator_pre *iter =
 		graph_tree_iterator_pre_new(root, &(graph_tree_iterator_pre){});
-	for(graph *g = graph_tree_iterator_pre_next(iter); g; g = graph_tree_iterator_pre_next(iter)){
+	graph *g;
+	for(g = graph_tree_iterator_pre_next(iter); g; g = graph_tree_iterator_pre_next(iter)){
 		if(g == root){
 			root_visited++;
 		}
@@ -277,7 +278,8 @@ graph_tree_find(graph *root, TRAVERSAL_STRATEGY strat, void* key, const Comparab
 			break;
 	}
 	graph *rtn = NULL;
-	for(graph *g = next(iter); g; g = next(iter)){
+	graph *g;
+	for(g = next(iter); g; g = next(iter)){
 		if(key_method->compare(key, g->data) == 0){
 			rtn = g;
 			break;
@@ -293,7 +295,8 @@ graph_tree_size(graph* root, size_t *nodes, size_t *edges){
 	size_t i_edges = 0;
 	graph_tree_iterator_pre *iter =
 		graph_tree_iterator_pre_new(root, &(graph_tree_iterator_pre){});
-	for(graph *g = graph_tree_iterator_pre_next(iter); g; g = graph_tree_iterator_pre_next(iter)){
+	graph *g;
+	for(g = graph_tree_iterator_pre_next(iter); g; g = graph_tree_iterator_pre_next(iter)){
 		i_nodes++;
 		i_edges += dlist_length(g->edges);
 	}

@@ -118,22 +118,11 @@ graph_print_children(dlist *head){
 #define DUMPLIST(BSTR, ESTR, LST, FMT, ACC)
 #endif
 
-graph_iterator_post*
-graph_iterator_post_new(graph* root, graph_iterator_post *mem){
-	mem->i_visited = splaytree_new(&root->method->comparable);
-	mem->i_processed = splaytree_new(&root->method->comparable);
-	mem->i_root = root;
-	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
-	mem->r_depth = 0;
-	mem->r_current = NULL;
-	return mem;
-}
-
-graph*
+static graph*
 graph_iterator_post_next(graph_iterator_post *self){
 	if(!self->i_stk){
-		self->r_current = NULL;
-		self->r_depth = 0;
+		self->iterator.r_current = NULL;
+		self->iterator.r_depth = 0;
 		return NULL;
 	}
 	while(TRUE){//expand nodes to maximum (left-most)
@@ -157,13 +146,13 @@ graph_iterator_post_next(graph_iterator_post *self){
 	splay_insert(self->i_processed, (Object*)g->node, FALSE);
 	self->i_stk = dlist_filter_i(self->i_stk, self->i_processed, (lMapFunc)graph_map_filter_f, TRUE);//clear entries we have now processed
 
-	self->r_current = (graph*)g->node;
-	self->r_depth = g->depth;
+	self->iterator.r_current = (graph*)g->node;
+	self->iterator.r_depth = g->depth;
 	LINKED_FREE(g);
-	return self->r_current;
+	return self->iterator.r_current;
 }
 
-void
+static void
 graph_iterator_post_destroy(graph_iterator_post* self){
 	splay_clear(self->i_visited, FALSE);
 	splay_clear(self->i_processed, FALSE);
@@ -173,26 +162,34 @@ graph_iterator_post_destroy(graph_iterator_post* self){
 	self->i_processed = NULL;
 	dlist_clear(self->i_stk, TRUE);
 	self->i_root = NULL;
-	self->r_depth = 0;
-	self->r_current = NULL;
+	self->iterator.r_depth = 0;
+	self->iterator.r_current = NULL;
 }
 
-graph_iterator_pre*
-graph_iterator_pre_new(graph *root, graph_iterator_pre* mem){
+const static struct Iterator_vtable graph_iterator_post_vtable = {
+	.parent = {
+		.destroy = (void(*)(const Object*))graph_iterator_post_destroy
+	},
+	.next = (void*(*)(const Object*))graph_iterator_post_next
+};
+
+graph_iterator_post*
+graph_iterator_post_new(graph* root, graph_iterator_post *mem){
+	mem->i_visited = splaytree_new(&root->method->comparable);
+	mem->i_processed = splaytree_new(&root->method->comparable);
 	mem->i_root = root;
 	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
-	mem->i_visited = splaytree_new(&root->method->comparable);
-	mem->i_children = NULL;
-	mem->r_depth = 0;
-	mem->r_current = NULL;
-	mem->p_add_children = TRUE;
+	mem->iterator.r_depth = 0;
+	mem->iterator.r_current = NULL;
+	mem->iterator.p_add_children = TRUE;
+	mem->iterator.method = &graph_iterator_post_vtable;
 	return mem;
 }
 
-graph*
+static graph*
 graph_iterator_pre_next(graph_iterator_pre* self){
 	if(self->i_children){
-		if(self->p_add_children){
+		if(self->iterator.p_add_children){
 			self->i_stk = dlist_concat(self->i_children, self->i_stk);
 		} else {
 			dlist_clear(self->i_children, TRUE);
@@ -201,8 +198,8 @@ graph_iterator_pre_next(graph_iterator_pre* self){
 	}
 	self->i_stk = dlist_filter_i(self->i_stk, self->i_visited, (lMapFunc)graph_map_filter_f, TRUE);
 	if(!self->i_stk){
-		self->r_current = NULL;
-		self->r_depth = 0;
+		self->iterator.r_current = NULL;
+		self->iterator.r_depth = 0;
 		return NULL;
 	}
 	node_info *g;
@@ -216,14 +213,14 @@ graph_iterator_pre_next(graph_iterator_pre* self){
 	}
 	self->i_children = new_list;
 
-	self->r_current = (graph*)g->node;
-	self->r_depth = g->depth;
-	self->p_add_children = TRUE;
+	self->iterator.r_current = (graph*)g->node;
+	self->iterator.r_depth = g->depth;
+	self->iterator.p_add_children = TRUE;
 	LINKED_FREE(g);
-	return self->r_current;
+	return self->iterator.r_current;
 }
 
-void
+static void
 graph_iterator_pre_destroy(graph_iterator_pre* self){
 	splay_clear(self->i_visited, FALSE);
 	splaytree_destroy(self->i_visited);
@@ -232,27 +229,36 @@ graph_iterator_pre_destroy(graph_iterator_pre* self){
 	dlist_clear(self->i_children, TRUE);
 	self->i_root = NULL;
 	self->i_stk = NULL;
-	self->r_depth = 0;
-	self->r_current = NULL;
-	self->p_add_children = TRUE;
+	self->iterator.r_depth = 0;
+	self->iterator.r_current = NULL;
+	self->iterator.p_add_children = TRUE;
 }
 
-graph_iterator_breadth*
-graph_iterator_breadth_new(graph *root, graph_iterator_breadth* mem){
+const static struct Iterator_vtable graph_iterator_pre_vtable = {
+	.parent = {
+		.destroy = (void(*)(const Object*))graph_iterator_pre_destroy
+	},
+	.next = (void*(*)(const Object*))graph_iterator_pre_next
+};
+
+graph_iterator_pre*
+graph_iterator_pre_new(graph *root, graph_iterator_pre* mem){
 	mem->i_root = root;
 	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
 	mem->i_visited = splaytree_new(&root->method->comparable);
 	mem->i_children = NULL;
-	mem->r_depth = 0;
-	mem->r_current = NULL;
-	mem->p_add_children = TRUE;
+	mem->iterator.r_depth = 0;
+	mem->iterator.r_current = NULL;
+	mem->iterator.p_add_children = TRUE;
+	mem->iterator.method = &graph_iterator_pre_vtable;
 	return mem;
 }
 
-graph*
+
+static graph*
 graph_iterator_breadth_next(graph_iterator_breadth* self){
 	if(self->i_children){
-		if(self->p_add_children){
+		if(self->iterator.p_add_children){
 			self->i_stk = dlist_concat(self->i_stk, self->i_children);
 		} else {
 			dlist_clear(self->i_children, TRUE);
@@ -261,8 +267,8 @@ graph_iterator_breadth_next(graph_iterator_breadth* self){
 	}
 	self->i_stk = dlist_filter_i(self->i_stk, self->i_visited, (lMapFunc)graph_map_filter_f, TRUE);
 	if(!self->i_stk){
-		self->r_current = NULL;
-		self->r_depth = 0;
+		self->iterator.r_current = NULL;
+		self->iterator.r_depth = 0;
 		return NULL;
 	}
 	node_info *g;
@@ -276,14 +282,14 @@ graph_iterator_breadth_next(graph_iterator_breadth* self){
 	}
 	self->i_children = new_list;
 
-	self->r_current = (graph*)g->node;
-	self->r_depth = g->depth;
-	self->p_add_children = TRUE;
+	self->iterator.r_current = (graph*)g->node;
+	self->iterator.r_depth = g->depth;
+	self->iterator.p_add_children = TRUE;
 	LINKED_FREE(g);
-	return self->r_current;
+	return self->iterator.r_current;
 }
 
-void
+static void
 graph_iterator_breadth_destroy(graph_iterator_breadth* self){
 	splay_clear(self->i_visited, FALSE);
 	splaytree_destroy(self->i_visited);
@@ -292,9 +298,28 @@ graph_iterator_breadth_destroy(graph_iterator_breadth* self){
 	dlist_clear(self->i_children, TRUE);
 	self->i_root = NULL;
 	self->i_stk = NULL;
-	self->r_depth = 0;
-	self->r_current = NULL;
-	self->p_add_children = TRUE;
+	self->iterator.r_depth = 0;
+	self->iterator.r_current = NULL;
+	self->iterator.p_add_children = TRUE;
+}
+
+const static struct Iterator_vtable graph_iterator_breadth_vtable = {
+	.parent = {
+		.destroy = (void(*)(const Object*))graph_iterator_breadth_destroy
+	},
+	.next = (void*(*)(const Object*))graph_iterator_breadth_next
+};
+graph_iterator_breadth*
+graph_iterator_breadth_new(graph *root, graph_iterator_breadth* mem){
+	mem->i_root = root;
+	mem->i_stk = dlist_pushback(NULL, (Object*)node_info_new(root, 0), FALSE);
+	mem->i_visited = splaytree_new(&root->method->comparable);
+	mem->i_children = NULL;
+	mem->iterator.r_depth = 0;
+	mem->iterator.r_current = NULL;
+	mem->iterator.p_add_children = TRUE;
+	mem->iterator.method = &graph_iterator_breadth_vtable;
+	return mem;
 }
 
 //#include "aLong.h"
@@ -303,11 +328,12 @@ graph_clear(graph *root, BOOLEAN destroy_data){
 	slist *head = NULL;
 	graph_iterator_breadth *it = graph_iterator_breadth_new(root, &(graph_iterator_breadth){});
 	size_t i = 0;
-	for(graph *g = graph_iterator_breadth_next(it); g; g = graph_iterator_breadth_next(it)){
+	graph *g;
+	for(g = it->iterator.method->next((Object*)it); g; g = it->iterator.method->next((Object*)it)){
 		if(destroy_data) CALL_VOID(g->data, destroy);
 		head = slist_pushfront(head, (Object*)g, FALSE);
 	}
-	graph_iterator_breadth_destroy(it);
+	it->iterator.method->parent.destroy((Object*)it);
 	slist *iter;
 	SLIST_ITERATE(iter, head){
 		CALL_VOID(iter->data, destroy);
@@ -324,36 +350,29 @@ graph_clear(graph *root, BOOLEAN destroy_data){
 
 graph*
 graph_find(graph *root, TRAVERSAL_STRATEGY strat, void* key, const Comparable_vtable* key_method){
-	void *iter = (void*)&(char[MAX(sizeof(graph_iterator_breadth), MAX(sizeof(graph_iterator_pre), sizeof(graph_iterator_post)))]){0};
-	void (*destroy)(void*);
-	graph* (*next)(void*);
+	graph_iterator *iter = (void*)&(char[MAX(sizeof(graph_iterator_breadth), MAX(sizeof(graph_iterator_pre), sizeof(graph_iterator_post)))]){0};
 	switch(strat){
 		//select iterator and next function
 		case DEPTH_FIRST_POST:
-			iter    = graph_iterator_post_new(root, iter);
-			destroy = graph_iterator_post_destroy;
-			next    = graph_iterator_post_next;
+			iter    = (graph_iterator*)graph_iterator_post_new(root, (graph_iterator_post*)iter);
 			break;
 		case DEPTH_FIRST_PRE:
-			iter    = graph_iterator_pre_new(root, iter);
-			destroy = graph_iterator_pre_destroy;
-			next    = graph_iterator_pre_next;
+			iter    = (graph_iterator*)graph_iterator_pre_new(root, (graph_iterator_pre*)iter);
 			break;
 		default:
 		case BREADTH_FIRST:
-			iter    = graph_iterator_breadth_new(root, iter);
-			destroy = graph_iterator_breadth_destroy;
-			next    = graph_iterator_breadth_next;
+			iter    = (graph_iterator*)graph_iterator_breadth_new(root, (graph_iterator_breadth*)iter);
 			break;
 	}
 	graph *rtn = NULL;
-	for(graph *g = next(iter); g; g = next(iter)){
+	graph *g;
+	for(g = iter->method->next((Object*)iter); g; g = iter->method->next((Object*)iter)){
 		if(key_method->compare(key, g->data) == 0){
 			rtn = g;
 			break;
 		}
 	}
-	destroy(iter);
+	iter->method->parent.destroy((Object*)iter);
 	return rtn;
 }
 
@@ -363,7 +382,8 @@ graph_size(graph* root, size_t *nodes, size_t *edges){
 	size_t i_edges = 0;
 	graph_iterator_pre *iter =
 		graph_iterator_pre_new(root, &(graph_iterator_pre){});
-	for(graph *g = graph_iterator_pre_next(iter); g; g = graph_iterator_pre_next(iter)){
+	graph *g;
+	for(g = graph_iterator_pre_next(iter); g; g = graph_iterator_pre_next(iter)){
 		i_nodes++;
 		i_edges += dlist_length(g->edges);
 	}
@@ -392,7 +412,8 @@ graph_topological_sort(graph* tree){
 	dlist *list = NULL;
 	graph_iterator_post *iter =
 		graph_iterator_post_new(tree, &(graph_iterator_post){});
-	for(graph *g = graph_iterator_post_next(iter); g; g = graph_iterator_post_next(iter)){
+	graph *g;
+	for(g = graph_iterator_post_next(iter); g; g = graph_iterator_post_next(iter)){
 		list = dlist_pushback(list, (Object*)tree, FALSE);
 	}
 	graph_iterator_post_destroy(iter);
